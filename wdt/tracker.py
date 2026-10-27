@@ -216,16 +216,19 @@ class Tracker:
         self.store.add_template(sig, match_id)
         log.info("learned end-screen look (%d total)", len(self.matcher.templates))
 
-    def record_end(self, source, now, image=None, lines=None):
+    def record_end(self, source, now, image=None, lines=None, screen=True):
+        """Log the match that just ended. screen=False: the round is already over and
+        the next one is on screen, so log it from the in-match reads alone."""
         if self.session is None:
             return
-        sig = self._thumb() if self.rect else None
-        if source != "auto" and self.matcher.recently_ended(now):
+        sig = self._thumb() if self.rect and screen else None
+        if screen and source != "auto" and self.matcher.recently_ended(now):
             # this end screen is already logged; just remember how it looks
             self._learn(sig, None)
             return
-        self.matcher.mark_end(now)
-        if image is None and self.rect:
+        if screen:
+            self.matcher.mark_end(now)
+        if image is None and self.rect and screen:
             image = self._capture(now)
         if lines is None and image:
             try:
@@ -269,7 +272,7 @@ class Tracker:
         started = self.match_start or self.store.last_match_end(self.session)
         mid = self.store.add_match(self.session, started, now, source, image, lines,
                                    parsed, level_ups, info)
-        if source != "auto":
+        if source != "auto" and screen:
             self._learn(sig, mid)
         self.match_start = now
         self.used = {}
@@ -364,7 +367,7 @@ class Tracker:
                 "starts": {}, "events": [], "timeline": [], "guns": {}, "gun": None,
                 "feed_prev": [], "kill_prev": [], "rewards": {}, "feed": [], "kills": [], "deaths": [],
                 "downs": 0, "downs_log": [], "down": None, "promos": [], "vendor": {},
-                "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None,
+                "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None,
                 "playing": None, "board": None}
 
     def _note_cash(self, now, lines):
@@ -381,7 +384,14 @@ class Tracker:
             s = bal - net  # balance when the round began; the most-seen value wins
             known = h["start_balance"]
             if known is not None and h["starts"][known] >= 2 and abs(s - known) > 100:
-                return  # the pair disagrees with how the round started: one of them misread
+                # disagrees with how the round started: a misread, or a new round whose
+                # results screen went by unseen (believe that once the same start repeats)
+                if h["odd_start"] is None or abs(s - h["odd_start"]) > 100:
+                    h["odd_start"] = s
+                    return
+                self.record_end("hud", now, screen=False)
+                return self._note_cash(now, lines)
+            h["odd_start"] = None
 
             h["starts"][s] = h["starts"].get(s, 0) + 1
             h["start_balance"] = max(h["starts"], key=h["starts"].get)
@@ -465,6 +475,7 @@ class Tracker:
                 seen_promos.add((role, lvl))
                 h["promos"].append({"t": round(now), "role": role, "level": lvl})
         self._note_cash(now, lines)
+        h = self.hud  # a new round may have started from that read
         seen = mentions(lines, self.item_names)
         h["timeline"] = (h["timeline"] + [{"t": round(now), "here": h["here"], "gun": h["gun"],
                                           "net": h["net"], "bal": h["balance"], "down": state,
