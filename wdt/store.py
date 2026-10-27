@@ -214,9 +214,6 @@ class Store:
     def templates(self):
         return [bytes(r[0]) for r in self.db.execute("SELECT sig FROM templates")]
 
-    def clear_templates(self):
-        self.db.execute("DELETE FROM templates")
-
     # dashboard
     def dump(self):
         rows = lambda q: [dict(r) for r in self.db.execute(q)]
