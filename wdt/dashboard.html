@@ -90,6 +90,15 @@ tr[data-open] { cursor: pointer; }
 .story .t { color: var(--muted); font-variant-numeric: tabular-nums; }
 .hbar { height: 8px; border-radius: 4px; background: #23272c; overflow: hidden; min-width: 60px; }
 .hbar span { display: block; height: 100%; background: var(--gold); }
+.msum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+.msum > div { background: #1d2024; border-radius: 6px; padding: 8px 10px; }
+.msum .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.msum .v { font-size: 18px; font-weight: 600; margin-top: 2px; }
+.msum .m { font-size: 12px; }
+table.rewards td:nth-child(2) { width: 30%; }
+details.more { margin-top: 8px; }
+details.more > summary { cursor: pointer; color: var(--gold); font-size: 13px; padding: 6px 0; }
+details.more table { margin-top: 8px; }
 .tips { display: grid; gap: 8px; }
 .tipx { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 8px; background: #1b1e22; border-left: 3px solid var(--line); }
 .tipx b.h { display: block; font-size: 14px; }
@@ -1297,6 +1306,34 @@ async function renderMatchPage(id) {
 
   const card = (title, body, sub = "") => `<div class="card"><h2>${title}${sub ? ` <small>${sub}</small>` : ""}</h2>${body}</div>`;
   const pctBar = (v) => `<div class="hbar"><span style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%"></span></div>`;
+  // the reward feed and the results screen's source list name the same rewards; show them as one list
+  const rewardList = (() => {
+    const rows = new Map();
+    for (const [k, r] of Object.entries(d.rewards || {})) rows.set(k.toLowerCase(), { label: k, n: r.n, cash: r.cash || 0, xp: r.xp || 0 });
+    for (const s of d.sources || []) {
+      const r = rows.get(s.label.toLowerCase());
+      if (!r) rows.set(s.label.toLowerCase(), { label: s.label, n: null, cash: s.cash || 0, xp: s.xp || 0 });
+      else { r.cash = r.cash || s.cash || 0; r.xp = r.xp || s.xp || 0; }
+    }
+    return [...rows.values()].sort((a, b) => b.cash - a.cash || b.xp - a.xp);
+  })();
+  const rewardRow = (r, top) => `<tr><td>${esc(r.label)}${r.n > 1 ? ` <span class="m">×${r.n}</span>` : ""}</td>
+    <td>${r.cash > 0 ? pctBar(r.cash / top) : ""}</td>
+    <td class="num ${r.cash < 0 ? "neg" : r.cash > 0 ? "pos" : ""}">${r.cash ? signed(r.cash, money) : "–"}</td><td class="num">${r.xp ? signed(r.xp) : "–"}</td></tr>`;
+  const rewardTable = (rows) => { const top = Math.max(1, ...rewardList.map((r) => r.cash));
+    return `<table class="rewards"><thead><tr><th>Reward</th><th></th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${rows.map((r) => rewardRow(r, top)).join("")}</tbody></table>`; };
+  const extraTables = [
+    Object.keys(d.vendor || {}).length ? `<table><thead><tr><th>Bought at the vendor</th><th class="num">Spent</th></tr></thead><tbody>${Object.entries(d.vendor).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
+      `<tr><td>${esc(k)}</td><td class="num neg">${money(v)}</td></tr>`).join("")}</tbody></table>` : "",
+    Object.keys(byGun).length ? `<table><thead><tr><th>Holding</th><th class="num">Made</th><th class="num">Spent / lost</th></tr></thead><tbody>${Object.entries(byGun).sort((a, b) => b[1].gain - a[1].gain).map(([g, r]) => `<tr><td>${esc(g)}</td><td class="num pos">${money(r.gain)}</td><td class="num neg">${money(r.loss)}</td></tr>`).join("")}</tbody></table>` : ""].filter(Boolean);
+  const SHOW = 5, hidden = rewardList.length - SHOW;
+  const moneyBody = `${Object.keys(sm).length ? `<div class="msum">${[["Earned", sm.gained, "pos", sm.bonus ? `incl. ${money(sm.bonus)} bonus` : ""], ["Spent", sm.spent == null ? null : -sm.spent, "neg", ""],
+      ["Net", sm.gained != null && sm.spent != null ? sm.gained - sm.spent : null, null, ""]].filter((r) => r[1] != null).map(([k, v, c, s]) =>
+      `<div><div class="k">${k}</div><div class="v ${c || (v < 0 ? "neg" : "pos")}">${signed(v, money)}</div>${s ? `<div class="m">${s}</div>` : ""}</div>`).join("")}</div>` : ""}
+    ${rewardList.length ? rewardTable(rewardList.slice(0, SHOW)) : ""}
+    ${hidden > 0 || extraTables.length ? `<details class="more"><summary>${hidden > 0 ? `Show all ${rewardList.length} rewards` : "Show more"}${extraTables.length ? ", vendor and gun breakdown" : ""}</summary>
+      ${hidden > 0 ? rewardTable(rewardList.slice(SHOW)).replace("<thead><tr><th>Reward</th><th></th><th class=\"num\">Cash</th><th class=\"num\">XP</th></tr></thead>", "") : ""}${extraTables.join("")}</details>` : ""}
+    ${!Object.keys(sm).length && !rewardList.length && !extraTables.length ? `<div class="empty">The money screen after the match (spent / gained / bonus) and in-match money changes show here.</div>` : ""}`;
   const noTimeline = `<div class="empty">No in-match reads were saved for this match. Matches from now on record where you were, your gun and every money change.</div>`;
   const field = (k) => `<input class="edit${!m.reviewed && m[k] != null ? " guess" : ""}" data-id="${m.id}" data-k="${k}" value="${m[k] ?? ""}" inputmode="numeric" style="width:110px">`;
   const ups = m.role_levels ? Object.entries(m.role_levels).map(([r, l]) => `${r === "Infantry" ? "Assault" : r} ${l}`).join(", ") : "";
@@ -1332,14 +1369,7 @@ async function renderMatchPage(id) {
   <div class="grid two">
     ${card("Where you made money", Object.keys(share).length ? `<table><thead><tr><th>Where</th><th>Time</th><th class="num">Made</th><th class="num">Spent / lost</th><th class="num">Net</th></tr></thead><tbody>${["hotzone", "fob", "none"].filter((p) => share[p] || byPlace[p]).map((p) => { const r = byPlace[p] || { gain: 0, loss: 0 };
       return `<tr><td>${placeName[p]}</td><td>${pctBar(share[p] || 0)} <span class="m">${pct(share[p] || 0)}</span></td><td class="num pos">${money(r.gain)}</td><td class="num neg">${money(r.loss)}</td><td class="num">${money(r.gain - r.loss)}</td></tr>`; }).join("")}</tbody></table>` : noTimeline)}
-    ${card("How you made money", `${Object.keys(sm).length ? `<table><tbody>${[["Gained", sm.gained, "pos"], ["Bonus", sm.bonus, "pos"], ["Spent", sm.spent == null ? null : -sm.spent, "neg"]].filter((r) => r[1] != null).map(([k, v, c]) => `<tr><td>${k}</td><td class="num ${c}">${money(v)}</td></tr>`).join("")}</tbody></table>` : ""}
-      ${(d.sources || []).length ? `<table style="margin-top:8px"><thead><tr><th>Source</th><th class="num">XP</th><th class="num">Cash</th></tr></thead><tbody>${d.sources.map((s) => `<tr><td>${esc(s.label)}</td><td class="num">${signed(s.xp)}</td><td class="num">${s.cash == null ? "–" : signed(s.cash, money)}</td></tr>`).join("")}</tbody></table>` : ""}
-      ${Object.keys(d.rewards || {}).length ? `<table style="margin-top:8px"><thead><tr><th>Reward feed</th><th class="num">Times</th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${Object.entries(d.rewards).sort((a, b) => Math.abs(b[1].cash) - Math.abs(a[1].cash) || b[1].xp - a[1].xp).map(([k, r]) =>
-        `<tr><td>${esc(k)}</td><td class="num">${r.n}</td><td class="num ${r.cash < 0 ? "neg" : r.cash > 0 ? "pos" : ""}">${r.cash ? signed(r.cash, money) : "–"}</td><td class="num">${r.xp ? signed(r.xp) : "–"}</td></tr>`).join("")}</tbody></table>` : ""}
-      ${Object.keys(d.vendor || {}).length ? `<table style="margin-top:8px"><thead><tr><th>Bought at the vendor</th><th class="num">Spent</th></tr></thead><tbody>${Object.entries(d.vendor).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
-        `<tr><td>${esc(k)}</td><td class="num neg">${money(v)}</td></tr>`).join("")}</tbody></table>` : ""}
-      ${Object.keys(byGun).length ? `<table style="margin-top:8px"><thead><tr><th>Holding</th><th class="num">Made</th><th class="num">Spent / lost</th></tr></thead><tbody>${Object.entries(byGun).sort((a, b) => b[1].gain - a[1].gain).map(([g, r]) => `<tr><td>${esc(g)}</td><td class="num pos">${money(r.gain)}</td><td class="num neg">${money(r.loss)}</td></tr>`).join("")}</tbody></table>` : ""}
-      ${!Object.keys(sm).length && !(d.sources || []).length && !Object.keys(byGun).length && !Object.keys(d.rewards || {}).length ? `<div class="empty">The money screen after the match (spent / gained / bonus) and in-match money changes show here.</div>` : ""}`)}
+    ${card("How you made money", moneyBody, rewardList.length ? "biggest earners first" : "")}
   </div>
 
   <div class="grid two">
