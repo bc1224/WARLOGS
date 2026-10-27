@@ -18,7 +18,7 @@ All screenshots use made-up data. See it yourself without the game: `py -3 demo.
 
 ## Set it up
 
-**Easiest:** [download the ZIP](../../archive/refs/heads/main.zip), unzip it anywhere
+**Easiest:** [download the ZIP](https://github.com/bc1224/wardogs-match-tracker/archive/refs/heads/main.zip), unzip it anywhere
 (for example `Documents\wardogs-tracker`), and double-click **`Setup.bat`**. The wizard:
 
 1. finds Python 3.10+ (or offers to install Python 3.12 with winget),
