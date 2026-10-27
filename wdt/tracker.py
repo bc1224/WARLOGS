@@ -409,7 +409,7 @@ class Tracker:
                 "starts": {}, "events": [], "timeline": [], "guns": {}, "gun": None,
                 "feed_prev": [], "kill_prev": [], "rewards": {}, "feed": [], "kills": [], "deaths": [],
                 "downs": 0, "downs_log": [], "down": None, "promos": [], "vendor": {},
-                "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None,
+                "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None, "life_start": None,
                 "playing": None, "board": None}
 
     def _note_cash(self, now, lines):
@@ -427,6 +427,12 @@ class Tracker:
             if s < 0:
                 return  # the two amounts got mixed up ($29,759 as profit beside a stray $360)
             known = h["start_balance"]
+            # redeploying after a death starts the bar's profit over from your balance at
+            # that moment; the round goes on, so its profit is balance minus the round's start
+            if (known is not None and abs(s - known) > 100 and h["balance"] is not None
+                    and (abs(s - h["balance"]) <= 100 or abs(s - (h["life_start"] or -1)) <= 100)):
+                h["life_start"] = s
+                net, s = bal - known, known
             if known is not None and h["starts"][known] >= 2 and abs(s - known) > 100:
                 # disagrees with how the round started: a misread, or a new round whose
                 # results screen went by unseen (believe that once the same start repeats)
@@ -439,6 +445,8 @@ class Tracker:
 
             h["starts"][s] = h["starts"].get(s, 0) + 1
             h["start_balance"] = max(h["starts"], key=h["starts"].get)
+        elif net is not None and h["life_start"] is not None and h["start_balance"] is not None:
+            net += h["life_start"] - h["start_balance"]  # profit alone, in a later life
         if net is None and bal is not None and h["start_balance"] is not None:
             net = bal - h["start_balance"]
         if net is not None and h["net"] is not None and abs(net - h["net"]) > 20000:

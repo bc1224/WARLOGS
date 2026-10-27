@@ -203,12 +203,12 @@ class TrackerHudTests(unittest.TestCase):
         t2 = Tracker(self.t.cfg, self.store, self.tmp.name)
         t2._start_session(200)
         with mock.patch.object(t2, "_save_sample"), mock.patch.object(t2, "_roles", return_value={}):
-            t2._note_hud(210, [L("-$3,000", 1709, 27), L("$16,445", 1821, 27)])  # next round, from $19,445
-            t2._note_hud(220, [L("-$2,800", 1709, 27), L("$16,645", 1821, 27)])
+            t2._note_hud(210, [L("-$3,000", 1709, 27), L("$19,500", 1821, 27)])  # next round, from $22,500 after the bonus
+            t2._note_hud(220, [L("-$2,800", 1709, 27), L("$19,700", 1821, 27)])
         ms = self.store.dump()["matches"]
         self.assertEqual([(m["source"], m["cash_earned"] - m["cash_spent"]) for m in ms], [("hud", 1362)])
         live = t2.live(221)
-        self.assertEqual((live["net"], live["start_balance"], [e["net"] for e in live["events"]]), (-2800, 19445, [-2800]))
+        self.assertEqual((live["net"], live["start_balance"], [e["net"] for e in live["events"]]), (-2800, 22500, [-2800]))
 
     def test_old_saved_rounds_are_not_picked_up(self):
         self.t._start_session(100)

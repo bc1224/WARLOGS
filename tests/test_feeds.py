@@ -118,21 +118,36 @@ class TrackerFeedTests(unittest.TestCase):
         live = self.t.live(121)
         self.assertEqual((live["net"], live["start_balance"], [e["net"] for e in live["events"]]), (-12938, 42697, [-12938]))
 
+    def test_redeploying_restarts_the_bar_but_not_the_round(self):
+        # 2026-10-27: downed at $10,536 / $53,233, then redeployed; the bar's profit starts over
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$8,096", 1695, 27), L("$50,793", 1814, 27)])
+            self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27)])
+            self.t._note_hud(140, [L("-$12,709", 1695, 27), L("$40,524", 1814, 27)])
+            self.t._note_hud(150, [L("-$12,549", 1695, 27)])  # profit alone, later in that life
+            self.t._note_hud(160, [L("$40,844", 1814, 27)])  # balance alone
+        self.assertIsNone(self.t.store.last_match(self.t.session))
+        live = self.t.live(161)
+        self.assertEqual(live["start_balance"], 42697)
+        self.assertEqual([e["net"] for e in live["events"]], [8096, 10536, -2756, -2173, -2013, -1853])
+
     def test_a_new_starting_balance_means_a_missed_round_end(self):
         # 2026-10-27: the results screen went by unseen and the next round began
         with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
             self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
             self.t._note_hud(120, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
             self.t._note_hud(130, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
-            self.t._note_hud(500, [L("-$2,400", 1695, 27), L("$46,377", 1814, 27)])  # one odd read: wait
+            # the end bonus landed after the last read, so the next round starts from $57,900
+            self.t._note_hud(500, [L("-$2,400", 1695, 27), L("$55,500", 1814, 27)])  # one odd read: wait
             self.assertIsNone(self.t.store.last_match(self.t.session))
-            self.t._note_hud(510, [L("-$2,000", 1695, 27), L("$46,777", 1814, 27)])
+            self.t._note_hud(510, [L("-$2,000", 1695, 27), L("$55,900", 1814, 27)])
         mid = self.t.store.last_match(self.t.session)
         self.assertIsNotNone(mid)
         m = next(x for x in self.t.store.dump()["matches"] if x["id"] == mid)
         self.assertEqual((m["source"], m["cash_earned"], m["cash_spent"]), ("hud", 21985, 12220))
         live = self.t.live(511)
-        self.assertEqual((live["net"], live["start_balance"]), (-2000, 48777))
+        self.assertEqual((live["net"], live["start_balance"]), (-2000, 57900))
         self.assertFalse(live["between"])
 
     def test_lobby_is_not_a_match_until_the_hud_shows_one(self):
