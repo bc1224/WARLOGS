@@ -99,6 +99,7 @@ class Tracker:
         self.roles_at_last_match = None
         self.next_api = 0.0
         self.next_status = 0.0
+        self.next_live_save = 0.0
         self.next_proc_check = 0.0
         self.next_shot_check = 0.0
         self.prev_sig = None
@@ -147,7 +148,48 @@ class Tracker:
         self.used = {}
         self.hud = self._new_hud()
         self.next_api = now
-        log.info("%s session %s", "resumed" if resumed else "game started,", self.session)
+        picked_up = resumed and self._load_live(now)
+        log.info("%s session %s%s", "resumed" if resumed else "game started,", self.session,
+                 " and its round in progress" if picked_up else "")
+
+    # the round in progress is saved now and then, so a tracker restart mid-round picks it
+    # back up; only a fresh save from this same session counts. If the round ended while the
+    # tracker was down, the next top-bar read shows a new starting balance and _note_cash
+    # logs the saved round then
+    LIVE_MAX_AGE = 300
+
+    def _save_live(self, now):
+        h = dict(self.hud, saved=sorted(self.hud["saved"]),
+                 starts=[[k, v] for k, v in self.hud["starts"].items()])
+        state = {"session": self.session, "saved_at": now, "match_start": self.match_start,
+                 "last_end": self.matcher.last_end if self.matcher.last_end > 0 else None,
+                 "used": {k: sorted(v) for k, v in self.used.items()}, "hud": h}
+        path = os.path.join(self.ddir, "live.json")
+        try:
+            with open(path + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(state, f)
+            os.replace(path + ".tmp", path)
+        except (OSError, TypeError, ValueError) as e:
+            log.warning("couldn't save the live round: %s", e)
+
+    def _load_live(self, now):
+        try:
+            with open(os.path.join(self.ddir, "live.json"), encoding="utf-8") as f:
+                state = json.load(f)
+        except (OSError, ValueError):
+            return False
+        if state.get("session") != self.session or not 0 <= now - state.get("saved_at", 0) <= self.LIVE_MAX_AGE:
+            return False
+        h = self._new_hud()
+        h.update(state["hud"])
+        h["saved"] = set(h["saved"])
+        h["starts"] = {int(k): v for k, v in h["starts"]}
+        self.hud = h
+        self.match_start = state.get("match_start") or self.match_start
+        if state.get("last_end"):
+            self.matcher.last_end = state["last_end"]
+        self.used = {k: set(v) for k, v in state.get("used", {}).items()}
+        return True
 
     def _end_session(self, now):
         log.info("game closed, session %s (%d screen reads)", self.session, self.reads)
@@ -382,6 +424,8 @@ class Tracker:
             bal = None  # a lone balance this far off is a misread ("$160" for "$46,160")
         if net is not None and bal is not None:
             s = bal - net  # balance when the round began; the most-seen value wins
+            if s < 0:
+                return  # the two amounts got mixed up ($29,759 as profit beside a stray $360)
             known = h["start_balance"]
             if known is not None and h["starts"][known] >= 2 and abs(s - known) > 100:
                 # disagrees with how the round started: a misread, or a new round whose
@@ -743,6 +787,9 @@ class Tracker:
             try:
                 wait = self.tick(now)
                 self._write_status(now)
+                if self.session is not None and now >= self.next_live_save:
+                    self.next_live_save = now + 10
+                    self._save_live(now)
             except Exception:
                 log.exception("tick failed")
                 wait = self.cfg["idle_seconds"]

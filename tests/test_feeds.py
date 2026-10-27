@@ -111,6 +111,13 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual([e["net"] for e in live["events"]], [-12220, -8840, -8520])
         self.assertEqual((live["net"], live["balance"], live["start_balance"]), (-8520, 30492, 39012))
 
+    def test_a_pair_that_implies_a_negative_start_is_ignored(self):
+        with mock.patch.object(self.t, "_save_sample"):  # 2026-10-27: HUD showed -$12,938 / $29,759
+            self.t._note_hud(110, [L("$29,759", 1700, 27), L("$360", 1830, 27)])
+            self.t._note_hud(120, [L("-$12,938", 1695, 27), L("$29,759", 1814, 27)])
+        live = self.t.live(121)
+        self.assertEqual((live["net"], live["start_balance"], [e["net"] for e in live["events"]]), (-12938, 42697, [-12938]))
+
     def test_a_new_starting_balance_means_a_missed_round_end(self):
         # 2026-10-27: the results screen went by unseen and the next round began
         with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):

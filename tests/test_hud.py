@@ -176,6 +176,49 @@ class TrackerHudTests(unittest.TestCase):
         self.t._start_session(100)
         self.assertEqual(self.t.session, sid)
 
+    def test_restart_mid_round_picks_the_round_back_up(self):
+        self.t._start_session(100)
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("-$6,555", 1709, 27), L("$11,528", 1821, 27), L("INSIDE HOT ZONE")])
+            self.t._note_hud(120, [L("$1,362", 1709, 27), L("$19,445", 1821, 27)])
+        self.t._note_used([L("MEDIC")])
+        self.t._save_live(125)
+        before = self.t.live(125)
+        t2 = Tracker(self.t.cfg, self.store, self.tmp.name)
+        t2._start_session(200)
+        after = t2.live(200)
+        for k in ("started", "net", "balance", "start_balance", "events", "hot"):
+            self.assertEqual(after[k], before[k], k)
+        self.assertEqual(t2.used["roles"], {"Medic"})
+        with mock.patch.object(t2, "_save_sample"):  # and it keeps going from there
+            t2._note_hud(210, [L("$2,000", 1709, 27), L("$20,083", 1821, 27)])
+        self.assertEqual([e["delta"] for e in t2.live(211)["events"]], [-6555, 7917, 638])
+
+    def test_a_round_that_ended_during_the_restart_is_not_continued(self):
+        self.t._start_session(100)
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("-$6,555", 1709, 27), L("$11,528", 1821, 27)])
+            self.t._note_hud(120, [L("$1,362", 1709, 27), L("$19,445", 1821, 27)])
+        self.t._save_live(125)
+        t2 = Tracker(self.t.cfg, self.store, self.tmp.name)
+        t2._start_session(200)
+        with mock.patch.object(t2, "_save_sample"), mock.patch.object(t2, "_roles", return_value={}):
+            t2._note_hud(210, [L("-$3,000", 1709, 27), L("$16,445", 1821, 27)])  # next round, from $19,445
+            t2._note_hud(220, [L("-$2,800", 1709, 27), L("$16,645", 1821, 27)])
+        ms = self.store.dump()["matches"]
+        self.assertEqual([(m["source"], m["cash_earned"] - m["cash_spent"]) for m in ms], [("hud", 1362)])
+        live = t2.live(221)
+        self.assertEqual((live["net"], live["start_balance"], [e["net"] for e in live["events"]]), (-2800, 19445, [-2800]))
+
+    def test_old_saved_rounds_are_not_picked_up(self):
+        self.t._start_session(100)
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("-$6,555", 1709, 27), L("$11,528", 1821, 27)])
+        self.t._save_live(125)
+        t2 = Tracker(self.t.cfg, self.store, self.tmp.name)
+        t2._start_session(125 + 3600)
+        self.assertIsNone(t2.live(125 + 3600)["net"])
+
 
 if __name__ == "__main__":
     unittest.main()
