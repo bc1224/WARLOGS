@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .sources import pull_api, pull_status
 from .store import Store
+from .update import Updater
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
@@ -23,10 +24,12 @@ CSP = ("default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe
 
 
 class App:
-    def __init__(self, cfg, ddir, on_templates_changed=None):
+    def __init__(self, cfg, ddir, on_templates_changed=None, on_updated=None, updater=None):
         self.cfg, self.ddir = cfg, ddir
         self.store = Store(os.path.join(ddir, "wardogs.db"))  # own connection
         self.on_templates_changed = on_templates_changed or (lambda: None)
+        self.on_updated = on_updated or (lambda: None)
+        self.updater = updater or Updater(os.path.dirname(HERE), ddir)
         self.lock = threading.Lock()
 
     def status(self):
@@ -89,6 +92,10 @@ def make_handler(app):
                 data["status"] = app.status()
                 data["steam_id"] = app.cfg["steam_id"]
                 return self._send(200, data)
+            if path == "/api/update":
+                if not app.cfg.get("check_updates", True):
+                    return self._send(200, {"available": False, "off": True})
+                return self._send(200, app.updater.state())
             m = re.fullmatch(r"/api/match/(\d+)", path)
             if m:
                 with app.lock:
@@ -130,6 +137,13 @@ def make_handler(app):
             if self.path == "/api/settings":
                 with app.lock:
                     return self._send(200, app.store.save_settings(self._json_body()))
+            if self.path == "/api/update":
+                if not origin:  # installs code: only from the dashboard page itself
+                    return self._send(403, {"error": "forbidden"})
+                res = app.updater.apply(str(self._json_body().get("sha", "")))
+                if res["ok"]:
+                    threading.Timer(1.0, app.on_updated).start()  # after this reply is sent
+                return self._send(200 if res["ok"] else 409, res)
             if self.path == "/api/refresh":
                 try:
                     with app.lock:
@@ -146,9 +160,9 @@ def make_handler(app):
     return Handler
 
 
-def start_server(cfg, ddir, on_templates_changed=None):
+def start_server(cfg, ddir, on_templates_changed=None, on_updated=None):
     """Serve in a background thread. Returns the server, or None if the port is taken."""
-    app = App(cfg, ddir, on_templates_changed)
+    app = App(cfg, ddir, on_templates_changed, on_updated)
     try:
         server = ThreadingHTTPServer(("127.0.0.1", cfg["dashboard_port"]), make_handler(app))
     except OSError:

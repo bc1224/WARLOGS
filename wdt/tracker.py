@@ -18,6 +18,8 @@ import logging
 import logging.handlers
 import os
 import queue
+import subprocess
+import sys
 import threading
 import time
 
@@ -53,6 +55,7 @@ DEFAULTS = {
     "player_name": "",         # your in-game name, to find your kills and deaths in the kill feed
     "sample_seconds": 180.0,   # keep one plain in-match screenshot this often
     "samples_max": 150,        # screenshots kept in data/samples for tuning
+    "check_updates": True,     # ask GitHub every few hours whether a newer version is out
 }
 SIG_W, SIG_H = 64, 36
 STILL = 3.0        # thumbnail change below this counts as "not moving"
@@ -796,7 +799,8 @@ class Tracker:
 
     def run(self):
         from .dashboard import start_server
-        start_server(self.cfg, self.ddir, on_templates_changed=self.reload_templates)
+        start_server(self.cfg, self.ddir, on_templates_changed=self.reload_templates,
+                     on_updated=self.restart)
         threading.Thread(target=winapi.hotkey_loop, daemon=True,
                          args=({HK_END: self.cfg["hotkey_end"],
                                 HK_START: self.cfg["hotkey_start"]}, self.on_hotkey)).start()
@@ -813,6 +817,22 @@ class Tracker:
                 log.exception("tick failed")
                 wait = self.cfg["idle_seconds"]
             time.sleep(wait)
+
+
+    def restart(self):
+        """Run the new version after an update: keep the round in progress, start a
+        fresh copy once this one has let go of the single-instance lock, then exit."""
+        try:
+            if self.session is not None:
+                self._save_live(time.time())
+        finally:
+            vbs = os.path.join(ROOT, "Start Tracker.vbs")
+            subprocess.Popen([sys.executable, "-c", "import subprocess, sys, time; time.sleep(3); "
+                              "subprocess.Popen(['wscript.exe', sys.argv[1]])", vbs],
+                             creationflags=0x08000008, close_fds=True)  # no window, detached
+            log.info("restarting for the update")
+            logging.shutdown()
+            os._exit(0)
 
 
 def _alike(a, b):

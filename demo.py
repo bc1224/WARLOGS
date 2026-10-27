@@ -200,7 +200,7 @@ def live_round(now, balance, idle):
 class DemoApp:
     def __init__(self, store, sid, balance, idle):
         self.store, self.sid, self.balance, self.idle = store, sid, balance, idle
-        self.cfg = {"steam_id": STEAM_ID, "player_name": NAME, "dashboard_port": PORT}
+        self.cfg = {"steam_id": STEAM_ID, "player_name": NAME, "dashboard_port": PORT, "check_updates": False}
         self.lock = threading.Lock()
         self.on_templates_changed = lambda: None
 

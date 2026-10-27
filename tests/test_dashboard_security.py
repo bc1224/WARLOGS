@@ -51,6 +51,12 @@ class DashboardSecurityTests(unittest.TestCase):
         r, _ = self.get("/api/settings", method="POST", headers={"Origin": "https://evil.example"})
         self.assertEqual(r.status, 403)
 
+    def test_updates_install_only_from_the_dashboard_page(self):
+        r, _ = self.get("/api/update", method="POST", headers={"Origin": "https://evil.example"})
+        self.assertEqual(r.status, 403)
+        r, _ = self.get("/api/update", method="POST")  # no Origin: not a page in a browser
+        self.assertEqual(r.status, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -246,6 +246,12 @@ tr.me td { background: #1d1a12; color: var(--gold); }
 .mfilter button[aria-pressed="true"] { background: #2a2d33; color: var(--text); }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .toolbar .search { margin-bottom: 10px; }
+.update { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+          border-left: 3px solid var(--blue); background: #121a24; padding: 10px 14px; border-radius: 6px; margin-top: 16px; }
+.update[hidden] { display: none; }
+.update .acts { display: flex; gap: 10px; align-items: center; }
+.update a { color: var(--blue); }
+.update #updGo { border-color: var(--blue); }
 </style>
 </head>
 <body>
@@ -254,6 +260,7 @@ tr.me td { background: #1d1a12; color: var(--gold); }
     <h1>WARDOGS <span>Match Log</span></h1>
     <div class="pills" id="pills"></div>
   </header>
+  <div id="update" class="update" role="status" hidden></div>
   <div id="notice"></div>
   <div id="pb"></div>
   <div class="bar topbar">
@@ -950,6 +957,8 @@ document.addEventListener("click", async (e) => {
   if (t.dataset.del && confirm("Delete this match from your log?")) { await post(`/api/match/${t.dataset.del}/delete`); if (tab === "match") location.hash = "matches"; load(); }
   if (t.dataset.notend && confirm("Delete this and stop treating that screen as a results screen?")) { await post(`/api/match/${t.dataset.notend}/not-end-screen`); load(); }
   if (t.dataset.shot) { const d = $("shot"); d.querySelector("img").src = `/shot/${t.dataset.shot}`; d.showModal(); }
+  if (t.id === "updLater") { store.set("wdt-skip-update", upd.sha); renderUpdate(); return; }
+  if (t.id === "updGo") { installUpdate(t); return; }
   if (t.id === "refresh") {
     t.disabled = true; t.textContent = "Checking…";
     const r = await (await post("/api/refresh")).json();
@@ -978,6 +987,40 @@ async function poll() {
 }
 poll();
 setInterval(poll, 2000);
+
+// Update check: the tracker asks GitHub every few hours; one click installs the new version.
+let upd = null;
+async function checkUpdate() {
+  try { upd = await (await fetch("/api/update")).json(); } catch { return; }
+  renderUpdate();
+  if (upd.checking) setTimeout(checkUpdate, 5000);
+}
+function renderUpdate(msg) {
+  const el = $("update");
+  const show = !!msg || (upd?.available && store.get("wdt-skip-update") !== upd.sha);
+  el.hidden = !show;
+  if (!show) return;
+  const day = upd.date ? new Date(upd.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
+  el.innerHTML = msg ? `<span>${esc(msg)}</span>`
+    : `<span><b>Update available</b> · ${esc(upd.title)}${day ? ` · ${esc(day)}` : ""}</span>
+       <span class="acts"><a href="${esc(upd.url)}" target="_blank" rel="noopener">What's new</a>
+       <button class="link" id="updLater">Later</button><button id="updGo" title="Downloads the new version from GitHub and restarts the tracker. Your matches and settings stay.">Update</button></span>`;
+}
+async function installUpdate(btn) {
+  btn.disabled = true; btn.textContent = "Updating…";
+  let r;
+  try { r = await (await post("/api/update", { sha: upd.sha })).json(); } catch { r = { ok: false, error: "the tracker didn't answer" }; }
+  if (!r.ok) { renderUpdate(`Update didn't install: ${r.error}`); return; }
+  renderUpdate("Updated. Restarting the tracker, this page reloads in a few seconds…");
+  const t0 = Date.now();
+  const back = async () => {
+    if (Date.now() - t0 > 5000) { try { if ((await fetch("/api/version")).ok) return location.reload(); } catch {} }
+    setTimeout(back, 1500);
+  };
+  back();
+}
+checkUpdate();
+setInterval(checkUpdate, 30 * 60 * 1000);
 </script>
 <script>
 // ---- insights, goals, streaks, leaderboard, forecasts, strategy -------------

@@ -25,6 +25,11 @@ It reads the screen like OBS does and never changes the game or its files. Every
 
 The dashboard lives at http://127.0.0.1:8790 and the tracker starts with Windows.
 
+**Updates:** when a new version is out, the dashboard shows an Update button. It downloads
+the new files from this repo, checks each one against GitHub, keeps your settings and match
+log, and restarts the tracker. Nothing updates unless you click it. A git clone updates with
+`git pull` instead.
+
 <details>
 <summary>Using Claude Code, Codex or another AI agent? Paste this instead.</summary>
 
@@ -52,6 +57,8 @@ The game process is never opened, read, injected or hooked. The tracker only:
 - copies pixels from the screen while WARDOGS is in front (like OBS)
 - reads the game's `PlayerRoleProgress.sav` to spot role level-ups
 - calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
+- asks GitHub every few hours whether a newer version is out (turn off with
+  `"check_updates": false` in `config.json`)
 
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.
