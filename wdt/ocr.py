@@ -319,8 +319,16 @@ DIST_RE = re.compile(r"\b\d{1,4}\s?m\b", re.I)
 TEAM_RES = (re.compile(r"\bteam\s*[:#]?\s*([A-Za-z][\w-]{1,15})\b", re.I),
             re.compile(r"\b([A-Za-z][\w-]{2,15})\s+team\b", re.I))
 CHAT_RE = re.compile(r"\[(team|all|local|squad|party|global)\]", re.I)
+# screens the HUD reads between rounds: loading into the next round, the server list
+ROUND_BREAK_RE = re.compile(r"^\W*(WAITING\s*FOR\s*(THE\s*)?(WORLD\s*TO\s*LOAD|PLAYERS)|JOINING\s*SERVER"
+                            r"|SERVER\s*BROWSER|IN\s*SERVER\s*QUEUE)\W*$", re.I)
 NOT_TEAM = {"your", "enemy", "the", "our", "their", "friendly", "own", "my", "switch",
             "join", "change", "select", "auto", "other", "opposing", "winning", "losing"}
+
+
+def round_break(lines):
+    """True on a screen that only shows up between rounds."""
+    return any(ROUND_BREAK_RE.search(_text(l)) for l in lines)
 
 
 def hud_state(lines):

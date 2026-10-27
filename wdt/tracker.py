@@ -25,7 +25,7 @@ import time
 
 from . import winapi
 from .matcher import EndScreenMatcher, distance
-from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, kill_feed, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources
+from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, round_break, kill_feed, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources
 from .catalog import refresh_catalog
 from .sources import pull_api, pull_status, read_role_levels
 from .scoreboard import Gray, is_scoreboard, read_board
@@ -60,7 +60,7 @@ DEFAULTS = {
 SIG_W, SIG_H = 64, 36
 STILL = 3.0        # thumbnail change below this counts as "not moving"
 NEW_SCREEN = 6.0   # don't re-read a still screen we already read
-NEW_ROUND_GAP = 90  # seconds without the top bar before a new starting balance can be a new round
+NEW_ROUND_GAP = 300  # with no between-rounds screen seen, this long without the top bar may be one missed
 HK_END, HK_START = 1, 2
 # screen corners read every few seconds, as fractions of the window: x, y, w, h
 FEED_AREAS = ((0.78, 0.045, 0.22, 0.18),   # reward feed under the top-right cash
@@ -439,9 +439,9 @@ class Tracker:
                 return  # the two amounts got mixed up ($29,759 as profit beside a stray $360)
             known = h["start_balance"]
             # redeploying after a death starts the bar's profit over from your balance at
-            # that moment (money can move on the deploy screen too); the round goes on, so
-            # its profit is balance minus the round's start. A new round comes after a break
-            # with no top bar: the results screen and the lobby.
+            # that moment (money can move while you're dead too); the round goes on, so its
+            # profit is balance minus the round's start. New rounds are found by their
+            # results or loading screens; this only covers a long break where both were missed.
             after_break = gap >= NEW_ROUND_GAP or (h["odd_start"] is not None and abs(s - h["odd_start"]) <= 100)
             if (known is not None and abs(s - known) > 100
                     and (not after_break or abs(s - (h["life_start"] or -1)) <= 100)):
@@ -459,8 +459,11 @@ class Tracker:
 
             h["starts"][s] = h["starts"].get(s, 0) + 1
             h["start_balance"] = max(h["starts"], key=h["starts"].get)
-        elif net is not None and h["life_start"] is not None and h["start_balance"] is not None:
-            net += h["life_start"] - h["start_balance"]  # profit alone, in a later life
+        elif net is not None and h["start_balance"] is not None:
+            life = h["life_start"] if h["life_start"] is not None else h["start_balance"]
+            if h["balance"] is not None and abs(net - (h["balance"] - life)) > 3000:
+                return  # profit alone that the last balance can't explain: a misread
+            net += life - h["start_balance"]  # in a later life the bar counts from that life's start
         if net is None and bal is not None and h["start_balance"] is not None:
             net = bal - h["start_balance"]
         if net is not None and h["net"] is not None and abs(net - h["net"]) > 20000:
@@ -518,8 +521,14 @@ class Tracker:
         """Tally what an in-match read shows: Hot Zone, FOB, team name. The first
         screen of each kind per match (and a plain one every few minutes) is kept
         in data/samples so the detection can be checked and tuned."""
-        st = hud_state(lines)
         h = self.hud
+        if round_break(lines):
+            # loading into a round or picking a server: whatever was being played is over
+            if h["playing"] is not None:
+                ended = max(t for t in (h.get("cash_seen"), h["last"]) if t is not None) if h["last"] else now
+                self.record_end("hud", ended, screen=False)
+            return
+        st = hud_state(lines)
         h["reads"] += 1
         h["last"] = now
         # the reward feed pays "HOT ZONE PRESENCE" every few seconds while you're in it

@@ -149,6 +149,55 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(live["start_balance"], 42697)
         self.assertEqual([e["net"] for e in live["events"]], [10536, -2756, 147, -773, -613])
 
+    def test_a_lone_profit_that_disagrees_with_the_balance_is_skipped(self):
+        # 2026-10-27 4:15 PM: "-$733" alone while the balance still said -$10,990
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
+            self.t._note_hud(120, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
+            self.t._note_hud(130, [L("-$733", 1695, 27)])
+            self.t._note_hud(140, [L("-$12,100", 1695, 27)])  # close enough: money moved a little
+        self.assertEqual([e["net"] for e in self.t.live(141)["events"]], [-12220, -12100])
+
+    def test_a_long_wait_to_redeploy_is_still_the_same_round(self):
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            # three minutes dead, then the bar starts over from your balance
+            self.t._note_hud(300, [L("-$1,500", 1695, 27), L("$51,733", 1814, 27)])
+            self.t._note_hud(310, [L("-$1,500", 1695, 27), L("$51,733", 1814, 27)])
+        self.assertIsNone(self.t.store.last_match(self.t.session))
+        self.assertEqual(self.t.live(311)["net"], 9036)
+
+    def test_waiting_for_the_world_to_load_starts_a_new_round(self):
+        # 2026-10-26: shown in the safe zone at the start of every round, balance alone in the corner
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
+            self.t._note_hud(120, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
+            self.t._note_hud(130, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
+            self.t._note_hud(150, [L("SAFE ZONE", 899, 79), L("WAITING FOR WORLD TO LOAD", 765, 118),
+                                   L("$48,777", 1811, 27)])
+            mid = self.t.store.last_match(self.t.session)
+            self.assertIsNotNone(mid)
+            self.t._note_hud(160, [L("-$500", 1695, 27), L("$48,277", 1814, 27)])
+            self.t._note_hud(170, [L("-$500", 1695, 27), L("$48,277", 1814, 27)])
+        m = next(x for x in self.t.store.dump()["matches"] if x["id"] == mid)
+        self.assertEqual((m["source"], m["ended_at"], m["cash_earned"] - m["cash_spent"]), ("hud", 130, 9765))
+        live = self.t.live(171)
+        self.assertEqual((live["net"], live["start_balance"]), (-500, 48777))
+        self.assertEqual(self.t.store.last_match(self.t.session), mid)  # once, not on every loading read
+
+    def test_the_server_browser_means_you_left_the_round(self):
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
+            self.t._note_hud(120, [L("// SERVER BROWSER", 222, 14), L("JOINING SERVER", 1393, 859)])
+        self.assertIsNotNone(self.t.store.last_match(self.t.session))
+
+    def test_chat_about_waiting_is_not_a_new_round(self):
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
+            self.t._note_hud(120, [L("[TEAM] Bob: waiting for players to load lol", 55, 97)])
+        self.assertIsNone(self.t.store.last_match(self.t.session))
+
     def test_a_new_starting_balance_means_a_missed_round_end(self):
         # 2026-10-27: the results screen went by unseen and the next round began
         with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
