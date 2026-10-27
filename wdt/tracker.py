@@ -57,6 +57,7 @@ DEFAULTS = {
 SIG_W, SIG_H = 64, 36
 STILL = 3.0        # thumbnail change below this counts as "not moving"
 NEW_SCREEN = 6.0   # don't re-read a still screen we already read
+NEW_ROUND_GAP = 90  # seconds without the top bar before a new starting balance can be a new round
 HK_END, HK_START = 1, 2
 # screen corners read every few seconds, as fractions of the window: x, y, w, h
 FEED_AREAS = ((0.78, 0.045, 0.22, 0.18),   # reward feed under the top-right cash
@@ -410,6 +411,7 @@ class Tracker:
                 "feed_prev": [], "kill_prev": [], "rewards": {}, "feed": [], "kills": [], "deaths": [],
                 "downs": 0, "downs_log": [], "down": None, "promos": [], "vendor": {},
                 "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None, "life_start": None,
+                "cash_seen": None,
                 "playing": None, "board": None}
 
     def _note_cash(self, now, lines):
@@ -420,17 +422,26 @@ class Tracker:
         if bar.get("menu"):  # lobby or menus: not this round's profit
             return
         net, bal = bar.get("net"), bar.get("balance")
+        gap = now - (h.get("cash_seen") or 0)  # since the top bar was last read
+        if net is not None or bal is not None:
+            h["cash_seen"] = now
         if net is None and bal is not None and h["balance"] is not None and abs(bal - h["balance"]) > 20000:
             bal = None  # a lone balance this far off is a misread ("$160" for "$46,160")
+        if (bal is None and net is not None and h["balance"] is not None and h["net"] is not None
+                and abs(net - h["balance"]) <= 2000 and abs(net - h["net"]) > 5000):
+            net, bal = None, net  # the balance alone, read where the profit sits
         if net is not None and bal is not None:
             s = bal - net  # balance when the round began; the most-seen value wins
             if s < 0:
                 return  # the two amounts got mixed up ($29,759 as profit beside a stray $360)
             known = h["start_balance"]
             # redeploying after a death starts the bar's profit over from your balance at
-            # that moment; the round goes on, so its profit is balance minus the round's start
-            if (known is not None and abs(s - known) > 100 and h["balance"] is not None
-                    and (abs(s - h["balance"]) <= 100 or abs(s - (h["life_start"] or -1)) <= 100)):
+            # that moment (money can move on the deploy screen too); the round goes on, so
+            # its profit is balance minus the round's start. A new round comes after a break
+            # with no top bar: the results screen and the lobby.
+            after_break = gap >= NEW_ROUND_GAP or (h["odd_start"] is not None and abs(s - h["odd_start"]) <= 100)
+            if (known is not None and abs(s - known) > 100
+                    and (not after_break or abs(s - (h["life_start"] or -1)) <= 100)):
                 h["life_start"] = s
                 net, s = bal - known, known
             if known is not None and h["starts"][known] >= 2 and abs(s - known) > 100:

@@ -132,6 +132,23 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(live["start_balance"], 42697)
         self.assertEqual([e["net"] for e in live["events"]], [8096, 10536, -2756, -2173, -2013, -1853])
 
+    def test_money_changing_while_dead_is_still_a_redeploy(self):
+        # 2026-10-27: died, the balance moved on the deploy screen, then the bar started over
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27)])
+            self.t._note_hud(140, [L("$42,844", 1814, 27)])
+            self.t._note_hud(150, [L("$42,844", 1695, 27)])  # the balance alone, taken for profit
+            self.t._note_hud(160, [L("$42,844", 1695, 27)])
+            self.t._note_hud(170, [L("-$920", 1695, 27), L("$41,924", 1814, 27)])
+            self.t._note_hud(180, [L("-$760", 1695, 27), L("$42,084", 1814, 27)])
+            self.t._note_hud(190, [L("-$760", 1695, 27)])
+        self.assertIsNone(self.t.store.last_match(self.t.session))
+        live = self.t.live(191)
+        self.assertEqual(live["start_balance"], 42697)
+        self.assertEqual([e["net"] for e in live["events"]], [10536, -2756, 147, -773, -613])
+
     def test_a_new_starting_balance_means_a_missed_round_end(self):
         # 2026-10-27: the results screen went by unseen and the next round began
         with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
