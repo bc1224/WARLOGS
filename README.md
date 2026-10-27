@@ -14,7 +14,7 @@ It reads the screen like OBS does and never touches the game. Everything stays o
 |---|---|---|
 | ![](docs/screenshots/live-between-rounds.png) | ![](docs/screenshots/matches.png) | ![](docs/screenshots/insights.png) |
 
-<sub>Screenshots use made-up data. Try it without the game: `py -3 demo.py`.</sub>
+<sub>Screenshots are from demo mode, which fills in sample matches so you can see every screen before you've played. Try it yourself: `py -3 demo.py`.</sub>
 
 ## Setup
 
