@@ -76,6 +76,15 @@ class TopBarTests(unittest.TestCase):
         for dash in ("~", "–", "—", "−", "="):
             self.assertEqual(top_bar([L(dash + "$4,980", 1703, 27)], 1920, 1080), {"net": -4980})
 
+    def test_cut_off_amounts_are_skipped(self):
+        # 2026-10-27: "-$8,520" and "$30,492" came back as -$8 and $39
+        self.assertEqual(top_bar([L("-$8,52", 1695, 27), L("$39,4g2", 1814, 27)], 1920, 1080), {})
+        self.assertEqual(top_bar([L("-$8,", 1695, 27), L("$30,492", 1814, 27)], 1920, 1080), {"balance": 30492})
+
+    def test_letters_misread_as_digits(self):
+        self.assertEqual(top_bar([L("-$8,52O", 1695, 27), L("$3O,492", 1814, 27)], 1920, 1080),
+                         {"net": -8520, "balance": 30492})
+
 
 class TrackerHudTests(unittest.TestCase):
     def setUp(self):

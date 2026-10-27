@@ -1489,9 +1489,12 @@ function renderLive(st) {
   if (L.between) renderIdle();
   const byRole = Object.fromEntries(groupStats(data?.matches || [], (m) => mainRole(m) ? [mainRole(m)] : []).map((r) => [r.k, r]));
   const roleRate = roles.map((r) => byRole[r]?.rate).find((x) => x != null);
-  // where this round is heading: your pace now, carried to your usual round length
+  // where this round is heading: what you've earned per minute (gear bought is a one-off,
+  // not a rate), carried to your usual round length; the first minutes lean on your usual rate
   const avgLen = matchAverages(recent).len, left = avgLen && secs != null ? avgLen - secs : null;
-  const proj = myRate != null && left != null && left > 0 ? L.net + myRate * left / 60 : null;
+  const earned = sum(L.events.filter((e) => e.delta > 0), (e) => e.delta);
+  const earnRate = mins > 1 ? (mins < 5 && cashRate != null ? cashRate : earned / mins) : null;
+  const proj = L.net != null && earnRate != null && left != null && left > 0 ? L.net + earnRate * left / 60 : null;
   const sess = sessionSoFar();
   $("liveHero").innerHTML = [
     tile("Round profit", `<span class="${L.net < 0 ? "neg" : "pos"}">${money(L.net)}</span>`,

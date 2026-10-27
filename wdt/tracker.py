@@ -379,6 +379,10 @@ class Tracker:
             bal = None  # a lone balance this far off is a misread ("$160" for "$46,160")
         if net is not None and bal is not None:
             s = bal - net  # balance when the round began; the most-seen value wins
+            known = h["start_balance"]
+            if known is not None and h["starts"][known] >= 2 and abs(s - known) > 100:
+                return  # the pair disagrees with how the round started: one of them misread
+
             h["starts"][s] = h["starts"].get(s, 0) + 1
             h["start_balance"] = max(h["starts"], key=h["starts"].get)
         if net is None and bal is not None and h["start_balance"] is not None:

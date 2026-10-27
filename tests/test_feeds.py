@@ -101,6 +101,16 @@ class TrackerFeedTests(unittest.TestCase):
             self.t._note_hud(140, [L("$11,815", 1706, 27), L("$46,900", 1818, 27)])
         self.assertEqual([e["net"] for e in self.t.live(141)["events"]], [9835, 11815])
 
+    def test_profit_and_balance_must_agree_with_the_round_start(self):
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
+            self.t._note_hud(120, [L("-$8,840", 1695, 27), L("$30,172", 1814, 27)])
+            self.t._note_hud(130, [L("-$8", 1695, 27), L("$39", 1814, 27)])  # both cut off
+            self.t._note_hud(140, [L("-$8,520", 1695, 27), L("$30,492", 1814, 27)])
+        live = self.t.live(141)
+        self.assertEqual([e["net"] for e in live["events"]], [-12220, -8840, -8520])
+        self.assertEqual((live["net"], live["balance"], live["start_balance"]), (-8520, 30492, 39012))
+
     def test_lobby_is_not_a_match_until_the_hud_shows_one(self):
         with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("PLAY"), L("LOADOUTS")])

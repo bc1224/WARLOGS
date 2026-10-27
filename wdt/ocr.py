@@ -346,6 +346,8 @@ def hud_state(lines):
 # --- cash in the top-right corner: this round's profit, then your balance ------
 # OCR reads the minus as other dashes too ("_ $4,980" for "-$4,980")
 MONEY_RE = re.compile(rf"([-_~–—−=]?)\s*\$\s*([-–—−]?)\s*({NUM})")
+DIGIT_LOOKALIKES = str.maketrans("OoQDIl|", "0000111")
+CUT_OFF = re.compile(r"\s?[,.]\s?(\S|$)")  # "-$8,52" for "-$8,520": the number didn't read whole
 
 
 def top_bar(lines, w, h):
@@ -357,8 +359,10 @@ def top_bar(lines, w, h):
         x, y = _pos(line)
         if y > h * 0.06 or x < w * 0.7:
             continue
-        m = MONEY_RE.search(_text(line))
-        if m:
+        text = _text(line)
+        text = re.sub(r"\$.*", lambda d: d.group(0).translate(DIGIT_LOOKALIKES), text)
+        m = MONEY_RE.search(text)
+        if m and not CUT_OFF.match(text, m.end()):
             v = _num(m.group(3))
             vals.append((x, -v if m.group(1) + m.group(2) else v))
     vals.sort()
