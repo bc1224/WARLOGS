@@ -6,6 +6,7 @@ reloads the full data when the tracker has written something new.
 import json
 import os
 import re
+import secrets
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,6 +15,11 @@ from .sources import pull_api, pull_status
 from .store import Store
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
+# only our own inline scripts run; names read off the screen or the API can't become code
+CSP = ("default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; "
+       "img-src 'self' data: https:; connect-src 'self'; base-uri 'none'; form-action 'none'; "
+       "frame-ancestors 'none'")
 
 
 class App:
@@ -38,7 +44,7 @@ def make_handler(app):
         def log_message(self, *a):
             pass
 
-        def _send(self, code, body, ctype="application/json"):
+        def _send(self, code, body, ctype="application/json", csp=None):
             if isinstance(body, (dict, list)):
                 body = json.dumps(body).encode()
             elif isinstance(body, str):
@@ -46,18 +52,32 @@ def make_handler(app):
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            if csp:
+                self.send_header("Content-Security-Policy", csp)
             self.end_headers()
             self.wfile.write(body)
+
+        def _local_host(self):
+            # refuse other hostnames pointed at 127.0.0.1 (DNS rebinding)
+            if LOCAL.fullmatch(self.headers.get("Host", "")):
+                return True
+            self._send(403, {"error": "forbidden"})
+            return False
 
         def _json_body(self):
             n = int(self.headers.get("Content-Length") or 0)
             return json.loads(self.rfile.read(n) or b"{}")
 
         def do_GET(self):
+            if not self._local_host():
+                return
             path = self.path.split("?")[0]
             if path in ("/", "/index.html"):
+                nonce = secrets.token_urlsafe(16)
                 with open(os.path.join(HERE, "dashboard.html"), encoding="utf-8") as f:
-                    return self._send(200, f.read(), "text/html; charset=utf-8")
+                    page = f.read().replace("<script>", f'<script nonce="{nonce}">')
+                return self._send(200, page, "text/html; charset=utf-8", CSP.format(nonce=nonce))
             if path == "/api/version":
                 with app.lock:
                     v = app.store.version()
@@ -90,6 +110,8 @@ def make_handler(app):
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if not self._local_host():
+                return
             # only accept requests from our own page
             origin = self.headers.get("Origin", "")
             if origin and not re.fullmatch(r"http://(127\.0\.0\.1|localhost):\d+", origin):

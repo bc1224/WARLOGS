@@ -53,6 +53,9 @@ The game process is never opened, read, injected or hooked. The tracker only:
 - reads the game's `PlayerRoleProgress.sav` to spot role level-ups
 - calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
 
+The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
+and only runs its own scripts.
+
 It's light: about 150 MB of RAM, no GPU. Use at your own risk.
 
 ## Troubleshooting

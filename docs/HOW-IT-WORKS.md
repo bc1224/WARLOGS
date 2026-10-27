@@ -35,14 +35,16 @@ The details behind the tracker. For setup, see the [README](../README.md).
 
 ## Dashboard tabs
 
-| Tab | What's on it |
-|---|---|
-| **Live** | In a round: profit and $/min vs your usual, pace, scoreboard place, one "do this now" tip, charts, reward/kill feed. **More detail** adds balance, spending, Hot Zone/FOB time, K/D, best money maker, a suggested loadout and the best unlock to buy. Between rounds: last round, session so far and a plan for the next one. |
-| **Overview** | Session recap, daily and weekly XP goals, streaks, best rounds, personal-best banner. |
-| **Insights** | Win rate, stats by role, gun and map, where XP and cash came from, best time to play, fatigue check, rounds that lost money. |
-| **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. |
-| **Career** | Leaderboard rank over time, the players around you, estimated level forecast per role. |
-| **Strategy** | Leveling and cash tips per role from community guides, next to your own numbers. |
+Each tab opens with a short summary. Everything else sits in sections you click to expand,
+and they stay open or closed the way you left them.
+
+| Tab | Up front | Expandable sections |
+|---|---|---|
+| **Live** | In a round: profit and $/min vs your usual, pace, scoreboard place, one "do this now" tip, charts, reward/kill feed. Between rounds: last round and session so far. | **More detail** (balance, spending, Hot Zone/FOB time, K/D, best money maker, loadout, best unlock to buy) and the **Round plan**. |
+| **Overview** | Summary tiles, session recap, best rounds. | XP and cash per match, goals and streaks, sessions. |
+| **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. | |
+| **Insights** | Win rate and averages, stats by role and by item. | Win rate over time, where XP and cash came from, zone/team/map/fights, when you play best, tips per role from community guides. |
+| **Career** | Players around you on the leaderboard, level forecast per role. | Career XP, cash and rank over time, unlocks, synced totals. |
 
 - **Time range**: Last session (default, spans midnight), Hour, Today, Week, Month, All.
 - Numbers in gold are text-recognition guesses. Click one to fix it. **not a match**

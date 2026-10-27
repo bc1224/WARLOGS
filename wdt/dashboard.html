@@ -99,6 +99,22 @@ table.rewards td:nth-child(2) { width: 30%; }
 details.more { margin-top: 8px; }
 details.more > summary { cursor: pointer; color: var(--gold); font-size: 13px; padding: 6px 0; }
 details.more table { margin-top: 8px; }
+/* collapsible detail sections: a one-line header, the cards inside on demand */
+details.sec { margin-top: 12px; }
+details.sec > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: "▸"; color: var(--gold); width: 10px; transition: transform .15s; }
+details.sec[open] > summary::before { transform: rotate(90deg); }
+details.sec > summary:hover { border-color: #3a3f46; }
+details.sec .st { font-size: 14px; font-weight: 600; }
+details.sec .sh { font-size: 12px; color: var(--muted); }
+details.sec > .grid:first-of-type { margin-top: 12px; }
+details.card.sec { padding: 0; }
+details.card.sec > summary { border: 0; }
+details.card.sec[open] > summary { padding-bottom: 6px; }
+details.card.sec > :not(summary) { margin-left: 16px; margin-right: 16px; }
+details.card.sec > :last-child { margin-bottom: 14px; }
 .tips { display: grid; gap: 8px; }
 .tipx { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 8px; background: #1b1e22; border-left: 3px solid var(--line); }
 .tipx b.h { display: block; font-size: 14px; }
@@ -244,12 +260,9 @@ tr.me td { background: #1d1a12; color: var(--gold); }
     <nav class="tabs" role="tablist" id="tabs">
       <button role="tab" data-tab="live">Live</button>
       <button role="tab" data-tab="overview">Overview</button>
-      <button role="tab" data-tab="insights">Insights</button>
       <button role="tab" data-tab="matches">Matches</button>
-      <button role="tab" data-tab="sessions">Sessions</button>
-      <button role="tab" data-tab="unlocks">Unlocks</button>
+      <button role="tab" data-tab="insights">Insights</button>
       <button role="tab" data-tab="career">Career</button>
-      <button role="tab" data-tab="strategy">Strategy</button>
     </nav>
     <div class="seg" id="range" role="group" aria-label="Time range">
       <button data-range="session" title="Since your most recent session started, even if it ran past midnight">Last session</button>
@@ -267,12 +280,12 @@ tr.me td { background: #1d1a12; color: var(--gold); }
     <div class="hero" id="liveHero" hidden></div>
     <div id="liveIdle" hidden></div>
     <div class="card" id="focusCard" hidden><div class="focusgrid"><div id="focusNow"></div><div class="myplan" id="focusPlan"></div></div></div>
-    <div class="card" id="planCard" hidden><h2>Start of round plan <small id="planSub"></small></h2>
+    <details class="card sec plan" id="planCard" data-sec="plan" hidden><summary><span class="st">Round plan</span><span class="sh" id="planSub"></span></summary>
       <div class="seg" id="goalSeg"><span class="m" style="align-self:center;font-size:12px">Going for:</span>
         <button data-aim="cash">Cash</button><button data-aim="xp">XP / unlocks</button><button data-aim="both">Both</button>
         <span class="m" style="align-self:center;font-size:12px;margin-left:10px">Mode:</span>
         <button data-mode="infantry">Infantry</button><button data-mode="combined">With vehicles</button></div>
-      <div id="planBody"></div></div>
+      <div id="planBody"></div></details>
     <div class="grid three" id="liveCharts">
       <div class="card"><h2>Round profit <small id="cashLineSub"></small></h2><div class="chart" id="cashLine"></div></div>
       <div class="card"><h2>XP this round <small id="xpLineSub"></small></h2><div class="chart" id="xpLine"></div></div>
@@ -293,49 +306,87 @@ tr.me td { background: #1d1a12; color: var(--gold); }
   <section class="panel" data-panel="overview">
     <div class="grid tiles" id="tiles"></div>
     <div class="grid"><div class="card" id="recap"></div></div>
-    <div class="grid two">
-      <div class="card tz"><h2>XP goals</h2><div id="goals"></div></div>
-      <div class="card"><h2>Streaks</h2><div class="grid tiles" id="streaks" style="margin-top:0"></div></div>
-    </div>
     <div class="grid"><div class="card">
       <h2>Best rounds <small id="bestRange"></small></h2>
       <div class="grid tiles" id="best" style="margin-top:0"></div>
     </div></div>
-    <div class="grid two">
-      <div class="card"><h2>XP per match</h2><div class="chart" id="xpChart"></div></div>
-      <div class="card"><h2>Net cash per match</h2><div class="chart" id="cashChart"></div></div>
-    </div>
-    <div class="grid"><div class="card">
-      <h2>Totals <small id="bucketName"></small></h2><div class="chart" id="bucketChart"></div>
-    </div></div>
+    <details class="sec" data-sec="trend"><summary><span class="st">XP and cash per match</span><span class="sh">charts for this time range and totals by day or week</span></summary>
+      <div class="grid two">
+        <div class="card"><h2>XP per match</h2><div class="chart" id="xpChart"></div></div>
+        <div class="card"><h2>Net cash per match</h2><div class="chart" id="cashChart"></div></div>
+      </div>
+      <div class="grid"><div class="card">
+        <h2>Totals <small id="bucketName"></small></h2><div class="chart" id="bucketChart"></div>
+      </div></div>
+    </details>
+    <details class="sec" data-sec="goals"><summary><span class="st">Goals and streaks</span><span class="sh">daily and weekly XP goals, win and profit streaks</span></summary>
+      <div class="grid two">
+        <div class="card tz"><h2>XP goals</h2><div id="goals"></div></div>
+        <div class="card"><h2>Streaks</h2><div class="grid tiles" id="streaks" style="margin-top:0"></div></div>
+      </div>
+    </details>
+    <details class="sec" data-sec="sessions"><summary><span class="st">Sessions</span><span class="sh">XP per hour and every play session in this time range</span></summary>
+      <div class="grid"><div class="card">
+        <h2>XP per hour, by session</h2><div class="chart" id="sessionChart"></div>
+      </div></div>
+      <div class="grid"><div class="card">
+        <h2>Sessions <small id="sessionCount"></small></h2>
+        <div class="scroll"><table id="sessions"></table></div>
+      </div></div>
+    </details>
   </section>
 
   <section class="panel" data-panel="insights">
     <div class="grid tiles" id="winTiles"></div>
-    <div class="grid"><div class="card"><h2>Win rate over time <small>rolling, last 10 matches with a result</small></h2><div class="chart" id="winChart"></div></div></div>
     <div class="grid two">
       <div class="card"><h2>By role</h2><div class="scroll" id="byRole"></div></div>
       <div class="card"><h2>By item used</h2><div class="scroll" id="byItem"></div></div>
     </div>
-    <div class="grid two">
-      <div class="card"><h2>Hot Zone vs FOB <small>where in-match reads found you</small></h2><div class="scroll" id="byWhere"></div></div>
-      <div class="card"><h2>By team</h2><div class="scroll" id="byTeam"></div></div>
-    </div>
-    <div class="grid two">
-      <div class="card"><h2>By map <small>from the results banner</small></h2><div class="scroll" id="byMap"></div></div>
-      <div class="card"><h2>Fights <small>kills and deaths from the kill feed, downs from the screen</small></h2><div class="scroll" id="byFight"></div></div>
-    </div>
-    <div class="grid two">
-      <div class="card"><h2>Where your XP came from</h2><div class="chart" id="srcXpChart"></div></div>
-      <div class="card"><h2>Where your cash came from</h2><div class="chart" id="srcCashChart"></div></div>
-    </div>
-    <div class="grid"><div class="card"><h2>XP and cash sources <small id="srcNote"></small></h2><div class="scroll" id="srcTable"></div></div></div>
-    <div class="grid two">
-      <div class="card"><h2>Best time to play <small>XP per hour played, by match start</small></h2><div class="tz"><div class="heat" id="heat"></div></div></div>
-      <div class="card"><h2>Fatigue check <small>XP per hour by time into a session</small></h2><div class="chart" id="fatigueChart"></div><div class="s" id="fatigueNote" style="color:var(--muted);margin-top:6px"></div></div>
-    </div>
-    <div class="grid"><div class="card"><h2>Cash breakdown</h2><div class="grid tiles" id="cashTiles" style="margin-top:0"></div>
-      <h2 style="margin-top:16px">Matches that lost money</h2><div class="scroll" id="lossTable"></div></div></div>
+    <details class="sec" data-sec="winrate"><summary><span class="st">Win rate over time</span><span class="sh">rolling, last 10 matches with a result</span></summary>
+      <div class="grid"><div class="card"><div class="chart" id="winChart"></div></div></div>
+    </details>
+    <details class="sec" data-sec="sources"><summary><span class="st">Where your XP and cash came from</span><span class="sh">rewards, kills and objectives, plus the full cash breakdown</span></summary>
+      <div class="grid two">
+        <div class="card"><h2>Where your XP came from</h2><div class="chart" id="srcXpChart"></div></div>
+        <div class="card"><h2>Where your cash came from</h2><div class="chart" id="srcCashChart"></div></div>
+      </div>
+      <div class="grid"><div class="card"><h2>XP and cash sources <small id="srcNote"></small></h2><div class="scroll" id="srcTable"></div></div></div>
+      <div class="grid"><div class="card"><h2>Cash breakdown</h2><div class="grid tiles" id="cashTiles" style="margin-top:0"></div>
+        <h2 style="margin-top:16px">Matches that lost money</h2><div class="scroll" id="lossTable"></div></div></div>
+    </details>
+    <details class="sec" data-sec="where"><summary><span class="st">Zone, team, map and fights</span><span class="sh">Hot Zone vs FOB, by team and map, kills and deaths</span></summary>
+      <div class="grid two">
+        <div class="card"><h2>Hot Zone vs FOB <small>where in-match reads found you</small></h2><div class="scroll" id="byWhere"></div></div>
+        <div class="card"><h2>By team</h2><div class="scroll" id="byTeam"></div></div>
+      </div>
+      <div class="grid two">
+        <div class="card"><h2>By map <small>from the results banner</small></h2><div class="scroll" id="byMap"></div></div>
+        <div class="card"><h2>Fights <small>kills and deaths from the kill feed, downs from the screen</small></h2><div class="scroll" id="byFight"></div></div>
+      </div>
+    </details>
+    <details class="sec" data-sec="timing"><summary><span class="st">When you play best</span><span class="sh">XP per hour by time of day and by time into a session</span></summary>
+      <div class="grid two">
+        <div class="card"><h2>Best time to play <small>XP per hour played, by match start</small></h2><div class="tz"><div class="heat" id="heat"></div></div></div>
+        <div class="card"><h2>Fatigue check <small>XP per hour by time into a session</small></h2><div class="chart" id="fatigueChart"></div><div class="s" id="fatigueNote" style="color:var(--muted);margin-top:6px"></div></div>
+      </div>
+    </details>
+    <details class="sec" data-sec="strategy"><summary><span class="st">Tips per role</span><span class="sh">community guide tips next to your own numbers</span></summary>
+      <div class="grid"><div class="card"><h2>Your numbers</h2><div id="stratMine"></div></div></div>
+      <div class="strat" id="strat"></div>
+      <div class="grid"><div class="card"><h2>For every role</h2><ul style="margin:0;padding-left:18px;line-height:1.6">
+        <li>Early levels are cheap, so keeping all six roles moving raises your Wardog level fastest.</li>
+        <li>Season 1 raised XP needs most between levels 10 and 20.</li>
+        <li>Cash carries between matches and lost gear is gone, so match loadout cost to what you expect to earn.</li>
+        <li>Hot Zone actions reportedly pay double cash; stay near the objective.</li></ul>
+        <p class="srcs">Summarised from community guides. WARDOGS is in early access, so numbers can change with patches. Sources:
+          <a href="https://games.gg/wardogs/guides/wardogs-xp-guide-how-to-level-every-role-fast/" target="_blank" rel="noopener">games.gg XP guide</a>,
+          <a href="https://games.gg/wardogs/guides/wardogs-money-guide-how-to-make-cash-fast/" target="_blank" rel="noopener">games.gg money guide</a>,
+          <a href="https://www.bisecthosting.com/blog/wardogs-money-making-guide-fastest-cash-methods-flying-taxi-building-recon-driving-spawn-apc-vehicle" target="_blank" rel="noopener">BisectHosting money guide</a>,
+          <a href="https://www.keengamer.com/articles/guides/wardogs-xp-farm-guide-fastest-ways-to-level-up/" target="_blank" rel="noopener">KeenGamer XP farm guide</a>,
+          <a href="https://mobalytics.gg/gamebase/guides/wardogs-class-leveling-guide" target="_blank" rel="noopener">Mobalytics class leveling</a>,
+          <a href="https://allthings.how/wardogs-leveling-guide-fastest-xp-for-all-six-classes/" target="_blank" rel="noopener">All Things How</a>.</p>
+      </div></div>
+    </details>
   </section>
 
   <section class="panel" data-panel="matches">
@@ -351,65 +402,36 @@ tr.me td { background: #1d1a12; color: var(--gold); }
 
   <section class="panel" data-panel="match" id="matchPage"></section>
 
-  <section class="panel" data-panel="sessions">
-    <div class="grid"><div class="card">
-      <h2>XP per hour, by session</h2><div class="chart" id="sessionChart"></div>
-    </div></div>
-    <div class="grid"><div class="card">
-      <h2>Sessions <small id="sessionCount"></small></h2>
-      <div class="scroll"><table id="sessions"></table></div>
-    </div></div>
-  </section>
-
-  <section class="panel" data-panel="unlocks">
-    <div class="grid"><div class="card">
-      <h2>Unlocks</h2>
-      <div id="unlocks"></div>
-    </div></div>
-  </section>
-
   <section class="panel" data-panel="career">
     <div class="grid two">
-      <div class="card"><h2>Career XP <small>synced totals</small></h2><div class="chart" id="careerChart"></div></div>
-      <div class="card"><h2>Cash on hand <small>synced totals</small></h2><div class="chart" id="walletChart"></div></div>
-    </div>
-    <div class="grid two">
-      <div class="card"><h2>Leaderboard rank <small>level leaderboard</small></h2><div class="chart" id="rankChart"></div></div>
       <div class="card"><h2>Players around you</h2><div id="lbGap" style="margin-bottom:10px;line-height:1.5"></div><div class="scroll" id="lbTable"></div></div>
+      <div class="card"><h2>Level forecast <small>estimated</small></h2><div class="scroll" id="forecast"></div>
+        <div id="forecastNote" style="color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5"></div></div>
     </div>
-    <div class="grid"><div class="card"><h2>Level forecast <small>estimated</small></h2><div class="scroll" id="forecast"></div>
-      <div id="forecastNote" style="color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5"></div></div></div>
-    <div class="grid"><div class="card">
-      <h2>Synced totals</h2>
-      <div id="totals"></div>
-      <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap">
-        <button id="refresh">Check for new sync</button>
-        <a id="syncLink" target="_blank" rel="noopener"><button>Update my stats on WARDOGS Tracker</button></a>
-      </p>
-    </div></div>
-  </section>
-
-  <section class="panel" data-panel="strategy">
-    <div class="grid"><div class="card"><h2>Your numbers</h2><div id="stratMine"></div></div></div>
-    <div class="strat" id="strat"></div>
-    <div class="grid"><div class="card"><h2>For every role</h2><ul style="margin:0;padding-left:18px;line-height:1.6">
-      <li>Early levels are cheap, so keeping all six roles moving raises your Wardog level fastest.</li>
-      <li>Season 1 raised XP needs most between levels 10 and 20.</li>
-      <li>Cash carries between matches and lost gear is gone, so match loadout cost to what you expect to earn.</li>
-      <li>Hot Zone actions reportedly pay double cash; stay near the objective.</li></ul>
-      <p class="srcs">Summarised from community guides. WARDOGS is in early access, so numbers can change with patches. Sources:
-        <a href="https://games.gg/wardogs/guides/wardogs-xp-guide-how-to-level-every-role-fast/" target="_blank" rel="noopener">games.gg XP guide</a>,
-        <a href="https://games.gg/wardogs/guides/wardogs-money-guide-how-to-make-cash-fast/" target="_blank" rel="noopener">games.gg money guide</a>,
-        <a href="https://www.bisecthosting.com/blog/wardogs-money-making-guide-fastest-cash-methods-flying-taxi-building-recon-driving-spawn-apc-vehicle" target="_blank" rel="noopener">BisectHosting money guide</a>,
-        <a href="https://www.keengamer.com/articles/guides/wardogs-xp-farm-guide-fastest-ways-to-level-up/" target="_blank" rel="noopener">KeenGamer XP farm guide</a>,
-        <a href="https://mobalytics.gg/gamebase/guides/wardogs-class-leveling-guide" target="_blank" rel="noopener">Mobalytics class leveling</a>,
-        <a href="https://allthings.how/wardogs-leveling-guide-fastest-xp-for-all-six-classes/" target="_blank" rel="noopener">All Things How</a>.</p>
-    </div></div>
+    <details class="sec" data-sec="careercharts"><summary><span class="st">Career over time</span><span class="sh">career XP, cash on hand and leaderboard rank</span></summary>
+      <div class="grid two">
+        <div class="card"><h2>Career XP <small>synced totals</small></h2><div class="chart" id="careerChart"></div></div>
+        <div class="card"><h2>Cash on hand <small>synced totals</small></h2><div class="chart" id="walletChart"></div></div>
+      </div>
+      <div class="grid"><div class="card"><h2>Leaderboard rank <small>level leaderboard</small></h2><div class="chart" id="rankChart"></div></div></div>
+    </details>
+    <details class="sec" data-sec="unlocks"><summary><span class="st">Unlocks</span><span class="sh">what you unlocked recently and everything you own</span></summary>
+      <div class="grid"><div class="card"><div id="unlocks"></div></div></div>
+    </details>
+    <details class="sec" data-sec="totals"><summary><span class="st">Synced totals</span><span class="sh">career totals from WARDOGS Tracker, and a manual sync</span></summary>
+      <div class="grid"><div class="card">
+        <div id="totals"></div>
+        <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap">
+          <button id="refresh">Check for new sync</button>
+          <a id="syncLink" target="_blank" rel="noopener"><button>Update my stats on WARDOGS Tracker</button></a>
+        </p>
+      </div></div>
+    </details>
   </section>
 
   <footer>Totals from <a href="https://wardogstracker.gg" target="_blank" rel="noopener">WARDOGS Tracker</a>. Per-match numbers are read from your end-of-match screen on this PC. Gold numbers are OCR guesses; click to correct.</footer>
 </main>
-<dialog id="shot"><img alt="End of match screenshot"><p style="margin:8px 0 0;text-align:right"><button onclick="this.closest('dialog').close()">Close</button></p></dialog>
+<dialog id="shot"><img alt="End of match screenshot"><p style="margin:8px 0 0;text-align:right"><button data-close-dialog>Close</button></p></dialog>
 <script>
 const $ = (id) => document.getElementById(id);
 const fmt = (n) => n == null ? "–" : Math.round(n).toLocaleString();
@@ -436,11 +458,28 @@ const store = { get(k) { try { return localStorage.getItem(k); } catch { return 
 let data = null, editing = false;
 
 // ---- tabs and time range ---------------------------------------------------
-const TABS = ["live", "overview", "insights", "matches", "sessions", "unlocks", "career", "strategy"];
+const TABS = ["live", "overview", "matches", "insights", "career"];
+// old tabs that are now a section inside another tab
+const MOVED = { sessions: "overview", unlocks: "career", strategy: "insights" };
 const RANGES = { session: "in your last session", hour: "in the last hour", day: "today", week: "in the last 7 days", month: "in the last 30 days", all: "all time" };
 // tabs where the time range changes nothing
-const NO_RANGE = ["live", "strategy", "match"];
-let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : (store.get("wdt-tab") || "live");
+const NO_RANGE = ["live", "match"];
+function tabFor(h) {
+  if (!MOVED[h]) return h;
+  const sec = document.querySelector(`details.sec[data-sec="${h}"]`);
+  if (sec) sec.open = true;
+  return MOVED[h];
+}
+// detail sections stay open or closed the way you left them
+document.querySelectorAll("details.sec").forEach((d) => { if (store.get("wdt-sec-" + d.dataset.sec) === "1") d.open = true; });
+document.addEventListener("toggle", (e) => {
+  const d = e.target;
+  if (!d.matches?.("details.sec")) return;
+  store.set("wdt-sec-" + d.dataset.sec, d.open ? "1" : "0");
+  if (d.open && data) render();  // charts size themselves to the opened box
+}, true);
+let tab = tabFor(location.hash.slice(1));
+if (!TABS.includes(tab)) tab = tabFor(store.get("wdt-tab") || "live");
 { const mh = location.hash.match(/^#match\/(\d+)$/); if (mh) { tab = "match"; } }
 let range = RANGES[store.get("wdt-range")] ? store.get("wdt-range") : "session";
 const shortRange = () => ["hour", "day", "session"].includes(range);
@@ -922,7 +961,7 @@ document.addEventListener("click", async (e) => {
 window.addEventListener("hashchange", () => {
   const h = location.hash.slice(1), mh = h.match(/^match\/(\d+)$/);
   if (mh) { tab = "match"; matchId = +mh[1]; window.scrollTo(0, 0); if (data) render(); else applyNav(); }
-  else if (TABS.includes(h)) { tab = h; if (data) render(); else applyNav(); }
+  else if (TABS.includes(tabFor(h))) { tab = tabFor(h); if (data) render(); else applyNav(); }
 });
 { const mh = location.hash.match(/^#match\/(\d+)$/); if (mh) matchId = +mh[1]; }
 let resizeTimer;
@@ -1340,7 +1379,7 @@ async function renderMatchPage(id) {
 
   el.innerHTML = `
   <div class="card"><div class="mp-head">
-    <div><button class="link" onclick="location.hash='matches'">← All matches</button>
+    <div><button class="link" data-all-matches>← All matches</button>
       <h2>${when(m.ended_at)} <span class="m" style="font-size:14px;font-weight:400">${dur(len)}${d.duration_s != null ? "" : " (estimated)"} · ${m.started_at ? `${when(m.started_at)} to ${new Date(m.ended_at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}</span></h2>
       <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.result ? `<span class="res ${d.result}">${d.result}</span>` : ""}${d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : ""}${d.score ? `<span class="chip">Score <b>${esc(d.score)}</b></span>` : ""}${d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : ""}${h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : ""}<span class="chip">logged by ${esc(m.source)}</span></div></div>
     <div class="mp-nav"><button data-go="${prev?.id || ""}" ${prev ? "" : "disabled"}>← Older</button><button data-go="${next?.id || ""}" ${next ? "" : "disabled"}>Newer →</button></div>
@@ -1786,7 +1825,7 @@ function renderPlan(L, mins) {
   const { kit, price, cost } = planKit(role);
   const lastM = (data?.matches || []).slice(-1)[0];
   const rw = Object.entries(lastM?.details?.rewards || {}).sort((a, b) => b[1].cash - a[1].cash).slice(0, 2);
-  $("planSub").textContent = L.between ? "for your next round" : "first minutes of the round";
+  $("planSub").textContent = L.between ? "what to play and buy next round" : "your first minutes this round";
   $("planBody").innerHTML = `<div class="tipx do top"><span class="ttag">Play</span><span><b class="h">${cap(role)}${lv[role]?.level ? ` (level ${lv[role].level})` : ""}</b><span class="t">${esc(why)}</span></span></div>
     <div class="grid two" style="margin-top:10px">
       <div><h3 class="gold" style="margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em">Loadout</h3>
@@ -2014,6 +2053,8 @@ document.addEventListener("change", async (e) => {
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-pbclose]");
   if (b) { store.set("wdt-pb", b.dataset.pbclose); renderPB(); }
+  if (e.target.closest?.("[data-close-dialog]")) e.target.closest("dialog").close();
+  if (e.target.closest?.("[data-all-matches]")) location.hash = "matches";
 });
 document.addEventListener("input", (e) => { if (e.target.id === "q" && data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); });
 </script>
