@@ -1,0 +1,5 @@
+data/
+__pycache__/
+config.json
+.python-path
+WARDOGS Dashboard.url

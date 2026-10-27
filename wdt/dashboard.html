@@ -1,0 +1,1991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WARDOGS Match Log</title>
+<style>
+:root {
+  --bg: #0e0f11; --panel: #17191c; --line: #262a2f; --text: #e9e6df; --muted: #8d939b;
+  --gold: #e3a92b; --pos: #5cc77a; --neg: #e2614f; --blue: #6aa7e8;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+h1 { font-size: 22px; letter-spacing: .04em; margin: 0; text-transform: uppercase; }
+h1 span { color: var(--gold); }
+h2 { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+.pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.pill { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+.pill b { color: var(--text); font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); }
+.dot.on { background: var(--pos); }
+.dot.pulse { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .dot.pulse { animation: none; } } .dot.warn { background: var(--gold); } .dot.off { background: var(--neg); }
+.grid { display: grid; gap: 12px; margin-top: 16px; }
+.tiles { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.two { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.tile .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.tile .v { font-size: 26px; font-weight: 700; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.tile .s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.pos { color: var(--pos); } .neg { color: var(--neg); } .gold { color: var(--gold); }
+.notice { border-left: 3px solid var(--gold); background: #1d1a12; padding: 12px 14px; border-radius: 6px; margin-top: 16px; line-height: 1.5; }
+.notice kbd, td kbd { background: #2a2d33; border: 1px solid #3a3e45; border-radius: 4px; padding: 0 5px; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+td.num, th.num { text-align: right; }
+.scroll { overflow-x: auto; }
+input.edit { width: 84px; background: transparent; color: var(--text); border: 1px solid transparent; border-radius: 4px; padding: 3px 5px; text-align: right; font: inherit; }
+input.edit:hover, input.edit:focus { border-color: var(--line); background: #101214; outline: none; }
+input.edit.guess { color: var(--gold); }
+button { background: #22262b; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--gold); }
+button.link { background: none; border: none; color: var(--muted); padding: 2px 4px; }
+button.link:hover { color: var(--neg); }
+a { color: var(--gold); }
+svg text { fill: var(--muted); font-size: 11px; }
+.empty { color: var(--muted); padding: 18px 0; text-align: center; }
+.tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #23272c; color: var(--muted); }
+.lvl { color: var(--gold); font-size: 12px; }
+footer { margin-top: 28px; color: var(--muted); font-size: 12px; }
+dialog { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; max-width: min(1100px, 95vw); padding: 12px; }
+dialog img { max-width: 100%; display: block; }
+dialog::backdrop { background: rgba(0,0,0,.7); }
+tr[data-open] { cursor: pointer; }
+.mlist { display: grid; gap: 10px; max-height: 72vh; overflow-y: auto; padding-right: 4px; }
+.mcard { display: grid; grid-template-columns: 6px 1fr auto; gap: 0 14px; align-items: stretch; text-align: left; width: 100%;
+  background: #1b1e22; border: 1px solid var(--line); border-radius: 8px; padding: 0; color: var(--text); cursor: pointer; font: inherit; }
+.mcard:hover, .mcard:focus-visible { border-color: #3a4048; background: #1f2328; outline: none; }
+.mcard .bar { border-radius: 8px 0 0 8px; background: var(--line); }
+.mcard .bar.pos { background: var(--pos); } .mcard .bar.neg { background: var(--neg); }
+.mcard .main { padding: 12px 0; min-width: 0; }
+.mcard .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mcard .top b { font-size: 15px; }
+.mcard .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #23272c; color: var(--muted); white-space: nowrap; }
+.chip b { color: var(--text); font-weight: 600; }
+.chip.hot { background: #3a2c10; color: var(--gold); } .chip.fob { background: #142638; color: var(--blue); }
+.mcard .nums { display: flex; gap: 18px; padding: 12px 14px 12px 0; align-items: center; }
+.mcard .num-k { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.mcard .num-v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.mcard .num-s { font-size: 11px; color: var(--muted); }
+.mcard .note { margin-top: 6px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) { .mcard { grid-template-columns: 6px 1fr; } .mcard .nums { grid-column: 2; padding: 0 0 12px; } }
+.mp-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mp-head h2 { margin: 0; font-size: 20px; letter-spacing: 0; text-transform: none; color: var(--text); }
+.mp-nav button { margin-left: 4px; }
+.strip { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: #23272c; margin: 6px 0 4px; }
+.strip span { display: block; height: 100%; }
+.strip .hotzone { background: var(--gold); } .strip .fob { background: var(--blue); } .strip .none { background: #3a3e45; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.story { list-style: none; margin: 0; padding: 0; }
+.story li { display: grid; grid-template-columns: 52px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.story li:last-child { border-bottom: 0; }
+.story .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.hbar { height: 8px; border-radius: 4px; background: #23272c; overflow: hidden; min-width: 60px; }
+.hbar span { display: block; height: 100%; background: var(--gold); }
+.tips { display: grid; gap: 8px; }
+.tipx { display: grid; grid-template-columns: 92px 1fr; gap: 10px; align-items: start; padding: 8px 10px; border-radius: 8px; background: #1b1e22; border-left: 3px solid var(--line); }
+.tipx b.h { display: block; font-size: 14px; }
+.tipx .t { font-size: 13px; color: var(--muted); }
+.tipx.top { padding: 12px 14px; background: #22201a; }
+.tipx.top b.h { font-size: 18px; }
+.ttag { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 6px; border-radius: 4px; text-align: center; background: #2a2e34; color: var(--muted); }
+.tipx.urgent { border-left-color: var(--neg); } .tipx.urgent .ttag { background: #3a1c18; color: var(--neg); }
+.tipx.do { border-left-color: var(--gold); } .tipx.do .ttag { background: #3a2c10; color: var(--gold); }
+.tipx.good { border-left-color: var(--pos); } .tipx.good .ttag { background: #16301f; color: var(--pos); }
+.tipx.info .ttag { background: #142638; color: var(--blue); }
+.kit { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0; }
+.kit dt { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 2px; }
+.kit dd { margin: 0; }
+#liveKit .m, #liveMoney .m { color: var(--muted); }
+#livePanel.focus .detail { display: none !important; }
+.livebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.livebar button { background: #1b1e22; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+.focusgrid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .focusgrid { grid-template-columns: 1fr; } }
+.now { border-left: 4px solid var(--gold); padding: 6px 0 6px 16px; }
+.now.urgent { border-left-color: var(--neg); } .now.good { border-left-color: var(--pos); } .now.info { border-left-color: var(--blue); }
+.now .lbl { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.now .big { font-size: 30px; font-weight: 700; line-height: 1.15; margin: 4px 0; }
+.now .sub { font-size: 15px; color: var(--muted); }
+.next { margin-top: 12px; display: grid; gap: 4px; font-size: 14px; }
+.next .ttag { display: inline-block; min-width: 70px; margin-right: 8px; }
+.myplan .role { font-size: 26px; font-weight: 700; color: var(--gold); }
+.myplan .kitline { font-size: 13px; color: var(--muted); margin: 4px 0 8px; }
+.myplan ol { margin: 0; padding-left: 18px; line-height: 1.5; font-size: 14px; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.seg button { background: #1b1e22; border: 1px solid var(--line); color: var(--muted); border-radius: 6px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.seg button.on { border-color: var(--gold); color: var(--gold); background: #2a2210; }
+.mm { display: grid; grid-template-columns: 28px 1fr auto; gap: 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.mm:first-of-type { border-top: 0; }
+.mm .rk { font-size: 18px; font-weight: 700; color: var(--muted); }
+.mm.best .rk, .mm.best b { color: var(--gold); }
+.mm.best b { font-size: 16px; }
+.cmp.up { color: var(--pos); } .cmp.down { color: var(--neg); }
+tr[data-open]:hover td { background: #1d2127; }
+.usum { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); margin-bottom: 12px; }
+.usum b { color: var(--text); }
+.ugroup { margin-top: 14px; }
+.ugroup h3 { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.ugrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.unlock { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); text-decoration: none; min-width: 0; }
+.unlock:hover { border-color: var(--gold); }
+.unlock img { width: 36px; height: 36px; object-fit: contain; flex: none; }
+.unlock span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.unlock small { display: block; color: var(--muted); font-size: 11px; }
+.best .v { font-size: 22px; }
+.best .s button { margin-left: 4px; }
+.res { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
+.res.victory { background: #173222; color: var(--pos); } .res.defeat { background: #361a16; color: var(--neg); } .res.draw { background: #23272c; color: var(--muted); }
+td.used { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.unlock.new { border-color: #5a4a1e; background: #1d1a12; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 16px; }
+.tabs, .seg { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs { border-bottom: 1px solid var(--line); flex: 1 1 auto; }
+.tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; color: var(--muted); padding: 8px 12px; }
+.tabs button:hover { color: var(--text); }
+.tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--gold); }
+.seg { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.seg button { border: none; background: none; color: var(--muted); padding: 4px 10px; border-radius: 6px; }
+.seg button[aria-pressed="true"] { background: #2a2d33; color: var(--text); }
+.panel[hidden] { display: none; }
+.chart { position: relative; }
+.chart svg { display: block; touch-action: pan-y; }
+.chart .axis { fill: var(--muted); font-size: 11px; }
+.chart .title { fill: var(--muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+.chart .grid line { stroke: #22262b; }
+.tip { position: absolute; pointer-events: none; background: #0b0c0e; border: 1px solid #3a3e45; border-radius: 6px; padding: 7px 9px; font-size: 12px; line-height: 1.45; white-space: nowrap; z-index: 2; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.tip b { color: var(--gold); font-weight: 600; }
+.tip .m { color: var(--muted); }
+.card h2 small { text-transform: none; letter-spacing: 0; font-weight: 400; margin-left: 6px; }
+.tz { position: relative; }
+.goal { margin-bottom: 14px; }
+.glabel { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.glabel label { color: var(--muted); font-size: 12px; }
+.gbar { height: 12px; background: #23272c; border-radius: 6px; overflow: hidden; }
+.gbar i { display: block; height: 100%; background: var(--gold); }
+.gbar i.done { background: var(--pos); }
+.heat { display: grid; grid-template-columns: 30px repeat(24, minmax(8px, 1fr)); gap: 2px; font-size: 10px; color: var(--muted); }
+.heat .c { height: 20px; border-radius: 2px; background: #1c1f23; }
+.heat .h { text-align: left; white-space: nowrap; }
+.heat .d { align-self: center; }
+input.edit.note { width: 170px; text-align: left; }
+.search { background: #101214; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; width: min(340px, 100%); margin-bottom: 10px; }
+.strat { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
+.strat h3 { margin: 0 0 4px; font-size: 16px; color: var(--gold); }
+.strat h4 { margin: 10px 0 4px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.strat ul { margin: 0; padding-left: 18px; line-height: 1.5; }
+.mine { margin-top: 12px; padding: 8px 10px; background: #101214; border-radius: 6px; font-size: 13px; color: var(--muted); line-height: 1.55; }
+.mine b { color: var(--text); }
+.pb { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+.pb .m { color: var(--muted); }
+tr.me td { background: #1d1a12; color: var(--gold); }
+.srcs { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 10px 0 0; }
+[hidden] { display: none !important; }
+.m { color: var(--muted); }
+/* tabs and range stay in reach while scrolling */
+@media (max-width: 700px) { .topbar { position: static !important; } }
+.topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 8px; margin-top: 8px; box-shadow: 0 8px 12px -10px rgba(0,0,0,.8); }
+.rangehint { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; padding: 10px 14px; border-radius: 8px; background: #15181c; border: 1px dashed #3a3e45; color: var(--muted); }
+.rangehint button { font-size: 12px; padding: 4px 10px; }
+.card h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 6px; }
+.card h2 small { margin-left: 0; }
+/* live: the few numbers worth a glance from the game, big */
+.hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; margin-top: 12px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.hero .card { border: 0; border-radius: 0; padding: 14px 16px; }
+.hero .tile .v { font-size: 32px; line-height: 1.1; }
+.hero .tile .s { font-size: 12px; }
+.three { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.feed { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.feed li { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+.feed li:last-child { border-bottom: 0; }
+.feed .t { color: var(--muted); font-variant-numeric: tabular-nums; }
+.feed .amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.feed li.fresh { animation: fresh 2.5s ease-out; }
+@keyframes fresh { from { background: #2a2210; } to { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .feed li.fresh { animation: none; } }
+#livePanel > .card, #liveIdle { margin-top: 12px; }
+#livePanel > .card.livebar { margin-top: 16px; }
+#livePanel.nogame .detail, #livePanel.nogame #liveTiles { display: none !important; }
+.headline { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.headline b { font-size: 18px; }
+.lastround .v .res { font-size: 14px; vertical-align: middle; }
+.mfilter { margin-bottom: 10px; }
+.mfilter button[aria-pressed="true"] { background: #2a2d33; color: var(--text); }
+.toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.toolbar .search { margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>WARDOGS <span>Match Log</span></h1>
+    <div class="pills" id="pills"></div>
+  </header>
+  <div id="notice"></div>
+  <div id="pb"></div>
+  <div class="bar topbar">
+    <nav class="tabs" role="tablist" id="tabs">
+      <button role="tab" data-tab="live">Live</button>
+      <button role="tab" data-tab="overview">Overview</button>
+      <button role="tab" data-tab="insights">Insights</button>
+      <button role="tab" data-tab="matches">Matches</button>
+      <button role="tab" data-tab="sessions">Sessions</button>
+      <button role="tab" data-tab="unlocks">Unlocks</button>
+      <button role="tab" data-tab="career">Career</button>
+      <button role="tab" data-tab="strategy">Strategy</button>
+    </nav>
+    <div class="seg" id="range" role="group" aria-label="Time range">
+      <button data-range="session" title="Since your most recent session started, even if it ran past midnight">Last session</button>
+      <button data-range="hour" title="Last 60 minutes">Hour</button>
+      <button data-range="day" title="Since midnight">Today</button>
+      <button data-range="week" title="Last 7 days">Week</button>
+      <button data-range="month" title="Last 30 days">Month</button>
+      <button data-range="all">All</button>
+    </div>
+  </div>
+  <div class="rangehint" id="rangeHint" hidden></div>
+
+  <section class="panel" data-panel="live" id="livePanel">
+    <div class="card livebar"><div id="liveHead"></div><button id="detailsBtn" title="Show or hide the extra cards below">More detail</button></div>
+    <div class="hero" id="liveHero" hidden></div>
+    <div id="liveIdle" hidden></div>
+    <div class="card" id="focusCard" hidden><div class="focusgrid"><div id="focusNow"></div><div class="myplan" id="focusPlan"></div></div></div>
+    <div class="card" id="planCard" hidden><h2>Start of round plan <small id="planSub"></small></h2>
+      <div class="seg" id="goalSeg"><span class="m" style="align-self:center;font-size:12px">Going for:</span>
+        <button data-aim="cash">Cash</button><button data-aim="xp">XP / unlocks</button><button data-aim="both">Both</button>
+        <span class="m" style="align-self:center;font-size:12px;margin-left:10px">Mode:</span>
+        <button data-mode="infantry">Infantry</button><button data-mode="combined">With vehicles</button></div>
+      <div id="planBody"></div></div>
+    <div class="grid three" id="liveCharts">
+      <div class="card"><h2>Round profit <small id="cashLineSub"></small></h2><div class="chart" id="cashLine"></div></div>
+      <div class="card"><h2>XP this round <small id="xpLineSub"></small></h2><div class="chart" id="xpLine"></div></div>
+      <div class="card"><h2>Latest <small>reward and kill feeds, newest first</small></h2><ul class="feed" id="liveFeed"></ul></div></div>
+    <div class="grid tiles detail" id="liveTiles"></div>
+    <div class="grid two detail">
+      <div class="card"><h2>Do this now <small>most important first</small></h2><div class="tips" id="liveTips"></div></div>
+      <div class="card"><h2>Best money maker right now <small>from your balance, levels, team and past rounds</small></h2>
+        <div class="seg" id="teamSeg"><span class="m" style="align-self:center;font-size:12px">Team is:</span>
+          <button data-team="push">Pushing</button><button data-team="hold">Holding the zone</button><button data-team="lose">Losing</button><button data-team="vehicles">Enemy vehicles out</button></div>
+        <div id="liveMoney"></div></div>
+      <div class="card"><h2>Loadout and next unlock <small id="kitRole"></small></h2><div id="liveKit"></div></div>
+      <div class="card"><h2>Money this round <small>rewards from the feed, then each change in the top-bar profit</small></h2><div id="liveRewards"></div><div class="scroll" id="liveEvents"></div></div>
+    </div>
+    <p class="srcs">Read from your screen every 10 seconds (top-bar cash, Hot Zone/FOB, team, gear and roles on screen). XP isn't on the HUD, so it lands when the round ends.</p>
+  </section>
+
+  <section class="panel" data-panel="overview">
+    <div class="grid tiles" id="tiles"></div>
+    <div class="grid"><div class="card" id="recap"></div></div>
+    <div class="grid two">
+      <div class="card tz"><h2>XP goals</h2><div id="goals"></div></div>
+      <div class="card"><h2>Streaks</h2><div class="grid tiles" id="streaks" style="margin-top:0"></div></div>
+    </div>
+    <div class="grid"><div class="card">
+      <h2>Best rounds <small id="bestRange"></small></h2>
+      <div class="grid tiles" id="best" style="margin-top:0"></div>
+    </div></div>
+    <div class="grid two">
+      <div class="card"><h2>XP per match</h2><div class="chart" id="xpChart"></div></div>
+      <div class="card"><h2>Net cash per match</h2><div class="chart" id="cashChart"></div></div>
+    </div>
+    <div class="grid"><div class="card">
+      <h2>Totals <small id="bucketName"></small></h2><div class="chart" id="bucketChart"></div>
+    </div></div>
+  </section>
+
+  <section class="panel" data-panel="insights">
+    <div class="grid tiles" id="winTiles"></div>
+    <div class="grid"><div class="card"><h2>Win rate over time <small>rolling, last 10 matches with a result</small></h2><div class="chart" id="winChart"></div></div></div>
+    <div class="grid two">
+      <div class="card"><h2>By role</h2><div class="scroll" id="byRole"></div></div>
+      <div class="card"><h2>By item used</h2><div class="scroll" id="byItem"></div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h2>Hot Zone vs FOB <small>where in-match reads found you</small></h2><div class="scroll" id="byWhere"></div></div>
+      <div class="card"><h2>By team</h2><div class="scroll" id="byTeam"></div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h2>By map <small>from the results banner</small></h2><div class="scroll" id="byMap"></div></div>
+      <div class="card"><h2>Fights <small>kills and deaths from the kill feed, downs from the screen</small></h2><div class="scroll" id="byFight"></div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h2>Where your XP came from</h2><div class="chart" id="srcXpChart"></div></div>
+      <div class="card"><h2>Where your cash came from</h2><div class="chart" id="srcCashChart"></div></div>
+    </div>
+    <div class="grid"><div class="card"><h2>XP and cash sources <small id="srcNote"></small></h2><div class="scroll" id="srcTable"></div></div></div>
+    <div class="grid two">
+      <div class="card"><h2>Best time to play <small>XP per hour played, by match start</small></h2><div class="tz"><div class="heat" id="heat"></div></div></div>
+      <div class="card"><h2>Fatigue check <small>XP per hour by time into a session</small></h2><div class="chart" id="fatigueChart"></div><div class="s" id="fatigueNote" style="color:var(--muted);margin-top:6px"></div></div>
+    </div>
+    <div class="grid"><div class="card"><h2>Cash breakdown</h2><div class="grid tiles" id="cashTiles" style="margin-top:0"></div>
+      <h2 style="margin-top:16px">Matches that lost money</h2><div class="scroll" id="lossTable"></div></div></div>
+  </section>
+
+  <section class="panel" data-panel="matches">
+    <div class="grid"><div class="card">
+      <h2>Matches <small id="matchCount"></small></h2>
+      <div class="toolbar"><input type="search" id="q" class="search" placeholder="Search notes, roles, items, maps, stats" aria-label="Search matches">
+        <div class="seg mfilter" id="mfilter" role="group" aria-label="Filter matches">
+          <button data-mf="">All</button><button data-mf="won">Won</button><button data-mf="lost">Lost</button>
+          <button data-mf="up">Made money</button><button data-mf="down">Lost money</button><button data-mf="check" title="Numbers read from the screen that you haven't checked">Unchecked</button></div></div>
+      <div class="mlist" id="matchList" role="list"></div>
+    </div></div>
+  </section>
+
+  <section class="panel" data-panel="match" id="matchPage"></section>
+
+  <section class="panel" data-panel="sessions">
+    <div class="grid"><div class="card">
+      <h2>XP per hour, by session</h2><div class="chart" id="sessionChart"></div>
+    </div></div>
+    <div class="grid"><div class="card">
+      <h2>Sessions <small id="sessionCount"></small></h2>
+      <div class="scroll"><table id="sessions"></table></div>
+    </div></div>
+  </section>
+
+  <section class="panel" data-panel="unlocks">
+    <div class="grid"><div class="card">
+      <h2>Unlocks</h2>
+      <div id="unlocks"></div>
+    </div></div>
+  </section>
+
+  <section class="panel" data-panel="career">
+    <div class="grid two">
+      <div class="card"><h2>Career XP <small>synced totals</small></h2><div class="chart" id="careerChart"></div></div>
+      <div class="card"><h2>Cash on hand <small>synced totals</small></h2><div class="chart" id="walletChart"></div></div>
+    </div>
+    <div class="grid two">
+      <div class="card"><h2>Leaderboard rank <small>level leaderboard</small></h2><div class="chart" id="rankChart"></div></div>
+      <div class="card"><h2>Players around you</h2><div id="lbGap" style="margin-bottom:10px;line-height:1.5"></div><div class="scroll" id="lbTable"></div></div>
+    </div>
+    <div class="grid"><div class="card"><h2>Level forecast <small>estimated</small></h2><div class="scroll" id="forecast"></div>
+      <div id="forecastNote" style="color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5"></div></div></div>
+    <div class="grid"><div class="card">
+      <h2>Synced totals</h2>
+      <div id="totals"></div>
+      <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap">
+        <button id="refresh">Check for new sync</button>
+        <a id="syncLink" target="_blank" rel="noopener"><button>Update my stats on WARDOGS Tracker</button></a>
+      </p>
+    </div></div>
+  </section>
+
+  <section class="panel" data-panel="strategy">
+    <div class="grid"><div class="card"><h2>Your numbers</h2><div id="stratMine"></div></div></div>
+    <div class="strat" id="strat"></div>
+    <div class="grid"><div class="card"><h2>For every role</h2><ul style="margin:0;padding-left:18px;line-height:1.6">
+      <li>Early levels are cheap, so keeping all six roles moving raises your Wardog level fastest.</li>
+      <li>Season 1 raised XP needs most between levels 10 and 20.</li>
+      <li>Cash carries between matches and lost gear is gone, so match loadout cost to what you expect to earn.</li>
+      <li>Hot Zone actions reportedly pay double cash; stay near the objective.</li></ul>
+      <p class="srcs">Summarised from community guides. WARDOGS is in early access, so numbers can change with patches. Sources:
+        <a href="https://games.gg/wardogs/guides/wardogs-xp-guide-how-to-level-every-role-fast/" target="_blank" rel="noopener">games.gg XP guide</a>,
+        <a href="https://games.gg/wardogs/guides/wardogs-money-guide-how-to-make-cash-fast/" target="_blank" rel="noopener">games.gg money guide</a>,
+        <a href="https://www.bisecthosting.com/blog/wardogs-money-making-guide-fastest-cash-methods-flying-taxi-building-recon-driving-spawn-apc-vehicle" target="_blank" rel="noopener">BisectHosting money guide</a>,
+        <a href="https://www.keengamer.com/articles/guides/wardogs-xp-farm-guide-fastest-ways-to-level-up/" target="_blank" rel="noopener">KeenGamer XP farm guide</a>,
+        <a href="https://mobalytics.gg/gamebase/guides/wardogs-class-leveling-guide" target="_blank" rel="noopener">Mobalytics class leveling</a>,
+        <a href="https://allthings.how/wardogs-leveling-guide-fastest-xp-for-all-six-classes/" target="_blank" rel="noopener">All Things How</a>.</p>
+    </div></div>
+  </section>
+
+  <footer>Totals from <a href="https://wardogstracker.gg" target="_blank" rel="noopener">WARDOGS Tracker</a>. Per-match numbers are read from your end-of-match screen on this PC. Gold numbers are OCR guesses; click to correct.</footer>
+</main>
+<dialog id="shot"><img alt="End of match screenshot"><p style="margin:8px 0 0;text-align:right"><button onclick="this.closest('dialog').close()">Close</button></p></dialog>
+<script>
+const $ = (id) => document.getElementById(id);
+const fmt = (n) => n == null ? "–" : Math.round(n).toLocaleString();
+const money = (n) => n == null ? "–" : (n < 0 ? "-$" : "$") + Math.abs(Math.round(n)).toLocaleString();
+const short = (n) => Math.abs(n) >= 1e6 ? +(n / 1e6).toFixed(1) + "M" : Math.abs(n) >= 1e4 ? +(n / 1e3).toFixed(0) + "k" : Math.abs(n) >= 1e3 ? +(n / 1e3).toFixed(1) + "k" : String(Math.round(n));
+const shortMoney = (n) => (n < 0 ? "-$" : "$") + short(Math.abs(n));
+const signed = (n, f = fmt) => n == null ? "–" : (n > 0 ? "+" : "") + f(n);
+const dur = (s) => s == null ? "–" : s >= 3600 ? `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m` : `${Math.round(s / 60)}m`;
+const when = (t) => new Date(t * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+const clock = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const day = (t) => new Date(t * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const mlen = (m) => m.details?.duration_s ?? (m.started_at ? m.ended_at - m.started_at : null);
+const usedText = (m) => { const u = m.details?.used || {}; return [...(u.roles || []), ...(u.items || [])].join(", "); };
+const hudText = (m) => { const h = m.details?.hud; if (!h?.reads) return "";
+  return [h.team && "Team " + h.team, h.hot && `Hot Zone ${Math.round(h.hot / h.reads * 100)}%`, h.fob && `FOB ${Math.round(h.fob / h.reads * 100)}%`].filter(Boolean).join(", "); };
+const where = (m) => { const h = m.details?.hud; if (!h?.reads) return null;
+  return h.hot / h.reads >= 0.4 ? "Mostly Hot Zone" : h.fob / h.reads >= 0.4 ? "Mostly FOB" : h.hot + h.fob ? "Mixed" : "Away from both"; };
+const statText = (m) => Object.entries(m.details?.stats || {}).map(([k, v]) => `${k} ${fmt(v)}`).join(", ");
+const net = (m) => m.cash_earned == null && m.cash_spent == null ? null : (m.cash_earned || 0) - (m.cash_spent || 0);
+const sum = (arr, f) => arr.reduce((a, m) => a + (f(m) || 0), 0);
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+                set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+let data = null, editing = false;
+
+// ---- tabs and time range ---------------------------------------------------
+const TABS = ["live", "overview", "insights", "matches", "sessions", "unlocks", "career", "strategy"];
+const RANGES = { session: "in your last session", hour: "in the last hour", day: "today", week: "in the last 7 days", month: "in the last 30 days", all: "all time" };
+// tabs where the time range changes nothing
+const NO_RANGE = ["live", "strategy", "match"];
+let tab = TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : (store.get("wdt-tab") || "live");
+{ const mh = location.hash.match(/^#match\/(\d+)$/); if (mh) { tab = "match"; } }
+let range = RANGES[store.get("wdt-range")] ? store.get("wdt-range") : "session";
+const shortRange = () => ["hour", "day", "session"].includes(range);
+
+function rangeStart() {
+  const now = Date.now() / 1000;
+  if (range === "session") { const s = data?.sessions?.[data.sessions.length - 1]; return s ? s.started_at : -Infinity; }
+  if (range === "hour") return now - 3600;
+  if (range === "day") { const d = new Date(); d.setHours(0, 0, 0, 0); return d / 1000; }
+  if (range === "week") return now - 7 * 86400;
+  if (range === "month") return now - 30 * 86400;
+  return -Infinity;
+}
+let matchId = null, mfilter = "";
+function applyNav() {
+  if (!TABS.includes(tab) && !(tab === "match" && matchId)) tab = "overview";
+  document.querySelectorAll("[data-tab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.tab === (tab === "match" ? "matches" : tab)));
+  document.querySelectorAll("[data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== tab; });
+  document.querySelectorAll("[data-range]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.range === range));
+  $("range").hidden = NO_RANGE.includes(tab);
+  $("rangeHint").hidden = NO_RANGE.includes(tab) || !$("rangeHint").innerHTML;
+}
+
+// an empty range with matches outside it: say so and offer the range that has them
+function renderRangeHint(ms) {
+  const el = $("rangeHint");
+  if (ms.length || !data.matches.length || range === "all") { el.innerHTML = ""; el.hidden = true; return; }
+  const last = data.matches[data.matches.length - 1];
+  el.innerHTML = `<span>No matches ${RANGES[range]}. Your last one ended ${when(last.ended_at)}.</span>
+    <button data-range="session">Show last session</button><button data-range="all">Show all time</button>`;
+  el.hidden = NO_RANGE.includes(tab);
+}
+
+async function load() {
+  if (editing) return;
+  data = await (await fetch("/api/data")).json();
+  render();
+}
+
+// ---- charts ----------------------------------------------------------------
+// One chart routine for every graph: axis titles, tick labels, grid lines and a
+// hover/touch read-out of the point under the pointer.
+function niceTicks(lo, hi, n = 4) {
+  if (lo === hi) { hi = lo + 1; }
+  const span = hi - lo, mag = 10 ** Math.floor(Math.log10(span / n));
+  const step = [1, 2, 2.5, 5, 10].map((f) => f * mag).find((s) => span / s <= n) || 10 * mag;
+  const out = [];
+  for (let v = Math.floor(lo / step) * step; v <= Math.ceil(hi / step) * step + step / 2; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+const charts = {};
+function chart(el, o) {
+  // o: { kind: "bar"|"line", points: [{x, y, label, color?, tip}], xTitle, yTitle, yFmt, xTime?, empty }
+  const pts = o.points.filter((p) => p.y != null);
+  if (!pts.length || (o.kind === "line" && pts.length < 2)) { el.innerHTML = `<div class="empty">${o.empty || "Nothing in this time range"}</div>`; charts[el.id] = null; return; }
+  // drawn at the box's real width so text stays readable on a phone
+  const W = Math.max(300, el.clientWidth || 640), H = o.h || 260, L = 64, R = 14, T = 12, B = 46;
+  const ys = pts.map((p) => p.y).concat((o.ref || []).map((p) => p.y));
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  if (o.kind === "bar") { lo = Math.min(0, lo); hi = Math.max(0, hi); }
+  else { const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.05 || 1; lo = lo >= 0 ? Math.max(0, lo - pad) : lo - pad; hi += pad; }
+  if (o.yRange) [lo, hi] = o.yRange;
+  const ticks = niceTicks(lo, hi);
+  lo = ticks[0]; hi = ticks[ticks.length - 1];
+  const py = (y) => T + (hi - y) / (hi - lo) * (H - T - B);
+  const n = pts.length, plotW = W - L - R;
+  let px, bw = 0;
+  if (o.xTime) {
+    const x0 = pts[0].x, x1 = Math.max(pts[n - 1].x, ...(o.ref || []).map((p) => p.x));
+    px = (x) => L + (x - x0) / Math.max(1, x1 - x0) * plotW;
+  } else {
+    const slot = plotW / n; bw = Math.max(2, Math.min(36, slot * 0.7));
+    px = (i) => L + slot * (i + 0.5);
+  }
+  const X = (p, i) => o.xTime ? px(p.x) : px(i);
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(o.yTitle)} by ${esc(o.xTitle)}">`;
+  s += `<g class="grid">${ticks.map((t) => `<line x1="${L}" x2="${W - R}" y1="${py(t)}" y2="${py(t)}"/>`).join("")}</g>`;
+  s += ticks.map((t) => `<text class="axis" x="${L - 8}" y="${py(t) + 4}" text-anchor="end">${esc(o.yFmt(t))}</text>`).join("");
+  s += `<line x1="${L}" x2="${W - R}" y1="${py(Math.max(lo, Math.min(hi, 0)))}" y2="${py(Math.max(lo, Math.min(hi, 0)))}" stroke="#3a3e45"/>`;
+  // x labels: skip any that would crowd the previous one (or repeat it)
+  let lastX = -Infinity, lastLabel = null;
+  pts.forEach((p, i) => {
+    const x = X(p, i);
+    // ~6.5 px per character at 11px, so labels need half of each width plus a gap
+    if (x - lastX < (String(p.label).length + String(lastLabel ?? "").length) * 3.3 + 14 || p.label === lastLabel) return;
+    lastX = x; lastLabel = p.label;
+    s += `<text class="axis" x="${x}" y="${H - B + 16}" text-anchor="middle">${esc(p.label)}</text>`;
+  });
+  s += `<text class="title" x="${L + plotW / 2}" y="${H - 6}" text-anchor="middle">${esc(o.xTitle)}</text>`;
+  s += `<text class="title" transform="translate(13 ${T + (H - T - B) / 2}) rotate(-90)" text-anchor="middle">${esc(o.yTitle)}</text>`;
+  if (o.kind === "bar") {
+    const z = py(Math.max(lo, Math.min(hi, 0)));
+    pts.forEach((p, i) => {
+      const y = py(p.y), top = Math.min(y, z), h = Math.max(1, Math.abs(z - y));
+      s += `<rect data-i="${i}" x="${X(p, i) - bw / 2}" y="${top}" width="${bw}" height="${h}" rx="2" fill="${p.color || "var(--gold)"}"/>`;
+    });
+  } else {
+    // a dashed reference line (your usual pace) under the series
+    if (o.ref) s += `<path d="${o.ref.map((p, i) => `${i ? "L" : "M"}${px(p.x).toFixed(1)},${py(p.y).toFixed(1)}`).join("")}" fill="none" stroke="#8d939b" stroke-width="1.5" stroke-dasharray="5 4"/>` + (o.refLabel ? `<text class="axis" x="${W - R}" y="${py(o.ref[o.ref.length - 1].y) - 6}" text-anchor="end">${esc(o.refLabel)}</text>` : "");
+    s += `<path d="${pts.map((p, i) => `${i ? "L" : "M"}${X(p, i).toFixed(1)},${py(p.y).toFixed(1)}`).join("")}" fill="none" stroke="var(--gold)" stroke-width="2"/>`;
+    if (n <= 80) s += pts.map((p, i) => `<circle cx="${X(p, i)}" cy="${py(p.y)}" r="2.5" fill="var(--gold)"/>`).join("");
+  }
+  s += `<line class="guide" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="#8d939b" stroke-dasharray="3 3" visibility="hidden"/>`;
+  s += `<circle class="dotH" r="5" fill="var(--gold)" stroke="#0e0f11" stroke-width="2" visibility="hidden"/>`;
+  s += `<rect class="hit" x="${L}" y="${T}" width="${plotW}" height="${H - T - B}" fill="transparent"/></svg><div class="tip" hidden></div>`;
+  el.innerHTML = s;
+  charts[el.id] = { pts, X, py, W, H, L, R, kind: o.kind };
+}
+
+function hover(el, clientX) {
+  const c = charts[el.id];
+  if (!c) return;
+  const svg = el.querySelector("svg"), box = svg.getBoundingClientRect();
+  const sx = (clientX - box.left) / box.width * c.W;
+  let best = 0, bd = Infinity;
+  c.pts.forEach((p, i) => { const d = Math.abs(c.X(p, i) - sx); if (d < bd) { bd = d; best = i; } });
+  const p = c.pts[best], x = c.X(p, best), y = c.py(p.y);
+  const guide = svg.querySelector(".guide"), dot = svg.querySelector(".dotH"), tip = el.querySelector(".tip");
+  guide.setAttribute("x1", x); guide.setAttribute("x2", x); guide.setAttribute("visibility", "visible");
+  dot.setAttribute("cx", x); dot.setAttribute("cy", y); dot.setAttribute("visibility", "visible");
+  svg.querySelectorAll("rect[data-i]").forEach((r) => r.setAttribute("opacity", +r.dataset.i === best ? 1 : 0.55));
+  tip.innerHTML = p.tip; tip.hidden = false;
+  const scale = box.width / c.W, left = x * scale, tw = tip.offsetWidth;
+  tip.style.left = Math.max(0, Math.min(box.width - tw, left + 12 + tw > box.width ? left - tw - 12 : left + 12)) + "px";
+  tip.style.top = Math.max(0, y * scale - tip.offsetHeight - 8) + "px";
+}
+function unhover(el) {
+  if (!charts[el.id]) return;
+  el.querySelectorAll(".guide,.dotH").forEach((n) => n.setAttribute("visibility", "hidden"));
+  el.querySelectorAll("rect[data-i]").forEach((r) => r.removeAttribute("opacity"));
+  const tip = el.querySelector(".tip"); if (tip) tip.hidden = true;
+}
+document.addEventListener("pointermove", (e) => {
+  const el = e.target.closest?.(".chart");
+  document.querySelectorAll(".chart").forEach((c) => { if (c !== el) unhover(c); });
+  if (el && e.target.closest("svg")) hover(el, e.clientX);
+});
+document.addEventListener("pointerdown", (e) => { const el = e.target.closest?.(".chart"); if (el) hover(el, e.clientX); });
+document.addEventListener("pointerleave", () => document.querySelectorAll(".chart").forEach(unhover), true);
+
+function matchTip(m) {
+  const n = net(m), d = m.details || {};
+  return [`<b>${esc(when(m.ended_at))}</b>`,
+    `XP: ${fmt(m.xp)}`,
+    `Net cash: <span class="${n < 0 ? "neg" : "pos"}">${money(n)}</span> <span class="m">(${money(m.cash_earned)} earned, ${money(m.cash_spent)} spent)</span>`,
+    `Length: ${dur(mlen(m))}${d.duration_s != null ? "" : " <span class=m>(est.)</span>"}`,
+    d.result || d.score ? `Result: ${esc([d.result, d.score, d.winner && d.winner + " won"].filter(Boolean).join(", "))}` : "",
+    statText(m) ? `Stats: ${esc(statText(m))}` : "",
+    usedText(m) ? `Used: ${esc(usedText(m))}` : "",
+    hudText(m) ? `Where: ${esc(hudText(m))} <span class="m">(share of in-match reads)</span>` : ""].filter(Boolean).join("<br>");
+}
+
+// Group matches into time buckets sized to the range, so "Totals" reads well.
+function buckets(ms) {
+  const span = range === "all" && ms.length ? Date.now() / 1000 - ms[0].ended_at : 0;
+  const unit = { hour: "10 min", day: "hour", session: "hour", week: "day", month: "day" }[range] || (span > 180 * 86400 ? "month" : span > 21 * 86400 ? "week" : "day");
+  const keyOf = (t) => {
+    const d = new Date(t * 1000);
+    if (unit === "10 min") { d.setMinutes(Math.floor(d.getMinutes() / 10) * 10, 0, 0); }
+    else if (unit === "hour") d.setMinutes(0, 0, 0);
+    else { d.setHours(0, 0, 0, 0); if (unit === "week") d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); if (unit === "month") d.setDate(1); }
+    return d / 1000;
+  };
+  const map = new Map();
+  for (const m of ms) { const k = keyOf(m.ended_at); if (!map.has(k)) map.set(k, []); map.get(k).push(m); }
+  const label = (t) => unit === "10 min" || unit === "hour" ? clock(t)
+    : unit === "month" ? new Date(t * 1000).toLocaleDateString([], { month: "short", year: "2-digit" })
+    : unit === "week" ? "wk " + day(t) : day(t);
+  return { unit, rows: [...map.entries()].map(([t, g]) => ({ t, g, label: label(t) })) };
+}
+
+// ---- rendering -------------------------------------------------------------
+function snapAround(start, end) {
+  const snaps = data.snapshots.map((s) => ({ t: Date.parse(s.synced_at) / 1000, d: s.data }));
+  const before = snaps.filter((s) => s.t <= start).pop();
+  const after = snaps.find((s) => end != null && s.t >= end);
+  if (!before || !after) return null;
+  const roles = Object.entries(after.d.roles || {}).map(([r, v]) => [r, v.xp - (before.d.roles?.[r]?.xp ?? v.xp)]).filter(([, x]) => x > 0).sort((a, b) => b[1] - a[1]);
+  return { xp: after.d.careerXp - before.d.careerXp, cash: after.d.cash - before.d.cash, roles };
+}
+
+function serverPill() {
+  const ss = data?.meta?.server_status;
+  if (!ss) return "";
+  const bad = [ss.servers?.health, ss.login?.health].some((h) => h && h !== "ok");
+  const cls = ss.overall === "ok" && !bad ? "on" : /down|outage|error|fail/i.test(ss.overall || "") ? "off" : "warn";
+  const tip = [ss.servers?.detail || ss.servers?.summary, ss.login?.summary, ss._updated ? "Checked " + when(ss._updated) : ""].filter(Boolean).join("\n");
+  return `<span class="pill" title="${esc(tip)}"><span class="dot ${cls}"></span>Servers <b>${ss.servers?.players ? short(ss.servers.players) + " online" : esc(ss.overall || "unknown")}</b></span>`;
+}
+
+function renderStatus(st) {
+  const watcher = !st.alive ? '<span class="dot off"></span>Tracker <b>not running</b>'
+    : st.game_running ? '<span class="dot on pulse"></span>Live: watching <b>WARDOGS</b>' : '<span class="dot warn"></span>Waiting for <b>WARDOGS</b> to start';
+  $("pills").innerHTML = `<span class="pill" title="Results screens learned: ${st.templates ?? 0}">${watcher}</span>
+    ${st.last_event ? `<span class="pill">Last <b>${esc(st.last_event)}</b></span>` : ""}${serverPill()}`;
+  $("notice").innerHTML = !st.alive
+    ? `<div class="notice">The background tracker isn't running. It starts when you log in to Windows; to start it now, run <b>Start Tracker.vbs</b> in the tracker folder.</div>`
+    : !st.templates && !data?.matches.length
+    ? `<div class="notice">Just play. When a match ends and the results screen sits still for a few seconds, the tracker reads it and logs the match here on its own. If one ever gets missed, press <kbd>${esc(st.hotkey_end || "ctrl+alt+e")}</kbd> on the results screen.</div>`
+    : "";
+  if (typeof renderLive === "function") renderLive(st);
+}
+
+function render() {
+  applyNav();
+  const st = data.status, now = Date.now() / 1000, since = rangeStart(), rname = RANGES[range];
+  renderStatus(st);
+  const ms = data.matches.filter((m) => m.ended_at >= since);
+  renderRangeHint(ms);
+  const latest = data.snapshots.length ? data.snapshots[data.snapshots.length - 1].data : null;
+  const gained = unlockEvents();
+  const newIn = gained.filter((u) => u.t >= since).length;
+  const playSecs = sum(ms, mlen);
+  const xpN = ms.filter((m) => m.xp != null).length;
+
+  $("tiles").innerHTML = [
+    ["Matches", fmt(ms.length), rname + (playSecs ? ", " + dur(playSecs) + " played" : "")],
+    ["XP", fmt(sum(ms, (m) => m.xp)), playSecs > 300 ? fmt(sum(ms, (m) => m.xp) / playSecs * 3600) + " XP / hour" : rname],
+    ["Net cash", `<span class="${sum(ms, net) < 0 ? "neg" : "pos"}">${money(sum(ms, net))}</span>`, "earned minus spent"],
+    ["Avg XP / match", xpN ? fmt(sum(ms, (m) => m.xp) / xpN) : "–", rname],
+    ["Wardog level", latest ? fmt(latest.wardogLevel) : "–", latest ? "rank #" + fmt(latest.rank) + (latest.players ? " of " + fmt(latest.players) : "") : "no sync yet"],
+    ["Cash (synced)", latest ? money(latest.cash) : "–", latest ? "synced " + when(Date.parse(latest.syncedAt) / 1000) : ""],
+    ["Unlocks", fmt(data.unlocks.length || latest?.unlocks), newIn ? `<span class="gold">+${newIn} ${rname}</span>` : (latest?.unlockValue ? money(latest.unlockValue) + " worth" : "")],
+  ].map(([k, v, s]) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+
+  renderRecap();
+  $("bestRange").textContent = rname;
+  renderBest(ms);
+
+  const xLabel = (m) => shortRange() ? clock(m.ended_at) : day(m.ended_at);
+  const mp = (f, color) => ms.map((m) => ({ y: f(m), label: xLabel(m), color: color && color(f(m)), tip: matchTip(m) }));
+  const xTitle = `Match (end time, ${rname})`;
+  chart($("xpChart"), { kind: "bar", points: mp((m) => m.xp), xTitle, yTitle: "XP", yFmt: short, empty: `No matches ${rname}` });
+  chart($("cashChart"), { kind: "bar", points: mp(net, (v) => v < 0 ? "var(--neg)" : "var(--pos)"), xTitle, yTitle: "Net cash ($)", yFmt: shortMoney, empty: `No matches ${rname}` });
+  const bk = buckets(ms);
+  $("bucketName").textContent = `XP per ${bk.unit}, ${rname}`;
+  chart($("bucketChart"), { kind: "bar", xTitle: bk.unit[0].toUpperCase() + bk.unit.slice(1), yTitle: "XP", yFmt: short, empty: `No matches ${rname}`,
+    points: bk.rows.map((r) => ({ y: sum(r.g, (m) => m.xp), label: r.label,
+      tip: `<b>${esc(bk.unit === "10 min" || bk.unit === "hour" ? when(r.t) : r.label)}</b><br>Matches: ${r.g.length}<br>XP: ${fmt(sum(r.g, (m) => m.xp))}<br>Net cash: ${money(sum(r.g, net))}<br>Played: ${dur(sum(r.g, mlen))}` })) });
+
+  renderMatches(ms, rname);
+  if (tab === "match") renderMatchPage(matchId);
+  renderSessions(since, now, gained, rname);
+  renderUnlocks(gained, latest, since, rname);
+
+  const snaps = data.snapshots.map((s) => ({ t: Date.parse(s.synced_at) / 1000, d: s.data })).filter((s) => s.t >= since);
+  const snapTip = (s, i, arr, key, f) => `<b>${esc(when(s.t))}</b><br>${key}: ${f(s.d[key === "Career XP" ? "careerXp" : "cash"])}` +
+    (i ? `<br><span class="m">change since previous sync: ${signed(s.d[key === "Career XP" ? "careerXp" : "cash"] - arr[i - 1].d[key === "Career XP" ? "careerXp" : "cash"], f)}</span>` : "");
+  const sx = (s) => shortRange() ? clock(s.t) : day(s.t);
+  chart($("careerChart"), { kind: "line", xTime: true, xTitle: "Sync time", yTitle: "Career XP", yFmt: short, empty: `Needs two or more syncs ${rname}`,
+    points: snaps.map((s, i, a) => ({ x: s.t, y: s.d.careerXp, label: sx(s), tip: snapTip(s, i, a, "Career XP", fmt) })) });
+  chart($("walletChart"), { kind: "line", xTime: true, xTitle: "Sync time", yTitle: "Cash ($)", yFmt: shortMoney, empty: `Needs two or more syncs ${rname}`,
+    points: snaps.map((s, i, a) => ({ x: s.t, y: s.d.cash, label: sx(s), tip: snapTip(s, i, a, "Cash", money) })) });
+  if (latest) {
+    const roles = Object.entries(latest.roles || {}).map(([r, v]) => `<tr><td style="text-transform:capitalize">${r}</td><td class="num">Lvl ${v.level}</td><td class="num">${fmt(v.xp)} XP</td></tr>`).join("");
+    $("totals").innerHTML = `<table><tbody>
+      <tr><td>Career XP</td><td class="num" colspan="2">${fmt(latest.careerXp)}</td></tr>
+      <tr><td>Unlocks</td><td class="num" colspan="2">${fmt(latest.unlocks)}</td></tr>${roles}</tbody></table>
+      <div class="s" style="color:var(--muted);margin-top:8px">Last synced ${when(Date.parse(latest.syncedAt) / 1000)}</div>`;
+  } else $("totals").innerHTML = '<div class="empty">No sync stored yet</div>';
+  $("syncLink").href = `https://wardogstracker.gg/profile/${data.steam_id}`;
+  renderExtras(ms, since, rname, latest);
+}
+
+function matchText(m) {
+  const d = m.details || {};
+  return [m.notes, usedText(m), statText(m), hudText(m), where(m), d.result, d.score, d.winner, when(m.ended_at), ...(d.sources || []).map((s) => s.label)].filter(Boolean).join(" ").toLowerCase();
+}
+
+function renderMatches(ms, rname) {
+  const q = ($("q")?.value || "").trim().toLowerCase();
+  if (q) ms = ms.filter((m) => q.split(/\s+/).every((w) => matchText(m).includes(w)));
+  const MF = { won: (m) => won(m) === 1, lost: (m) => won(m) === 0, up: (m) => net(m) > 0, down: (m) => net(m) < 0, check: (m) => !m.reviewed };
+  if (MF[mfilter]) ms = ms.filter(MF[mfilter]);
+  document.querySelectorAll("[data-mf]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mf === mfilter));
+  const tot = ms.length ? ` · ${fmt(sum(ms, (m) => m.xp))} XP, ${money(sum(ms, net))} net` : "";
+  $("matchCount").textContent = `${ms.length} ${rname}${q || mfilter ? " matching" : ""}${tot}`;
+  const base = matchAverages(data.matches);
+  $("matchList").innerHTML = ms.length ? ms.slice().reverse().map((m) => matchCard(m, base)).join("")
+    : `<div class="empty">No matches ${rname}${q ? " match that search" : ""}.</div>`;
+}
+
+function matchAverages(ms, skip) {
+  const g = ms.filter((m) => m.id !== skip);
+  return { xp: avg(g.filter((m) => m.xp != null).map((m) => m.xp)), cash: avg(g.map(net).filter((x) => x != null)),
+    xpMin: perMin(g, (m) => m.xp), cashMin: perMin(g, net), len: avg(g.map(mlen).filter((x) => x != null)) };
+}
+const vsAvg = (v, a) => v == null || a == null || !a ? "" : (() => { const d = (v - a) / Math.abs(a);
+  return `<span class="cmp ${d >= 0 ? "up" : "down"}">${d >= 0 ? "▲" : "▼"} ${Math.abs(Math.round(d * 100))}% vs avg</span>`; })();
+const topKey = (o) => { const e = Object.entries(o || {}); return e.length ? e.sort((a, b) => b[1] - a[1])[0][0] : null; };
+
+function matchCard(m, base) {
+  const d = m.details || {}, n = net(m), h = d.hud, u = d.used || {};
+  const roleGain = Object.entries(d.role_xp || {}).filter(([, v]) => v.gain).sort((a, b) => b[1].gain - a[1].gain);
+  const role = roleGain[0]?.[0] || (u.roles || [])[0];
+  const gun = topKey(h?.guns);
+  const w = where(m);
+  const chips = [
+    d.result ? `<span class="res ${d.result}">${d.result}</span>` : d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : "",
+    role ? `<span class="chip">Role <b>${esc(role)}</b></span>` : "",
+    gun ? `<span class="chip">Gun <b>${esc(gun)}</b></span>` : "",
+    w ? `<span class="chip ${w.includes("Hot") ? "hot" : w.includes("FOB") ? "fob" : ""}">${esc(w)}</span>` : "",
+    h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : "",
+    d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : "",
+    d.combat ? `<span class="chip">K/D <b>${d.combat.kills}/${d.combat.deaths}</b>${d.combat.downs ? `, downed ${d.combat.downs}` : ""}</span>` : "",
+    statText(m) ? `<span class="chip">${esc(statText(m))}</span>` : "",
+    !m.reviewed && (m.xp != null || n != null) ? `<span class="chip" title="Numbers read from the screen, not checked yet">unchecked</span>` : "",
+  ].filter(Boolean).join("");
+  const rate = perMinute(m);
+  return `<button class="mcard" data-open="${m.id}" role="listitem" aria-label="Match ${esc(when(m.ended_at))}">
+    <span class="bar ${n > 0 ? "pos" : n < 0 ? "neg" : ""}"></span>
+    <span class="main"><span class="top"><b>${when(m.ended_at)}</b><span class="m">${dur(mlen(m))}${d.duration_s != null ? "" : "*"}</span></span>
+      <span class="chips">${chips || `<span class="chip">no details read</span>`}</span>
+      ${m.notes ? `<span class="note">${esc(m.notes)}</span>` : ""}</span>
+    <span class="nums">
+      <span><span class="num-k">XP</span><span class="num-v" style="display:block">${fmt(m.xp)}</span><span class="num-s">${rate != null ? rate.toFixed(0) + "/min" : ""}</span></span>
+      <span><span class="num-k">Net cash</span><span class="num-v ${n < 0 ? "neg" : n > 0 ? "pos" : ""}" style="display:block">${money(n)}</span><span class="num-s">${vsAvg(n, base.cash)}</span></span>
+    </span></button>`;
+}
+function renderRecap() {
+  const el = $("recap"), s = data.sessions[data.sessions.length - 1];
+  const ms = s ? data.matches.filter((m) => m.session_id === s.id) : [];
+  if (!ms.length) { el.innerHTML = `<h2>Last session</h2><div class="empty">Your last session's recap shows here once it has a match.</div>`; return; }
+  const live = s.ended_at == null, nets = ms.map(net).filter((x) => x != null);
+  const best = ms.filter((m) => net(m) != null).sort((a, b) => net(b) - net(a))[0];
+  const fought = ms.filter((m) => m.details?.combat), kills = sum(fought, (m) => m.details.combat.kills), deaths = sum(fought, (m) => m.details.combat.deaths);
+  const downs = sum(fought, (m) => m.details.combat.downs);
+  const roleXp = {};
+  ms.forEach((m) => Object.entries(m.details?.role_xp || {}).forEach(([r, v]) => { roleXp[r] = (roleXp[r] || 0) + (v.gain || 0); }));
+  const topRole = topKey(roleXp);
+  const prior = data.matches.filter((m) => m.session_id !== s.id), base = matchAverages(prior);
+  const sessCash = perMin(ms, net), hot = ms.filter((m) => m.details?.hud?.reads);
+  const hotShare = hot.length ? sum(hot, (m) => m.details.hud.hot) / sum(hot, (m) => m.details.hud.reads) : null;
+  const tips = [];
+  if (fought.length && downs / fought.length >= 3) tips.push(`You went down ${(downs / fought.length).toFixed(1)} times a match. Each down costs time and gear; play one step further back from the fight.`);
+  if (hotShare != null && hotShare < 0.2) tips.push(`Only ${pct(hotShare)} of your time was in the Hot Zone, where actions reportedly pay double. Push the objective more.`);
+  if (sessCash != null && base.cashMin != null && sessCash < base.cashMin * 0.8) tips.push(`Cash rate was ${money(sessCash)}/min against your usual ${money(base.cashMin)}/min. Check what you spent on in the match pages.`);
+  if (sum(ms, (m) => m.cash_spent) > sum(ms, (m) => m.cash_earned) * 0.6) tips.push("Spending ate most of your earnings. Try a cheaper loadout until a round pays for it.");
+  if (!tips.length) tips.push(best ? `Repeat what worked in your best round (${money(net(best))}): open it below to see where the money came from.` : "Solid session. Keep the same approach.");
+  el.innerHTML = `<h2>${live ? "This session" : "Last session"} <small>${when(s.started_at)}${s.ended_at ? " to " + clock(s.ended_at) : ", still playing"}</small></h2>
+    <div class="grid tiles" style="margin-top:0">
+      ${tile("Matches", fmt(ms.length), dur(sum(ms, mlen)) + " played")}
+      ${tile("XP", fmt(sum(ms, (m) => m.xp)), topRole ? `most as ${esc(topRole)}` : "")}
+      ${tile("Net cash", `<span class="${sum(nets, (x) => x) < 0 ? "neg" : "pos"}">${money(sum(nets, (x) => x))}</span>`, sessCash != null ? `${money(sessCash)}/min ${vsAvg(sessCash, base.cashMin)}` : "")}
+      ${tile("Kills / deaths", fought.length ? `${kills} / ${deaths}` : "–", fought.length ? `downed ${downs} times` : "tracked from your next match")}
+      ${tile("Best round", best ? `<button class="link" data-open="${best.id}">${money(net(best))}</button>` : "–", best ? when(best.ended_at) + (best.details?.map ? " · " + esc(best.details.map) : "") : "")}
+    </div>
+    <p style="margin:10px 0 0"><b>Next time:</b> ${tips[0]}</p>`;
+}
+
+function renderSessions(since, now, gained, rname) {
+  const ss = data.sessions.filter((s) => (s.ended_at ?? now) >= since);
+  $("sessionCount").textContent = `${ss.length} ${rname}`;
+  const info = ss.map((s) => {
+    const sm = data.matches.filter((m) => m.session_id === s.id);
+    const len = (s.ended_at ?? now) - s.started_at, xp = sum(sm, (m) => m.xp);
+    // unlocks show up at the next sync, so count ones first seen up to an hour after the session
+    const su = gained.filter((u) => u.t >= s.started_at && u.t <= (s.ended_at ?? now) + 3600);
+    return { s, sm, len, xp, api: snapAround(s.started_at, s.ended_at), su, rate: len > 300 ? xp / len * 3600 : null };
+  });
+  chart($("sessionChart"), { kind: "bar", xTitle: `Session start, ${rname}`, yTitle: "XP per hour", yFmt: short, empty: `No sessions ${rname}`,
+    points: info.map((r) => ({ y: r.rate, label: shortRange() ? clock(r.s.started_at) : day(r.s.started_at),
+      tip: `<b>${esc(when(r.s.started_at))}</b><br>Length: ${dur(r.len)}<br>Matches: ${r.sm.length}<br>XP: ${fmt(r.xp)} (${fmt(r.rate)} / hour)<br>Net cash: ${money(sum(r.sm, net))}` +
+        (r.api?.roles.length ? `<br>Played as: ${esc(r.api.roles.map(([k, x]) => `${k} +${fmt(x)}`).join(", "))}` : "") })) });
+  const srows = info.slice().reverse().map(({ s, sm, len, xp, api, su, rate }) => `<tr><td>${when(s.started_at)}${s.ended_at ? "" : ' <span class="tag">live</span>'}</td><td class="num">${dur(len)}</td>
+      <td class="num">${sm.length}</td><td class="num">${fmt(xp)}</td><td class="num">${money(sum(sm, net))}</td>
+      <td class="num">${rate != null ? fmt(rate) : "–"}</td>
+      <td class="num">${api ? signed(api.xp) : "–"}</td><td class="num">${api ? signed(api.cash, money) : "–"}</td>
+      <td style="text-transform:capitalize">${api?.roles.length ? esc(api.roles.map(([r, x]) => `${r} +${fmt(x)}`).join(", ")) : "–"}</td>
+      <td title="${esc(su.map((u) => u.label).join("\n"))}">${su.length ? `<span class="gold">+${su.length}</span> ${esc(su.slice(0, 2).map((u) => u.label).join(", "))}${su.length > 2 ? "…" : ""}` : "–"}</td></tr>`).join("");
+  $("sessions").innerHTML = ss.length ? `<thead><tr><th>Started</th><th class="num">Length</th><th class="num">Matches</th><th class="num">XP (screens)</th><th class="num">Net cash (screens)</th><th class="num">XP / hour</th><th class="num" title="Change between WARDOGS Tracker syncs before and after the session">XP (synced)</th><th class="num">Cash (synced)</th><th title="Role XP gained between WARDOGS Tracker syncs">Played as</th><th>Unlocks</th></tr></thead><tbody>${srows}</tbody>`
+    : `<tbody><tr><td class="empty">No sessions ${rname}. Sessions appear when you launch WARDOGS with the tracker running.</td></tr></tbody>`;
+}
+
+function resultCell(m) {
+  const d = m.details || {};
+  if (!d.result && !d.score && !d.winner) return "–";
+  return `${d.result ? `<span class="res ${d.result}">${d.result}</span> ` : ""}${d.score ? esc(d.score) + " " : ""}${!d.result && d.winner ? esc(d.winner) + " won" : ""}`;
+}
+
+function renderBest(ms) {
+  const top = (f) => ms.filter((m) => f(m) != null).reduce((b, m) => (b == null || f(m) > f(b) ? m : b), null);
+  const perMin = (m) => m.xp != null && mlen(m) > 120 ? m.xp / mlen(m) * 60 : null;
+  const kills = (m) => m.details?.stats?.kills ?? null;
+  const cards = [
+    ["Most XP", top((m) => m.xp), (m) => fmt(m.xp) + " XP"],
+    ["Most money", top(net), (m) => money(net(m))],
+    ["Best XP / minute", top(perMin), (m) => fmt(perMin(m)) + " XP/min"],
+    ["Most kills", top(kills), (m) => fmt(kills(m)) + " kills"],
+    ["Longest match", top(mlen), (m) => dur(mlen(m))],
+  ].filter(([, m]) => m);
+  $("best").innerHTML = cards.length ? cards.map(([k, m, v]) => {
+    const extra = [m.details?.result, usedText(m)].filter(Boolean).join(" · ");
+    return `<div class="card tile best"><div class="k">${k}</div><div class="v">${v(m)}</div>
+      <div class="s">${when(m.ended_at)}${m.screenshot ? `<button class="link" data-shot="${m.id}">view</button>` : ""}</div>
+      ${extra ? `<div class="s" style="text-transform:capitalize">${esc(extra)}</div>` : ""}</div>`;
+  }).join("") : `<div class="empty">No matches ${RANGES[range]}. Pick a longer range above.</div>`;
+}
+
+// New items and level-ups seen since tracking began, newest first.
+function unlockEvents() {
+  const ev = [];
+  for (const u of data.unlocks) {
+    if (!u.baseline) ev.push({ t: u.first_seen, u, label: u.name });
+    if (u.level_seen) ev.push({ t: u.level_seen, u, label: `${u.name} (level ${u.level})` });
+  }
+  return ev.sort((a, b) => b.t - a.t);
+}
+
+function unlockCard(u, sub, isNew) {
+  const img = u.image ? `<img src="${esc(u.image)}" alt="" loading="lazy">` : "";
+  const inner = `${img}<span>${esc(u.name)}<small>${esc(sub)}</small></span>`;
+  return u.url ? `<a class="unlock${isNew ? " new" : ""}" href="${esc(u.url)}" target="_blank" rel="noopener">${inner}</a>`
+    : `<div class="unlock${isNew ? " new" : ""}">${inner}</div>`;
+}
+
+function renderUnlocks(gained, latest, since, rname) {
+  const us = data.unlocks;
+  if (!us.length) { $("unlocks").innerHTML = '<div class="empty">Unlocks appear after the first WARDOGS Tracker sync is pulled.</div>'; return; }
+  const first = Math.min(...us.map((u) => u.first_seen));
+  const groups = {};
+  for (const u of us) (groups[u.grp] ||= []).push(u);
+  const order = ["weapons", "attachments", "gear", "ammunition", "vehicles"];
+  const keys = Object.keys(groups).sort((a, b) => ((order.indexOf(a) + 1) || 99) - ((order.indexOf(b) + 1) || 99) || a.localeCompare(b));
+  const inRange = gained.filter((e) => e.t >= since);
+  const recent = inRange.map((e) => unlockCard(e.u, (e.label === e.u.name ? "" : `level ${e.u.level}, `) + when(e.t), true)).join("");
+  $("unlocks").innerHTML = `
+    <div class="usum"><span><b>${fmt(us.length)}</b> unlocked</span>
+      ${latest?.unlockValue ? `<span>worth <b>${money(latest.unlockValue)}</b></span>` : ""}
+      <span><b>${inRange.length}</b> new ${rname}</span>
+      <span><b>${gained.length}</b> new since tracking began ${when(first)}</span></div>
+    <div class="ugroup"><h3>Unlocked ${rname}</h3>${recent ? `<div class="ugrid">${recent}</div>` : `<div class="empty" style="text-align:left;padding:4px 0">Nothing new ${rname}.</div>`}</div>
+    ${keys.map((k) => `<div class="ugroup"><h3>${esc(k)} (${groups[k].length})</h3><div class="ugrid">${groups[k].slice().sort((a, b) => a.name.localeCompare(b.name)).map((u) => unlockCard(u, u.level > 1 ? `level ${u.level}` : "", !u.baseline)).join("")}</div></div>`).join("")}`;
+}
+
+function candTitle(m, k) {
+  const seen = m.ocr_hint || [];
+  const head = m.reviewed ? "Checked" : "OCR guess, click to correct";
+  return seen.length ? `${head}. Text read on screen:\n${seen.join("\n")}` : head;
+}
+
+async function post(url, body) {
+  return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+}
+
+document.addEventListener("focusin", (e) => { if (e.target.classList?.contains("edit")) editing = true; });
+document.addEventListener("change", async (e) => {
+  const t = e.target;
+  if (t.dataset.k) {
+    const v = t.value.replace(/[^\d]/g, "");
+    await post(`/api/match/${t.dataset.id}`, { [t.dataset.k]: v === "" ? null : Number(v), reviewed: 1 });
+    editing = false; load();
+  } else if (t.dataset.review) {
+    await post(`/api/match/${t.dataset.review}`, { reviewed: t.checked ? 1 : 0 }); load();
+  }
+});
+document.addEventListener("focusout", (e) => { if (e.target.classList?.contains("edit")) setTimeout(() => { editing = false; }, 50); });
+document.addEventListener("click", async (e) => {
+  const row = e.target.closest("[data-open]");
+  if (row && !e.target.closest("input, label, button:not([data-open])")) { openMatch(+row.dataset.open); return; }
+  const t = e.target.closest("button");
+  if (!t) return;
+  if (t.dataset.go) { openMatch(+t.dataset.go); return; }
+  if (t.dataset.tab) { tab = t.dataset.tab; store.set("wdt-tab", tab); history.replaceState(null, "", "#" + tab); if (data) render(); else applyNav(); return; }
+  if (t.dataset.mf != null) { mfilter = t.dataset.mf; if (data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); return; }
+  if (t.dataset.range) { range = t.dataset.range; store.set("wdt-range", range); if (data) render(); else applyNav(); return; }
+  if (t.dataset.del && confirm("Delete this match from your log?")) { await post(`/api/match/${t.dataset.del}/delete`); if (tab === "match") location.hash = "matches"; load(); }
+  if (t.dataset.notend && confirm("Delete this and stop treating that screen as a results screen?")) { await post(`/api/match/${t.dataset.notend}/not-end-screen`); load(); }
+  if (t.dataset.shot) { const d = $("shot"); d.querySelector("img").src = `/shot/${t.dataset.shot}`; d.showModal(); }
+  if (t.id === "refresh") {
+    t.disabled = true; t.textContent = "Checking…";
+    const r = await (await post("/api/refresh")).json();
+    t.textContent = !r.ok ? "Couldn't reach WARDOGS Tracker" : r.unlocked?.length ? `New: ${r.unlocked.join(", ")}` : r.new ? "New sync stored" : "No new sync yet";
+    setTimeout(() => { t.disabled = false; t.textContent = "Check for new sync"; }, 2500);
+    load();
+  }
+});
+window.addEventListener("hashchange", () => {
+  const h = location.hash.slice(1), mh = h.match(/^match\/(\d+)$/);
+  if (mh) { tab = "match"; matchId = +mh[1]; window.scrollTo(0, 0); if (data) render(); else applyNav(); }
+  else if (TABS.includes(h)) { tab = h; if (data) render(); else applyNav(); }
+});
+{ const mh = location.hash.match(/^#match\/(\d+)$/); if (mh) matchId = +mh[1]; }
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => data && render(), 150); });
+applyNav();
+// Live updates: a tiny version check every 2 s; full reload only when something changed.
+let lastFull = 0;
+async function poll() {
+  try {
+    const r = await (await fetch("/api/version")).json();
+    if (!data || r.v !== data.version || Date.now() - lastFull > 30000) { await load(); lastFull = Date.now(); }
+    else renderStatus(r.status);
+  } catch { renderStatus({ alive: false }); }
+}
+poll();
+setInterval(poll, 2000);
+</script>
+<script>
+// ---- insights, goals, streaks, leaderboard, forecasts, strategy -------------
+const ROLE_KEYS = ["assault", "medic", "recon", "support", "driver", "pilot"];
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
+const won = (m) => m.details?.result === "victory" ? 1 : m.details?.result === "defeat" ? 0 : null;
+const meta = (k) => data?.meta?.[k] || null;
+const pct = (v) => v == null ? "–" : Math.round(v * 100) + "%";
+const perMinute = (m) => m.xp != null && mlen(m) > 120 ? m.xp / mlen(m) * 60 : null;
+const dayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d / 1000; };
+const weekStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d / 1000; };
+const tile = (k, v, s) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`;
+const snapList = () => data.snapshots.map((s) => ({ t: Date.parse(s.synced_at) / 1000, d: s.data }));
+const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+
+function renderExtras(ms, since, rname, latest) {
+  renderGoals(); renderPB(); renderInsights(ms, rname); renderCash(ms, rname);
+  renderLeaderboard(latest, since, rname); renderForecast(latest); renderStrategy(latest);
+}
+
+// Hover read-outs for the non-SVG visuals (goal bars, heatmap cells).
+document.addEventListener("pointerover", (e) => {
+  const c = e.target.closest?.("[data-tip]"), z = c?.closest(".tz");
+  document.querySelectorAll(".tz > .tip").forEach((t) => { if (!z || t.parentNode !== z) t.hidden = true; });
+  if (!c || !z) return;
+  let tip = z.querySelector(":scope > .tip");
+  if (!tip) { tip = document.createElement("div"); tip.className = "tip"; z.appendChild(tip); }
+  tip.innerHTML = c.dataset.tip; tip.hidden = false;
+  const zb = z.getBoundingClientRect(), cb = c.getBoundingClientRect();
+  tip.style.left = Math.max(0, Math.min(zb.width - tip.offsetWidth, cb.left - zb.left + cb.width / 2 - tip.offsetWidth / 2)) + "px";
+  const above = cb.top - zb.top - tip.offsetHeight - 6;
+  tip.style.top = (above < 0 ? cb.bottom - zb.top + 6 : above) + "px";
+});
+
+// ---- goals, records, streaks ---------------------------------------------------
+function renderGoals() {
+  const g = meta("settings") || {};
+  $("goals").innerHTML = [["Today", "daily_xp_goal", dayStart()], ["This week", "weekly_xp_goal", weekStart()]].map(([name, key, t0]) => {
+    const xp = sum(data.matches.filter((m) => m.ended_at >= t0), (m) => m.xp), goal = g[key];
+    const done = goal && xp >= goal;
+    const tip = goal ? `<b>${name}</b><br>${fmt(xp)} of ${fmt(goal)} XP (${Math.round(xp / goal * 100)}%)<br>${done ? "Goal reached" : fmt(goal - xp) + " XP to go"}`
+      : `<b>${name}</b><br>${fmt(xp)} XP<br>Set a goal to see progress`;
+    return `<div class="goal"><div class="glabel"><span>${name}: <b>${fmt(xp)}</b>${goal ? ` of ${fmt(goal)} XP` : " XP"}${done ? ' <span class="pos">done</span>' : ""}</span>
+      <label>Goal <input class="edit" data-goal="${key}" value="${goal ?? ""}" inputmode="numeric" placeholder="none"></label></div>
+      <div class="gbar" data-tip="${esc(tip)}"><i class="${done ? "done" : ""}" style="width:${goal ? Math.min(100, xp / goal * 100) : 0}%"></i></div></div>`;
+  }).join("") + '<div class="s" style="color:var(--muted)">XP read from results screens. Weeks start Monday.</div>';
+  const st = streaks();
+  $("streaks").innerHTML = [
+    tile("Days in a row", fmt(st.cur), st.playedToday ? "including today" : st.cur ? "play today to keep it" : "play today to start one"),
+    tile("Longest day streak", fmt(st.longest), "days"),
+    tile("Wins in a row", fmt(st.winCur), st.decided ? `of ${st.decided} matches with a known result` : "no results read yet"),
+    tile("Longest win streak", fmt(st.winLongest), "wins"),
+  ].join("");
+}
+
+function streaks() {
+  const dayN = (t) => { const d = new Date(t * 1000); d.setHours(12, 0, 0, 0); return Math.round(d / 86400000); };
+  const days = new Set([...data.matches.map((m) => m.ended_at), ...data.sessions.map((s) => s.started_at)].map(dayN));
+  let longest = 0, run = 0, prev = null;
+  for (const n of [...days].sort((a, b) => a - b)) { run = prev != null && n === prev + 1 ? run + 1 : 1; longest = Math.max(longest, run); prev = n; }
+  const today = dayN(Date.now() / 1000);
+  let cur = 0;
+  for (let d = days.has(today) ? today : today - 1; days.has(d); d--) cur++;
+  const res = data.matches.map(won).filter((x) => x != null);
+  let winCur = 0, winLongest = 0;
+  for (const r of res) { winCur = r ? winCur + 1 : 0; winLongest = Math.max(winLongest, winCur); }
+  return { cur, longest, playedToday: days.has(today), winCur, winLongest, decided: res.length };
+}
+
+function renderPB() {
+  const ms = data.matches, last = ms[ms.length - 1];
+  if (!last || ms.length < 4 || Date.now() / 1000 - last.ended_at > 6 * 3600 || store.get("wdt-pb") === String(last.id)) { $("pb").innerHTML = ""; return; }
+  const prev = ms.slice(0, -1);
+  const wins = [["Most XP", (m) => m.xp, (v) => fmt(v) + " XP"], ["Most money", net, money],
+    ["Best XP per minute", perMinute, (v) => fmt(v) + " XP/min"], ["Most kills", (m) => m.details?.stats?.kills ?? null, (v) => fmt(v) + " kills"]]
+    .map(([name, f, F]) => {
+      const v = f(last), vals = prev.map(f).filter((x) => x != null);
+      if (v == null || !vals.length) return null;
+      const best = Math.max(...vals);
+      return v > best ? `${name}: <b>${F(v)}</b> <span class="m">(old best ${F(best)})</span>` : null;
+    }).filter(Boolean);
+  $("pb").innerHTML = wins.length ? `<div class="notice pb"><b class="gold">New personal best!</b><span>Match ended ${clock(last.ended_at)}:</span>${wins.map((w) => `<span>${w}</span>`).join("")}<button class="link" data-pbclose="${last.id}">dismiss</button></div>` : "";
+}
+
+// ---- insights --------------------------------------------------------------------
+function groupStats(ms, keysOf) {
+  const map = new Map();
+  for (const m of ms) for (const k of keysOf(m)) { if (!map.has(k)) map.set(k, []); map.get(k).push(m); }
+  return [...map.entries()].map(([k, g]) => {
+    const dec = g.map(won).filter((x) => x != null), xs = g.filter((m) => m.xp != null), secs = sum(xs, mlen);
+    return { k, g, n: g.length, dec: dec.length, win: avg(dec), xp: avg(xs.map((m) => m.xp)),
+      cash: avg(g.map(net).filter((x) => x != null)), rate: secs > 300 ? sum(xs, (m) => m.xp) / secs * 60 : null };
+  }).sort((a, b) => b.n - a.n || a.k.localeCompare(b.k));
+}
+
+function statTable(rows, head, empty) {
+  if (!rows.length) return `<div class="empty">${empty}</div>`;
+  return `<table><thead><tr><th>${head}</th><th class="num">Matches</th><th class="num">Win rate</th><th class="num">Avg XP</th><th class="num">Avg net cash</th><th class="num">XP / min</th></tr></thead><tbody>${rows.map((r) =>
+    `<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num" title="${r.dec} with a known result">${pct(r.win)}</td><td class="num">${fmt(r.xp)}</td><td class="num ${r.cash < 0 ? "neg" : ""}">${money(r.cash)}</td><td class="num">${r.rate == null ? "–" : r.rate.toFixed(1)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function sourceRows(ms) {
+  const src = new Map();
+  for (const m of ms) for (const s of m.details?.sources || []) {
+    const k = s.label.toLowerCase(), r = src.get(k) || { label: s.label, xp: 0, cash: 0, n: 0 };
+    r.xp += s.xp || 0; r.cash += s.cash || 0; r.n++; src.set(k, r);
+  }
+  return [...src.values()];
+}
+
+function renderInsights(ms, rname) {
+  const xLabel = (m) => shortRange() ? clock(m.ended_at) : day(m.ended_at);
+  const dec = ms.filter((m) => won(m) != null), wins = dec.filter((m) => won(m) === 1).length;
+  const roles = groupStats(ms, (m) => m.details?.used?.roles || []), items = groupStats(ms, (m) => m.details?.used?.items || []);
+  const bestRole = roles.filter((r) => r.rate != null).sort((a, b) => b.rate - a.rate)[0];
+  const bestCash = roles.filter((r) => r.cash != null).sort((a, b) => b.cash - a.cash)[0];
+  $("winTiles").innerHTML = [
+    tile("Win rate", pct(dec.length ? wins / dec.length : null), dec.length ? `${wins} won, ${dec.length - wins} lost, ${rname}` : "no results read " + rname),
+    tile("Avg XP / match", fmt(avg(ms.filter((m) => m.xp != null).map((m) => m.xp))), rname),
+    tile("Avg net cash / match", money(avg(ms.map(net).filter((x) => x != null))), rname),
+    tile("Best role for XP", bestRole ? esc(bestRole.k) : "–", bestRole ? bestRole.rate.toFixed(1) + " XP / min" : "roles come from loadout screens"),
+    tile("Best role for cash", bestCash ? esc(bestCash.k) : "–", bestCash ? money(bestCash.cash) + " avg net" : ""),
+  ].join("");
+
+  const pts = dec.map((m, i) => {
+    const win = dec.slice(Math.max(0, i - 9), i + 1), w = win.filter((x) => won(x) === 1).length;
+    return { y: w / win.length * 100, label: xLabel(m), tip: `<b>${esc(when(m.ended_at))}</b><br>This match: ${esc(m.details.result)}<br>Last ${win.length}: ${w} won (${Math.round(w / win.length * 100)}%)` };
+  });
+  chart($("winChart"), { kind: "line", points: pts, xTitle: `Match (${rname})`, yTitle: "Win rate (%)", yRange: [0, 100], yFmt: (v) => Math.round(v) + "%", empty: `Needs two or more matches with a result ${rname}` });
+  $("byRole").innerHTML = statTable(roles, "Role", `No roles seen ${rname}. Roles are read from loadout and deploy screens.`);
+  $("byItem").innerHTML = statTable(items, "Item", `No items seen ${rname}. Items are read from loadout screens.`);
+  const hudEmpty = `Nothing yet ${rname}. During matches the screen is read every 20 seconds for Hot Zone, FOB and team names.`;
+  $("byWhere").innerHTML = statTable(groupStats(ms, (m) => where(m) ? [where(m)] : []), "Where", hudEmpty);
+  $("byTeam").innerHTML = statTable(groupStats(ms, (m) => m.details?.hud?.team ? [m.details.hud.team] : []), "Team", hudEmpty);
+  $("byMap").innerHTML = statTable(groupStats(ms, (m) => m.details?.map ? [m.details.map] : []), "Map", "The map is read from the results banner of matches from now on.");
+  const fought = ms.filter((m) => m.details?.combat);
+  $("byFight").innerHTML = fought.length ? `<table><tbody>${[
+      ["Kills / match", avg(fought.map((m) => m.details.combat.kills))], ["Deaths / match", avg(fought.map((m) => m.details.combat.deaths))],
+      ["Downed / match", avg(fought.map((m) => m.details.combat.downs))],
+      ["Net cash, matches with 0-1 downs", avg(fought.filter((m) => m.details.combat.downs <= 1).map(net).filter((x) => x != null))],
+      ["Net cash, matches with 2+ downs", avg(fought.filter((m) => m.details.combat.downs >= 2).map(net).filter((x) => x != null))]]
+    .map(([k, v], i) => `<tr><td>${k}</td><td class="num">${v == null ? "–" : i < 3 ? v.toFixed(1) : money(v)}</td></tr>`).join("")}</tbody></table>
+    <p class="m">${fought.length} matches with fight data. The kill feed is read every 3 seconds, so a kill that scrolls past faster can be missed.</p>`
+    : `<div class="empty">Kills, deaths and downs are tracked from matches played from now on.</div>`;
+
+  const src = sourceRows(ms), withSrc = ms.filter((m) => m.details?.sources?.length).length;
+  $("srcNote").textContent = withSrc ? `from ${withSrc} results screens ${rname}` : "";
+  const srcTip = (r) => `<b>${esc(r.label)}</b><br>XP: ${fmt(r.xp)}<br>Cash: ${money(r.cash)}<br>In ${r.n} match${r.n === 1 ? "" : "es"}`;
+  const cut = (s) => s.length > 14 ? s.slice(0, 13) + "…" : s;
+  const empty = `No breakdown read ${rname}. It fills in once results screens list XP and cash by source.`;
+  chart($("srcXpChart"), { kind: "bar", xTitle: "Source", yTitle: "XP", yFmt: short, empty,
+    points: src.filter((r) => r.xp).sort((a, b) => b.xp - a.xp).slice(0, 12).map((r) => ({ y: r.xp, label: cut(r.label), tip: srcTip(r) })) });
+  chart($("srcCashChart"), { kind: "bar", xTitle: "Source", yTitle: "Cash ($)", yFmt: shortMoney, empty,
+    points: src.filter((r) => r.cash).sort((a, b) => b.cash - a.cash).slice(0, 12).map((r) => ({ y: r.cash, label: cut(r.label), color: r.cash < 0 ? "var(--neg)" : "var(--pos)", tip: srcTip(r) })) });
+  const tot = src.reduce((a, r) => a + Math.max(0, r.xp), 0);
+  $("srcTable").innerHTML = src.length ? `<table><thead><tr><th>Source</th><th class="num">XP</th><th class="num">Share of XP</th><th class="num">Cash</th><th class="num">Matches</th><th class="num">Avg XP / match</th></tr></thead><tbody>${
+    src.sort((a, b) => b.xp - a.xp || b.cash - a.cash).map((r) => `<tr><td>${esc(r.label)}</td><td class="num">${fmt(r.xp)}</td><td class="num">${tot ? pct(Math.max(0, r.xp) / tot) : "–"}</td><td class="num ${r.cash < 0 ? "neg" : ""}">${money(r.cash)}</td><td class="num">${r.n}</td><td class="num">${fmt(r.xp / r.n)}</td></tr>`).join("")
+  }</tbody></table>` : `<div class="empty">${empty}</div>`;
+
+  renderHeat(ms, rname);
+  renderFatigue(ms, rname);
+}
+
+function renderHeat(ms, rname) {
+  const cells = {}, days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  for (const m of ms) {
+    const len = mlen(m);
+    if (m.xp == null || !len) continue;
+    const d = new Date((m.ended_at - len) * 1000), c = cells[`${(d.getDay() + 6) % 7}-${d.getHours()}`] ||= { xp: 0, secs: 0, n: 0 };
+    c.xp += m.xp; c.secs += len; c.n++;
+  }
+  const rate = (c) => c.secs > 0 ? c.xp / c.secs * 3600 : 0, max = Math.max(0, ...Object.values(cells).map(rate));
+  if (!max) { $("heat").innerHTML = `<div class="empty" style="grid-column:1/-1">No matches ${rname}. Week, Month or All fills this in.</div>`; return; }
+  let s = "<div></div>" + Array.from({ length: 24 }, (_, h) => `<div class="h">${h % 6 === 0 ? (h % 12 || 12) + (h < 12 ? "a" : "p") : ""}</div>`).join("");
+  days.forEach((name, di) => {
+    s += `<div class="d">${name}</div>`;
+    for (let h = 0; h < 24; h++) {
+      const c = cells[`${di}-${h}`], hr = new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric" });
+      s += c ? `<div class="c" style="background:rgba(227,169,43,${(0.15 + 0.85 * rate(c) / max).toFixed(2)})" data-tip="${esc(`<b>${name} ${hr}</b><br>${fmt(rate(c))} XP / hour<br>${c.n} match${c.n === 1 ? "" : "es"}, ${dur(c.secs)} played`)}"></div>`
+        : `<div class="c" data-tip="${esc(`<b>${name} ${hr}</b><br>No matches`)}"></div>`;
+    }
+  });
+  $("heat").innerHTML = s;
+}
+
+function renderFatigue(ms, rname) {
+  const sess = new Map(data.sessions.map((s) => [s.id, s]));
+  const B = [["0-1 h", 0, 1], ["1-2 h", 1, 2], ["2-3 h", 2, 3], ["3+ h", 3, Infinity]].map(([label, a, b]) => ({ label, a, b, xp: 0, secs: 0, n: 0 }));
+  for (const m of ms) {
+    const s = sess.get(m.session_id), len = mlen(m);
+    if (!s || m.xp == null || !len) continue;
+    const into = (m.ended_at - len - s.started_at) / 3600, b = B.find((x) => into >= x.a && into < x.b) || B[0];
+    b.xp += m.xp; b.secs += len; b.n++;
+  }
+  const r = (b) => b.secs > 300 ? b.xp / b.secs * 3600 : null;
+  chart($("fatigueChart"), { kind: "bar", xTitle: "Hours into the session", yTitle: "XP per hour", yFmt: short, empty: `No session matches ${rname}`,
+    points: B.map((b) => ({ y: r(b), label: b.label, tip: `<b>${b.label} in</b><br>${fmt(r(b))} XP / hour<br>${b.n} match${b.n === 1 ? "" : "es"}, ${dur(b.secs)} played` })) });
+  const early = r(B[0]) ?? r(B[1]), late = [r(B[2]), r(B[3])].filter((x) => x != null);
+  $("fatigueNote").textContent = early && late.length
+    ? (Math.min(...late) < early * 0.85 ? `XP per hour drops ${Math.round((1 - Math.min(...late) / early) * 100)}% after 2 hours. A break around then may help.` : "No real drop after 2 hours so far.")
+    : "Needs matches both early and 2+ hours into sessions.";
+}
+
+function renderCash(ms, rname) {
+  const earned = sum(ms, (m) => m.cash_earned), spent = sum(ms, (m) => m.cash_spent);
+  const spend = sourceRows(ms).filter((r) => r.cash < 0).sort((a, b) => a.cash - b.cash);
+  const losers = ms.filter((m) => net(m) < 0).sort((a, b) => net(a) - net(b));
+  $("cashTiles").innerHTML = [
+    tile("Earned", `<span class="pos">${money(earned)}</span>`, rname),
+    tile("Spent", `<span class="neg">${money(spent)}</span>`, spend.length ? "mostly " + esc(spend.slice(0, 2).map((r) => r.label).join(", ")) : "loadouts, repairs and other costs"),
+    tile("Net", `<span class="${earned - spent < 0 ? "neg" : "pos"}">${money(earned - spent)}</span>`, rname),
+    tile("Spent share", earned ? pct(spent / earned) : "–", "of what you earned"),
+    tile("Lost money", fmt(losers.length), `of ${ms.length} matches`),
+  ].join("");
+  $("lossTable").innerHTML = losers.length ? `<table><thead><tr><th>Ended</th><th class="num">Net</th><th class="num">Earned</th><th class="num">Spent</th><th>Result</th><th>Used</th><th>Note</th><th></th></tr></thead><tbody>${losers.map((m) =>
+    `<tr><td>${when(m.ended_at)}</td><td class="num neg">${money(net(m))}</td><td class="num">${money(m.cash_earned)}</td><td class="num">${money(m.cash_spent)}</td><td>${resultCell(m)}</td><td class="used">${esc(usedText(m)) || "–"}</td><td class="used">${esc(m.notes || "")}</td><td>${m.screenshot ? `<button class="link" data-shot="${m.id}">view</button>` : ""}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No match lost money ${rname}.</div>`;
+}
+
+// ---- leaderboard and level forecasts ------------------------------------------------
+function renderLeaderboard(latest, since, rname) {
+  const snaps = snapList().filter((s) => s.t >= since && s.d.rank);
+  const sx = (s) => shortRange() ? clock(s.t) : day(s.t);
+  // plotted as -rank so moving up the leaderboard moves the line up
+  chart($("rankChart"), { kind: "line", xTime: true, xTitle: "Sync time", yTitle: "Rank", yFmt: (v) => "#" + fmt(-v), empty: `Needs two or more syncs ${rname}`,
+    points: snaps.map((s, i, a) => ({ x: s.t, y: -s.d.rank, label: sx(s),
+      tip: `<b>${esc(when(s.t))}</b><br>Rank #${fmt(s.d.rank)}${s.d.players ? " of " + fmt(s.d.players) : ""}<br>Wardog level ${fmt(s.d.wardogLevel)}` +
+        (i ? `<br><span class="m">${a[i - 1].d.rank >= s.d.rank ? "up " : "down "}${fmt(Math.abs(a[i - 1].d.rank - s.d.rank))} since previous sync</span>` : "") })) });
+  const lb = meta("leaderboard");
+  if (!lb?.players?.length || !latest?.rank) { $("lbTable").innerHTML = '<div class="empty">Shows after the next WARDOGS Tracker sync.</div>'; $("lbGap").innerHTML = ""; return; }
+  const lvl = (p) => p.wardogLevel ?? p.level;
+  latest = { ...latest, wardogLevel: latest.wardogLevel ?? sum(Object.values(latest.roles || {}), (v) => v.level) };
+  const above = lb.players.find((p) => p.rank === latest.rank - 1);
+  const dl = above ? lvl(above) - latest.wardogLevel : 0;
+  $("lbGap").innerHTML = !above ? (latest.rank === 1 ? "You're #1." : "")
+    : dl > 0 ? `To pass <b>${esc(above.name)}</b> (#${fmt(above.rank)}): <b class="gold">${dl} more Wardog level${dl === 1 ? "" : "s"}</b> (any role level-ups). Rank sorts by level, then career XP.`
+    : `To pass <b>${esc(above.name)}</b> (#${fmt(above.rank)}, same level): <b class="gold">${fmt(Math.max(1, (above.careerXp ?? 0) - latest.careerXp + 1))} more career XP</b>, or one level-up.`;
+  $("lbTable").innerHTML = `<table><thead><tr><th class="num">Rank</th><th>Player</th><th class="num">Level</th><th class="num">Career XP</th><th class="num">Gap</th></tr></thead><tbody>${lb.players.map((p) => {
+    const me = p.rank === latest.rank;
+    const gap = me ? "you" : lvl(p) !== latest.wardogLevel ? signed(lvl(p) - latest.wardogLevel) + " lvl" : signed((p.careerXp ?? 0) - latest.careerXp) + " XP";
+    return `<tr${me ? ' class="me"' : ""}><td class="num">#${fmt(p.rank)}</td><td>${esc(p.name ?? "?")}</td><td class="num">${fmt(lvl(p))}</td><td class="num">${fmt(p.careerXp)}</td><td class="num">${gap}</td></tr>`;
+  }).join("")}</tbody></table><div class="s" style="color:var(--muted);margin-top:6px">${lb.total ? `${fmt(lb.total)} players ranked. ` : ""}Updated ${when(lb._updated)}.</div>`;
+}
+
+// XP per played hour for each role: role XP gained between the first and last sync,
+// divided by the hours the tracker saw you playing in that window.
+function roleRates() {
+  const snaps = snapList();
+  if (snaps.length < 2) return {};
+  const a = snaps[0], b = snaps[snaps.length - 1], now = Date.now() / 1000;
+  const hrs = sum(data.sessions, (s) => Math.max(0, Math.min(s.ended_at ?? now, b.t) - Math.max(s.started_at, a.t))) / 3600;
+  if (hrs < 0.25) return {};
+  const out = {};
+  for (const [r, v] of Object.entries(b.d.roles || {})) out[r] = Math.max(0, v.xp - (a.d.roles?.[r]?.xp ?? v.xp)) / hrs;
+  return out;
+}
+
+// Estimated total XP for each role level. Every role shares one curve, so the lowest
+// XP seen at a level marks that level; (20, 111,500) is the reported Season 2 figure.
+// Straight lines in between.
+function levelCurve(roles) {
+  const pts = new Map([[1, 0], [20, 111500]]);
+  for (const v of Object.values(roles || {})) if (v.level > 1 && v.level < 20 && !(pts.get(v.level) <= v.xp)) pts.set(v.level, v.xp);
+  const P = [];
+  for (const p of [...pts.entries()].sort((a, b) => a[0] - b[0])) if (!P.length || p[1] > P[P.length - 1][1]) P.push(p);
+  return (L) => {
+    for (let i = 1; i < P.length; i++) if (L <= P[i][0]) { const [l0, x0] = P[i - 1], [l1, x1] = P[i]; return x0 + (x1 - x0) * (L - l0) / (l1 - l0); }
+    const [l0, x0] = P[P.length - 2], [l1, x1] = P[P.length - 1];
+    return x1 + (x1 - x0) / (l1 - l0) * (L - l1);
+  };
+}
+
+function forecastRows(latest) {
+  if (!latest?.roles) return [];
+  const T = levelCurve(latest.roles), rates = roleRates();
+  return Object.entries(latest.roles).map(([r, v]) => {
+    const need = v.level >= 100 ? null : Math.max(0, T(v.level + 1) - v.xp), rate = rates[r] || null;
+    return { r, v, need, rate, eta: need != null && rate ? need / rate : null };
+  });
+}
+
+const etaText = (h) => h == null ? "–" : h < 1 / 60 ? "next match" : h < 1 ? Math.round(h * 60) + " min" : h < 48 ? h.toFixed(1) + " h" : Math.round(h) + " h";
+
+function renderForecast(latest) {
+  const rows = forecastRows(latest);
+  if (!rows.length) { $("forecast").innerHTML = '<div class="empty">Shows after the first WARDOGS Tracker sync.</div>'; $("forecastNote").textContent = ""; return; }
+  const soonest = rows.filter((x) => x.eta != null).sort((a, b) => a.eta - b.eta)[0];
+  $("forecast").innerHTML = `<table><thead><tr><th>Role</th><th class="num">Level</th><th class="num">XP</th><th class="num">XP to next (est.)</th><th class="num">Your XP / hour</th><th class="num">Playtime to next</th></tr></thead><tbody>${rows.map((x) =>
+    `<tr${x === soonest ? ' class="me"' : ""}><td>${cap(x.r)}</td><td class="num">${x.v.level}</td><td class="num">${fmt(x.v.xp)}</td><td class="num">${x.need == null ? "max" : "~" + fmt(Math.ceil(x.need / 50) * 50)}</td><td class="num">${x.rate ? fmt(x.rate) : "–"}</td><td class="num">${etaText(x.eta)}</td></tr>`).join("")}</tbody></table>`;
+  $("forecastNote").innerHTML = (soonest ? `Next Wardog level in about <b>${etaText(soonest.eta)}</b> of play, from ${cap(soonest.r)}. ` : "Playtime estimates appear once the tracker has seen a session between two syncs. ")
+    + "Wardog level is the sum of your six role levels. WARDOGS doesn't publish the full XP table, so XP to next is estimated from your own role levels and the reported Season 2 level 20 figure (111,500 XP).";
+}
+
+// ---- strategy ------------------------------------------------------------------------
+// Summarised from community guides (sources listed on the tab). Early access: numbers change with patches.
+
+
+// ---- one match, full page (#match/<id>) ------------------------------------
+function openMatch(id) { if (id) location.hash = `match/${id}`; }
+let matchFull = { key: null, body: null };
+
+async function renderMatchPage(id) {
+  const el = $("matchPage"), all = data.matches, i = all.findIndex((m) => m.id === id), m = all[i];
+  if (!m) { el.innerHTML = `<div class="card"><div class="empty">That match isn't in your log. <a href="#matches">Back to matches</a></div></div>`; return; }
+  const key = `${id}:${data.version}`;
+  if (matchFull.key !== key) {
+    if (editing) return;
+    try { matchFull = { key, body: await (await fetch(`/api/match/${id}`)).json() }; } catch { matchFull = { key, body: { details: {}, lines: [] } }; }
+  }
+  if (tab !== "match" || matchId !== id) return;
+  const full = matchFull.body, d = { ...(m.details || {}), ...(full.details || {}) };
+  const tl = d.timeline || [], ev = d.cash_events || [], h = d.hud, u = d.used || {};
+  const n = net(m), len = mlen(m), mins = len ? len / 60 : null;
+  const base = matchAverages(all, m.id), prev = all[i - 1], next = all[i + 1];
+  const t0 = m.started_at || tl[0]?.t || m.ended_at;
+  const at = (t) => liveClock(Math.max(0, t - t0));
+  const cashMin = n != null && mins > 2 ? n / mins : null, xpMin = perMinute(m);
+  const sm = d.cash_summary || {};
+
+  // time in each place, and the money made there
+  const placeName = { hotzone: "Hot Zone", fob: "FOB", none: "Elsewhere" };
+  const place = (x) => x || "none";
+  const segs = [];
+  tl.forEach((r) => { const p = place(r.here); if (segs.length && segs[segs.length - 1].p === p) segs[segs.length - 1].n++; else segs.push({ p, n: 1 }); });
+  const share = {};
+  if (tl.length) tl.forEach((r) => { share[place(r.here)] = (share[place(r.here)] || 0) + 1 / tl.length; });
+  else if (h?.reads) { share.hotzone = h.hot / h.reads; share.fob = h.fob / h.reads; share.none = Math.max(0, 1 - share.hotzone - share.fob); }
+  const byPlace = {}, byGun = {};
+  for (const e of ev) {
+    for (const [k, map] of [[place(e.here), byPlace], [e.gun || "Unknown", byGun]]) {
+      const r = map[k] ||= { gain: 0, loss: 0 };
+      if (e.delta > 0) r.gain += e.delta; else r.loss -= e.delta;
+    }
+  }
+  const gunTime = {};
+  tl.forEach((r) => { if (r.gun) gunTime[r.gun] = (gunTime[r.gun] || 0) + 1; });
+  const gunReads = Object.values(gunTime).reduce((a, b) => a + b, 0);
+  const guns = Object.keys(gunTime).length ? gunTime : (h?.guns || {});
+  const topGun = topKey(guns);
+  const roleRows = Object.entries(d.role_xp || {});
+  const topRole = roleRows.filter(([, v]) => v.gain).sort((a, b) => b[1].gain - a[1].gain)[0];
+  const bestPlace = Object.entries(byPlace).sort((a, b) => (b[1].gain - b[1].loss) - (a[1].gain - a[1].loss))[0];
+
+  // the story of the match: notable moments, oldest first
+  const story = [];
+  if (tl.length) {
+    if (tl[0].bal != null) story.push([tl[0].t, `Started with ${money(tl[0].bal - (tl[0].net || 0))} in the bank.`]);
+    let lastGun = null, lastPlace = null, lastRoles = "";
+    for (const r of tl) {
+      if (r.gun && r.gun !== lastGun) { story.push([r.t, `${lastGun ? "Switched to" : "Picked up"} the <b>${esc(r.gun)}</b>.`]); lastGun = r.gun; }
+      const p = place(r.here);
+      if (p !== lastPlace && p !== "none") story.push([r.t, `Reached the <b>${placeName[p]}</b>.`]);
+      lastPlace = p;
+      const rs = (r.roles || []).join(", ");
+      if (rs && rs !== lastRoles) { story.push([r.t, `Playing <b>${esc(rs)}</b>.`]); lastRoles = rs; }
+    }
+  }
+  for (const k of d.kill_log || []) story.push([k.t, k.kind === "kill" ? `Killed <b>${esc(k.other)}</b>${k.gun ? ` with the ${esc(k.gun)}` : ""}.` : `Killed by <b>${esc(k.other)}</b>.`]);
+  for (const x of d.downs_log || []) story.push([x.t, `<span class="neg">Went down</span>${x.here ? ` in the ${placeName[x.here]}` : ""}.`]);
+  for (const x of d.promos || []) story.push([x.t, `Promoted to <b>${esc(x.role)}${x.level ? " level " + x.level : ""}</b>.`]);
+  const big = ev.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 6);
+  for (const e of big) story.push([e.t, `${e.delta > 0 ? `Made <b class="pos">${money(e.delta)}</b>` : e.vendor ? `Bought <b>${esc(e.vendor)}</b> for <b class="neg">${money(-e.delta)}</b>` : `Spent or lost <b class="neg">${money(-e.delta)}</b>`}${e.here ? ` in the ${placeName[e.here]}` : ""}${e.gun ? ` with the ${esc(e.gun)}` : ""}${e.items?.length ? ` <span class="m">(${esc(e.items.slice(0, 3).join(", "))} on screen)</span>` : ""}.`]);
+  story.push([m.ended_at, `Match over${d.winner ? `: <b>${esc(d.winner)}</b> won` : ""}${n != null ? `, ${n >= 0 ? "up" : "down"} <b class="${n >= 0 ? "pos" : "neg"}">${money(Math.abs(n))}</b>` : ""}${m.xp != null ? ` and <b>${fmt(m.xp)} XP</b>` : ""}.`]);
+  story.sort((a, b) => a[0] - b[0]);
+
+  const card = (title, body, sub = "") => `<div class="card"><h2>${title}${sub ? ` <small>${sub}</small>` : ""}</h2>${body}</div>`;
+  const pctBar = (v) => `<div class="hbar"><span style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%"></span></div>`;
+  const noTimeline = `<div class="empty">No in-match reads were saved for this match. Matches from now on record where you were, your gun and every money change.</div>`;
+  const field = (k) => `<input class="edit${!m.reviewed && m[k] != null ? " guess" : ""}" data-id="${m.id}" data-k="${k}" value="${m[k] ?? ""}" inputmode="numeric" style="width:110px">`;
+  const ups = m.role_levels ? Object.entries(m.role_levels).map(([r, l]) => `${r === "Infantry" ? "Assault" : r} ${l}`).join(", ") : "";
+
+  el.innerHTML = `
+  <div class="card"><div class="mp-head">
+    <div><button class="link" onclick="location.hash='matches'">← All matches</button>
+      <h2>${when(m.ended_at)} <span class="m" style="font-size:14px;font-weight:400">${dur(len)}${d.duration_s != null ? "" : " (estimated)"} · ${m.started_at ? `${when(m.started_at)} to ${new Date(m.ended_at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}</span></h2>
+      <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.result ? `<span class="res ${d.result}">${d.result}</span>` : ""}${d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : ""}${d.score ? `<span class="chip">Score <b>${esc(d.score)}</b></span>` : ""}${d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : ""}${h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : ""}<span class="chip">logged by ${esc(m.source)}</span></div></div>
+    <div class="mp-nav"><button data-go="${prev?.id || ""}" ${prev ? "" : "disabled"}>← Older</button><button data-go="${next?.id || ""}" ${next ? "" : "disabled"}>Newer →</button></div>
+  </div></div>
+
+  <div class="grid tiles">
+    ${tile("XP", fmt(m.xp), vsAvg(m.xp, base.xp) || (m.xp == null ? "not on the screens read" : ""))}
+    ${tile("Net cash", `<span class="${n < 0 ? "neg" : n > 0 ? "pos" : ""}">${money(n)}</span>`, vsAvg(n, base.cash))}
+    ${tile("Earned", money(m.cash_earned), sm.bonus != null ? `incl. ${money(sm.bonus)} bonus` : "")}
+    ${tile("Spent", money(m.cash_spent), "")}
+    ${tile("XP / min", xpMin == null ? "–" : xpMin.toFixed(0), vsAvg(xpMin, base.xpMin))}
+    ${tile("Cash / min", cashMin == null ? "–" : money(cashMin), vsAvg(cashMin, base.cashMin))}
+    ${tile("Gun used most", esc(topGun || "–"), topGun && gunReads ? `${pct(gunTime[topGun] / gunReads)} of the match` : "")}
+    ${tile("Best money spot", bestPlace ? placeName[bestPlace[0]] : "–", bestPlace ? `${money(bestPlace[1].gain - bestPlace[1].loss)} net there` : "")}
+    ${d.combat ? tile("Kills / deaths", `${d.combat.kills} / ${d.combat.deaths}`, `downed ${d.combat.downs} time${d.combat.downs === 1 ? "" : "s"}`) : ""}
+    ${d.live_cash?.end_balance != null ? tile("Balance after", money(d.live_cash.end_balance), d.live_cash.start_balance != null ? `from ${money(d.live_cash.start_balance)}` : "") : ""}
+  </div>
+
+  <div class="grid two">
+    ${card("What you did", `${tl.length ? `<div class="strip" aria-label="Where you were over the match">${segs.map((g) => `<span class="${g.p}" style="flex:${g.n}" title="${placeName[g.p]}"></span>`).join("")}</div>
+      <div class="legend"><span><i style="background:var(--gold)"></i>Hot Zone ${pct(share.hotzone || 0)}</span><span><i style="background:var(--blue)"></i>FOB ${pct(share.fob || 0)}</span><span><i style="background:#3a3e45"></i>Elsewhere ${pct(share.none || 0)}</span></div>` : ""}
+      <ul class="story" style="margin-top:10px">${story.map(([t, s]) => `<li><span class="t">${at(t)}</span><span>${s}</span></li>`).join("")}</ul>`, "timeline from the in-match reads")}
+    ${card("Money over the match", tl.some((r) => r.net != null) ? `<div id="mpCash"></div>` : noTimeline, "round profit from the top bar")}
+  </div>
+
+  <div class="grid two">
+    ${card("Where you made money", Object.keys(share).length ? `<table><thead><tr><th>Where</th><th>Time</th><th class="num">Made</th><th class="num">Spent / lost</th><th class="num">Net</th></tr></thead><tbody>${["hotzone", "fob", "none"].filter((p) => share[p] || byPlace[p]).map((p) => { const r = byPlace[p] || { gain: 0, loss: 0 };
+      return `<tr><td>${placeName[p]}</td><td>${pctBar(share[p] || 0)} <span class="m">${pct(share[p] || 0)}</span></td><td class="num pos">${money(r.gain)}</td><td class="num neg">${money(r.loss)}</td><td class="num">${money(r.gain - r.loss)}</td></tr>`; }).join("")}</tbody></table>` : noTimeline)}
+    ${card("How you made money", `${Object.keys(sm).length ? `<table><tbody>${[["Gained", sm.gained, "pos"], ["Bonus", sm.bonus, "pos"], ["Spent", sm.spent == null ? null : -sm.spent, "neg"]].filter((r) => r[1] != null).map(([k, v, c]) => `<tr><td>${k}</td><td class="num ${c}">${money(v)}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${(d.sources || []).length ? `<table style="margin-top:8px"><thead><tr><th>Source</th><th class="num">XP</th><th class="num">Cash</th></tr></thead><tbody>${d.sources.map((s) => `<tr><td>${esc(s.label)}</td><td class="num">${signed(s.xp)}</td><td class="num">${s.cash == null ? "–" : signed(s.cash, money)}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${Object.keys(d.rewards || {}).length ? `<table style="margin-top:8px"><thead><tr><th>Reward feed</th><th class="num">Times</th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${Object.entries(d.rewards).sort((a, b) => Math.abs(b[1].cash) - Math.abs(a[1].cash) || b[1].xp - a[1].xp).map(([k, r]) =>
+        `<tr><td>${esc(k)}</td><td class="num">${r.n}</td><td class="num ${r.cash < 0 ? "neg" : r.cash > 0 ? "pos" : ""}">${r.cash ? signed(r.cash, money) : "–"}</td><td class="num">${r.xp ? signed(r.xp) : "–"}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${Object.keys(d.vendor || {}).length ? `<table style="margin-top:8px"><thead><tr><th>Bought at the vendor</th><th class="num">Spent</th></tr></thead><tbody>${Object.entries(d.vendor).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
+        `<tr><td>${esc(k)}</td><td class="num neg">${money(v)}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${Object.keys(byGun).length ? `<table style="margin-top:8px"><thead><tr><th>Holding</th><th class="num">Made</th><th class="num">Spent / lost</th></tr></thead><tbody>${Object.entries(byGun).sort((a, b) => b[1].gain - a[1].gain).map(([g, r]) => `<tr><td>${esc(g)}</td><td class="num pos">${money(r.gain)}</td><td class="num neg">${money(r.loss)}</td></tr>`).join("")}</tbody></table>` : ""}
+      ${!Object.keys(sm).length && !(d.sources || []).length && !Object.keys(byGun).length && !Object.keys(d.rewards || {}).length ? `<div class="empty">The money screen after the match (spent / gained / bonus) and in-match money changes show here.</div>` : ""}`)}
+  </div>
+
+  <div class="grid two">
+    ${card("XP gains", roleRows.length ? `<table><thead><tr><th>Role</th><th class="num">Before</th><th class="num">After</th><th class="num">Gained</th><th></th></tr></thead><tbody>${roleRows.map(([r, v]) =>
+      `<tr><td>${esc(r)}</td><td class="num">${fmt(v.before ?? v.total)}</td><td class="num">${fmt(v.after ?? v.next)}</td><td class="num pos">${signed(v.gain)}</td><td style="width:30%">${pctBar(m.xp ? (v.gain || 0) / m.xp : 0)}</td></tr>`).join("")}</tbody></table>
+      ${topRole ? `<p class="m">Most XP went to <b>${esc(topRole[0])}</b> (${pct(topRole[1].gain / m.xp)}).</p>` : ""}` : `<div class="empty">Per-role XP comes from the Progression screen after the match.</div>`)}
+    ${card("Guns", Object.keys(guns).length ? `<table><thead><tr><th>Gun</th><th>Time held</th></tr></thead><tbody>${Object.entries(guns).sort((a, b) => b[1] - a[1]).map(([g, c]) => { const tot = Object.values(guns).reduce((a, b) => a + b, 0);
+      return `<tr><td>${esc(g)}</td><td>${pctBar(c / tot)} <span class="m">${pct(c / tot)}</span></td></tr>`; }).join("")}</tbody></table>` : `<div class="empty">Your gun is read from the nameplate in the bottom right during the match.</div>`, "from the HUD nameplate")}
+  </div>
+
+  <div class="grid two">
+    ${card("Compared to your average", `<table><thead><tr><th></th><th class="num">This match</th><th class="num">Your average</th><th></th></tr></thead><tbody>
+      ${[["XP", m.xp, base.xp, fmt], ["Net cash", n, base.cash, money], ["XP / min", xpMin, base.xpMin, (v) => v.toFixed(0)], ["Cash / min", cashMin, base.cashMin, money], ["Length", len, base.len, dur]].map(([k, v, a, f]) =>
+        `<tr><td>${k}</td><td class="num">${v == null ? "–" : f(v)}</td><td class="num">${a == null ? "–" : f(a)}</td><td>${vsAvg(v, a)}</td></tr>`).join("")}</tbody></table>`)}
+    ${card("Fights", d.combat ? `${(d.kill_log || []).length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${d.kill_log.map((k) =>
+        `<tr><td class="m">${at(k.t)}</td><td class="${k.kind === "kill" ? "pos" : "neg"}">${k.kind === "kill" ? "Kill" : "Death"}</td><td>${esc(k.other)}</td><td>${esc(k.gun || "–")}</td><td>${k.here ? placeName[k.here] : "–"}</td></tr>`).join("")}</tbody></table>`
+      : `<div class="empty" style="padding:10px">No kills or deaths with your name showed in the kill feed.</div>`}
+      <p class="m">Downed ${d.combat.downs} time${d.combat.downs === 1 ? "" : "s"}. The kill feed is read every 3 seconds, so fast ones can be missed.</p>`
+      : `<div class="empty">Kills, deaths and downs are tracked for matches from now on.</div>`, "from the kill feed")}
+  </div>
+  <div class="grid two">
+    ${card("Loadout and stats", `<dl style="display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0">
+      <dt class="m">Roles</dt><dd style="margin:0">${esc((u.roles || []).join(", ")) || "–"}</dd>
+      <dt class="m">Gear seen</dt><dd style="margin:0">${esc((u.items || []).join(", ")) || "–"}</dd>
+      <dt class="m">Your stats</dt><dd style="margin:0">${esc(statText(m)) || "–"}</dd>
+      <dt class="m">Level ups</dt><dd style="margin:0">${esc(ups) || "–"}</dd></dl>`)}
+  </div>
+
+  <div class="card"><h2>Fix or note <small>edited numbers turn white and count as checked</small></h2>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end">
+      <label>XP<br>${field("xp")}</label><label>Cash earned<br>${field("cash_earned")}</label><label>Cash spent<br>${field("cash_spent")}</label>
+      <label style="flex:1;min-width:220px">Note<br><input class="edit note" data-note="${m.id}" value="${esc(m.notes || "")}" placeholder="add note" style="width:100%"></label>
+      <label><input type="checkbox" data-review="${m.id}" ${m.reviewed ? "checked" : ""}> numbers checked</label>
+      ${m.source.startsWith("auto") ? `<button class="link" data-notend="${m.id}">not a match</button>` : ""}<button class="link" data-del="${m.id}">delete</button>
+    </div></div>
+
+  ${m.screenshot ? `<div class="card"><h2>Results screen</h2><img src="/shot/${m.id}" alt="Results screen for this match" style="max-width:100%;border-radius:6px"></div>` : ""}
+  <div class="card"><details><summary class="m">Text read from the results screen (${full.lines.length} lines)</summary><pre style="white-space:pre-wrap;font-size:12px;color:var(--muted)">${esc(full.lines.join("\n")) || "Nothing was read."}</pre></details></div>`;
+
+  if ($("mpCash")) chart($("mpCash"), { kind: "line", xTime: true, points: tl.filter((r) => r.net != null).map((r) => ({ x: r.t, y: r.net, label: at(r.t), tip: `${at(r.t)}: ${money(r.net)}${r.here ? " · " + placeName[r.here] : ""}${r.gun ? " · " + r.gun : ""}` })),
+    xTitle: "Match time", yTitle: "Round profit", yFmt: shortMoney });
+}
+
+// ---- live: the match in progress ---------------------------------------------
+const liveClock = (secs) => secs == null ? "–" : `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, "0")}`;
+const perMin = (ms, f) => { const g = ms.filter((m) => f(m) != null && mlen(m) > 120), t = sum(g, mlen); return t > 300 ? sum(g, f) / t * 60 : null; };
+let lastSt = null;
+function renderLive(st) {
+  lastSt = st;
+  if (!$("liveTiles")) return;
+  const L = st?.live, now = Date.now() / 1000;
+  const recent = (data?.matches || []).slice(-30);
+  const gameOn = !!(st?.alive && st.game_running && L), playing = gameOn && !L.between;
+  $("livePanel").classList.toggle("nogame", !gameOn);
+  $("livePanel").classList.toggle("focus", playing && !showDetails);
+  $("liveHero").hidden = !playing;
+  $("liveIdle").hidden = playing;
+  $("detailsBtn").hidden = !playing;
+  $("detailsBtn").textContent = showDetails ? "Less detail" : "More detail";
+  if (!gameOn) {
+    $("liveHead").innerHTML = !st?.alive
+      ? `<div class="headline"><span class="dot off"></span><b>The tracker isn't running</b></div><div class="m">Run <b>Start Tracker.vbs</b> in the tracker folder, or sign out of Windows and back in.</div>`
+      : `<div class="headline"><span class="dot warn"></span><b>Waiting for WARDOGS</b></div><div class="m">This page fills in on its own once a round starts. Until then: your last round, your session, and a plan for the next one.</div>`;
+    $("liveCharts").style.display = "none";
+    if (data) { renderMoney({ balance: lastBalance(), events: [], rewards: {} }, recent, []); renderIdle(); renderPlan({ between: true }); }
+    return;
+  }
+  const secs = L.started ? now - L.started : null, mins = secs / 60;
+  const cashRate = perMin(recent, net), xpRate = perMin(recent, (m) => m.xp);
+  const myRate = L.net != null && mins > 1 ? L.net / mins : null;
+  const spent = -sum(L.events.filter((e) => e.delta < 0), (e) => e.delta);
+  const roles = (L.used?.roles || []).map((r) => r.toLowerCase());
+  const here = L.here === "hotzone" ? "Hot Zone" : L.here === "fob" ? "At a FOB" : L.reads ? "Elsewhere" : "–";
+  const ago = L.last_read ? Math.round(now - L.last_read) : null;
+  const stale = ago != null && ago > 40;
+  $("liveHead").innerHTML = `<div class="headline"><span class="dot ${stale ? "warn" : "on pulse"}"></span><b>${L.between ? "Round over" : "In a round"}</b>
+    <span class="m">${L.between ? "the round just logged is below; the next one starts on its own" : `${liveClock(secs)} in`} · ${ago == null ? "waiting for the first read" : `screen read ${ago}s ago${stale ? " (alt-tabbed or on a menu?)" : ""}`}</span></div>`;
+  if (L.between) renderIdle();
+  const byRole = Object.fromEntries(groupStats(data?.matches || [], (m) => mainRole(m) ? [mainRole(m)] : []).map((r) => [r.k, r]));
+  const roleRate = roles.map((r) => byRole[r]?.rate).find((x) => x != null);
+  // where this round is heading: your pace now, carried to your usual round length
+  const avgLen = matchAverages(recent).len, left = avgLen && secs != null ? avgLen - secs : null;
+  const proj = myRate != null && left != null && left > 0 ? L.net + myRate * left / 60 : null;
+  const sess = sessionSoFar();
+  $("liveHero").innerHTML = [
+    tile("Round profit", `<span class="${L.net < 0 ? "neg" : "pos"}">${money(L.net)}</span>`,
+      myRate == null ? "shows once the top bar changes" : `${money(myRate)}/min · you usually make ${cashRate == null ? "–" : money(cashRate) + "/min"}`),
+    tile("On pace for", proj == null ? "–" : `<span class="${proj < 0 ? "neg" : ""}">${money(proj)}</span>`,
+      proj != null ? `by the end, if the round runs your usual ${dur(avgLen)} (~${Math.max(1, Math.round(left / 60))} min left)` : left != null && left <= 0 ? `past your usual ${dur(avgLen)} round` : "needs a minute of play"),
+    boardTile(L.board, now),
+    tile("Playing as", roles.length === 1 ? cap(roles[0]) : "–", roleRate != null ? `you average ${roleRate.toFixed(0)} XP/min as ${cap(roles[0])}` : xpRate != null ? `overall ${xpRate.toFixed(0)} XP/min` : "shows once a loadout screen names it"),
+    tile("This session", `<span class="${sess.net + (L.net || 0) < 0 ? "neg" : ""}">${money(sess.net + (L.net || 0))}</span>`,
+      `${sess.n ? `${sess.n} round${sess.n === 1 ? "" : "s"} before this one, ${fmt(sess.xp)} XP` : "first round of the session"}${sess.wins + sess.losses ? `, ${sess.wins}W ${sess.losses}L` : ""}`),
+  ].join("");
+  $("liveTiles").innerHTML = [
+    tile("Balance", money(L.balance), L.start_balance != null ? `started the round with ${money(L.start_balance)}` : ""),
+    tile("Spent this round", spent ? money(spent) : "$0", L.events.length ? `${L.events.filter((e) => e.delta < 0).length} purchases or losses seen` : ""),
+    tile("Where now", here, L.reads ? `this round: Hot Zone ${pct(L.hot / L.reads)}, FOB ${pct(L.fob / L.reads)}` : ""),
+    tile("Kills / deaths", `${L.kills ?? 0} / ${L.deaths ?? 0}`, L.down ? `<span class="neg">${L.down === "reviving" ? "being revived" : "downed now"}</span>` : `downed ${L.downs ?? 0} time${L.downs === 1 ? "" : "s"}`),
+    tile("Team", esc(L.team || "–"), ""),
+  ].join("");
+  renderFeed(L);
+  // [priority, kind, tag, headline, detail]: highest priority shows first and biggest
+  const tips = [];
+  const bd = L.board, me = bd?.me;
+  if (me && bd.above?.cash != null && me.cash != null && now - bd.t < 600) {
+    const gap = bd.above.cash - me.cash;
+    if (gap > 0 && gap <= 1500) tips.push([62, "do", "Scoreboard", `${money(gap)} to pass #${bd.above.rank}`, `${esc(bd.above.name || "the player above")} is just ahead on cash. A couple of revives or a Hot Zone stretch gets you there.`]);
+  }
+  const hotShare = L.reads ? L.hot / L.reads : null;
+  if (L.between) tips.push([100, "info", "Round over", "Check your results", "Open the match in the Matches tab. Pick the role furthest behind, or the one with the best cash rate."]);
+  if ((L.downs ?? 0) >= 3) tips.push([90, "urgent", "Survival", `Downed ${L.downs} times`, "Fall back to cover and let teammates lead the push. Every down costs time and gear."]);
+  if (spent > 0 && L.net != null && L.net < 0 && spent > Math.abs(L.net) * 2) tips.push([85, "urgent", "Money", `Down ${money(-L.net)} this round`, `Stop buying until you earn it back. A round usually earns you ${cashRate == null ? "–" : money(cashRate * 15)} per 15 min.`]);
+  if (L.here !== "hotzone" && hotShare != null && L.reads >= 6 && hotShare < 0.3) tips.push([80, "do", "Zone", "Get into the Hot Zone", `Only ${pct(hotShare)} of this round so far. It pays "Hot Zone Presence" every few seconds and actions there reportedly pay double.`]);
+  if (L.here === "hotzone") tips.push([60, "good", "Zone", "In the Hot Zone", "Presence pay is ticking. Run a cheap kit since lives are short here."]);
+  if (myRate != null && cashRate != null && mins > 3)
+    tips.push(myRate >= cashRate ? [50, "good", "Pace", `Ahead of pace: ${money(myRate)}/min`, `You usually make ${money(cashRate)}/min. Keep doing what you're doing.`]
+      : [75, "do", "Pace", `Behind pace: ${money(myRate)}/min`, `You usually make ${money(cashRate)}/min.${L.net < 0 ? " You're down this round, so hold off on new gear." : ""}`]);
+  const kd = (L.kills ?? 0) + (L.deaths ?? 0);
+  if (kd >= 3 && (L.deaths ?? 0) > (L.kills ?? 0) * 2) tips.push([70, "do", "Fights", `K/D ${L.kills}/${L.deaths}`, "You're losing most fights. Play support for your team (heal, spot, resupply) instead of taking duels."]);
+  renderMoney(L, recent, roles);
+  renderLines(L, now, cashRate, xpRate);
+  const role = roles.length === 1 ? roles[0] : planPick().role, g = role && STRATS[role];
+  const best = lastMoney[0];
+  if (best && roles.length === 1 && best.mt.role !== roles[0] && !L.between)
+    tips.push([65, "do", "Plan", `Next deploy: ${esc(best.mt.name)}`, esc(`${best.why.slice(0, 2).join("; ")}.`)]);
+  if (!roles.length) tips.push([30, "info", "Role", "Role not seen yet", "It shows once a loadout or deploy screen names it."]);
+  // strategy for this round: where you are, your best-paying role from past rounds, and the role guide
+  if (L.here === "fob") tips.push([55, "do", "Strategy", "At a FOB: restock and move out", "Buy only what this life needs, then head for the Hot Zone. Time at the FOB pays nothing."]);
+  const rolePay = {};
+  for (const m of recent) {
+    const len = mlen(m), n = net(m);
+    if (n == null || !len || len < 300) continue;
+    const r = mainRole(m);
+    if (r) { const o = rolePay[r] ||= { cash: 0, t: 0 }; o.cash += n; o.t += len; }
+  }
+  const ranked = Object.entries(rolePay).filter(([, o]) => o.t > 600).map(([r, o]) => [r, o.cash / o.t * 60]).sort((x, y) => y[1] - x[1]);
+  if (ranked.length > 1 && role) {
+    const [bestR, bestPay] = ranked[0], mine = rolePay[role] ? rolePay[role].cash / rolePay[role].t * 60 : null;
+    if (bestR !== role) tips.push([45, "do", "Strategy", `${cap(bestR)} pays you best`, `${money(bestPay)}/min in your rounds${mine != null ? ` vs ${money(mine)}/min as ${cap(role)}` : ""}. Switch on your next deploy if you're after cash.`]);
+    else tips.push([32, "good", "Strategy", `${cap(role)} is your best earner`, `${money(bestPay)}/min in your rounds. Good pick for cash.`]);
+  }
+  if (g) tips.push([38, "info", "Strategy", `${cap(role)} game plan`, esc(g.cash[0])], [33, "info", "Strategy", `${cap(role)} levelling`, esc(g.level[0])]);
+  if (!L.between && mins != null && mins >= 2) tips.push(spreadTip(L, goal, mins));
+  if (mins > 25 && L.net != null && L.net > 0) tips.push([42, "good", "Strategy", "Protect your profit", `You're up ${money(L.net)} late in the round. Play safer and skip pricey gear so you keep it.`]);
+  tips.sort((a, b) => b[0] - a[0]);
+  $("liveTips").innerHTML = tips.map(([, kind, tag, head, text], i) =>
+    `<div class="tipx ${kind}${i === 0 ? " top" : ""}"><span class="ttag">${esc(tag)}</span><span><b class="h">${head}</b><span class="t">${text}</span></span></div>`).join("");
+  renderKit(role, L);
+  renderPlan(L, mins);
+  renderFocus(L, tips, role, mins);
+  const rw = Object.entries(L.rewards || {});
+  $("liveRewards").innerHTML = rw.length ? `<table style="margin-bottom:10px"><thead><tr><th>Reward</th><th class="num">Times</th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${rw.sort((a, b) => Math.abs(b[1].cash) - Math.abs(a[1].cash) || b[1].xp - a[1].xp).map(([k, r]) =>
+    `<tr><td>${esc(k)}</td><td class="num">${r.n}</td><td class="num ${r.cash < 0 ? "neg" : r.cash > 0 ? "pos" : ""}">${r.cash ? signed(r.cash, money) : "–"}</td><td class="num">${r.xp ? signed(r.xp) : "–"}</td></tr>`).join("")}</tbody></table>` : "";
+  $("liveEvents").innerHTML = L.events.length ? `<table><thead><tr><th>When</th><th class="num">Change</th><th class="num">Round profit</th><th>Gear on screen</th></tr></thead><tbody>${L.events.slice().reverse().map((e) =>
+    `<tr><td>${liveClock(L.started ? e.t - L.started : null)}</td><td class="num ${e.delta < 0 ? "neg" : "pos"}">${signed(e.delta, money)}</td><td class="num">${money(e.net)}</td><td class="used">${e.vendor ? `bought ${esc(e.vendor)}` : esc((e.items || []).join(", ")) || "–"}</td></tr>`).join("")}</tbody></table>`
+    : `<div class="empty">No cash changes yet this round.</div>`;
+}
+// Suggested kit per role, best first; only items you own (or guns you've used) are suggested.
+const KITS = {
+  medic: { Primary: ["MP5", "AK74", "Judge"], Sight: ["Compact P-1 Red Dot", "Kobra Reflex"], Sidearm: ["M1911"],
+    Medical: ["Individual First Aid Kit", "Field Resuscitator", "Medical Bag", "Defibrillator"], Utility: ["M18 Smoke Grenade: White"],
+    Armor: ["Medium Tac Vest", "Level 1 Armor"], Helmet: ["Level 1 Helmet"], Pack: ["Field Backpack", "Operator Backpack"] },
+  recon: { Primary: ["SV98", "Mosin Nagant", "SKS", "MP5"], Sight: ["3x-6x LPVO Short Dot", "Tricon 1.5x Compact Prism Scope"], Sidearm: ["M1911"],
+    Spotting: ["Range Finder", "Monocular"], Medical: ["Individual First Aid Kit"], Armor: ["Level 1 Armor"], Pack: ["Field Backpack"] },
+  support: { Primary: ["MP5", "AK74"], Sight: ["Compact P-1 Red Dot"], "Anti-vehicle": ["RPG-7", "C4 Charge"], Tools: ["Large Hammer", "Mechanical Supply Pallet"],
+    Medical: ["Individual First Aid Kit"], Armor: ["Medium Tac Vest", "Level 1 Armor"], Pack: ["Operator Backpack", "Field Backpack"] },
+  assault: { Primary: ["AK74", "Galil", "KH-2002", "MP5"], Sight: ["Tricon 1.5x Compact Prism Scope", "Compact P-1 Red Dot"], Grip: ["RK6 Tactical Foregrip", "TDG Vertical Foregrip"],
+    Explosive: ["C4 Charge", "RPG-7"], Medical: ["Individual First Aid Kit"], Armor: ["Medium Tac Vest", "Level 1 Armor"], Helmet: ["Level 1 Helmet"] },
+  driver: { Primary: ["MP5"], Sidearm: ["M1911"], Vehicle: ["Ural"], Medical: ["Individual First Aid Kit"] },
+  pilot: { Sidearm: ["M1911"], Medical: ["Individual First Aid Kit"], Pack: ["Field Backpack"] },
+};
+
+// Money methods. wardogstracker.gg has kill and win-rate meta but no cash or XP guide, so the
+// ranking comes from your own rounds: which role's rewards paid you and which role gained XP.
+// Priors only matter until there's history, and none of them favour flying.
+let teamState = null;
+try { teamState = localStorage.getItem("wdt.team"); } catch {}
+const METHODS = [
+  { id: "medic", role: "medic", name: "Medic in the Hot Zone", guess: 1.0,
+    why: (c) => ["cheap kit; zone presence plus revives and heals", c.team === "lose" ? "a losing team means lots of revives" : "", c.downs >= 2 ? "you've been going down, so stay just behind the front" : ""],
+    score: (c) => (c.bal < 15000 ? 1.2 : 1) * (c.team === "lose" ? 1.3 : c.team === "push" ? 1.1 : 1) * (c.badFights ? 1.15 : 1) },
+  { id: "recon", role: "recon", name: "Recon: spot from cover near the zone", guess: 0.85,
+    why: (c) => ["spotting assists pay without taking duels", c.badFights ? "you're losing close fights, so stay back" : "", c.team === "hold" ? "your team is holding, so spotted enemies die fast" : ""],
+    score: (c) => (c.badFights ? 1.25 : 1) * (c.team === "hold" ? 1.15 : 1) },
+  { id: "assault", role: "assault", name: "Assault: fight in the Hot Zone", guess: 0.85,
+    why: (c) => [c.team === "push" ? "your team is pushing, so fights are winnable" : "kills dry up when your team stalls", c.badFights ? "you're losing most fights right now" : c.kills > c.deaths ? "you're winning your fights" : ""],
+    score: (c) => (c.team === "push" ? 1.3 : c.team === "lose" ? 0.75 : 1) * (c.badFights ? 0.6 : c.kills > c.deaths ? 1.2 : 1) },
+  { id: "snipe", role: "recon", name: "Sniping from long range", guess: 0.7, needs: ["SV98", "Mosin Nagant", "SKS"],
+    why: (c) => ["kills at range with low risk", c.team === "hold" || c.team === "lose" ? "enemies are pushing into your sightlines" : ""],
+    score: (c) => (c.team === "lose" || c.team === "hold" ? 1.15 : c.team === "push" ? 0.8 : 1) },
+  { id: "support", role: "support", name: "Support: resupply the zone, RPG on vehicles", guess: 0.75,
+    why: (c) => [c.team === "vehicles" ? "enemy vehicles are out: each one is a big payout" : "resupplies pay steadily near the zone",
+      mode === "infantry" && c.team !== "vehicles" ? "few vehicles to hit in Infantry mode" : ""],
+    score: (c) => (c.team === "vehicles" ? 1.6 : mode === "infantry" ? 0.85 : 1) },
+  { id: "pilot", role: "pilot", name: "Pilot: ferry squads and crates to the zone", guess: 0.5,
+    why: (c) => ["only pays when your team holds the zone and the helicopter survives", c.bal < 25000 ? "a lost helicopter hurts on your balance" : ""],
+    score: (c) => (c.team === "hold" ? 1.3 : 1) * (c.bal < 25000 ? 0.6 : 1) },
+];
+
+// what each reward line in your feed says about the role that earned it
+const REWARD_ROLE = [[/waited/i, null], [/reviv|heal|stim|bandag/i, "medic"], [/spot/i, "recon"], [/resuppl|ammo|repair|build|fortif/i, "support"],
+  [/passenger|crate|pallet|airlift|transport/i, "pilot"], [/refuel|driv/i, "driver"], [/kill|headshot|destroyed|assist/i, "assault"]];
+const roleOfReward = (k) => (REWARD_ROLE.find(([re]) => re.test(k)) || [])[1] || null;
+
+// Wardog level is the sum of your six role levels, and low levels are cheap, so the fastest
+// Wardog levels come from your lowest roles. On top of that the match-end bonus is per role:
+// every 500 XP earned in a role (up to 2,500) adds 600 / 700 / 800 bonus XP for 3rd / 2nd /
+// 1st place, and you only get it by finishing the round. (Community study of Season 1 matches:
+// wardogswiki.com/en/videos/wardogs-match-end-xp-study; level curve: xboosty.com.)
+const SPREAD = { medic: "revive and heal teammates", recon: "spot targets with binoculars",
+  assault: "kills with an assault rifle", support: "drop ammo supplies and build at the FOB",
+  pilot: "fly your squad to the zone (25 XP a passenger, 400 a supply pallet)",
+  driver: "drive the truck to the zone and repair it" };
+const TIER = 500;
+function roundRoleXp(L) {
+  const xp = {};
+  for (const [k, v] of Object.entries(L.rewards || {})) { const r = roleOfReward(k); if (r && v?.xp) xp[r] = (xp[r] || 0) + v.xp; }
+  return xp;
+}
+function spreadTip(L, goal, mins) {
+  const lv = (data?.snapshots?.length ? data.snapshots[data.snapshots.length - 1].data : null)?.roles || {};
+  const xp = roundRoleXp(L);
+  const tiers = Object.keys(SPREAD).filter((r) => (xp[r] || 0) >= TIER);
+  // next role: lowest level first (cheapest Wardog level) among roles without a bonus tier yet
+  const left = Object.keys(SPREAD).filter((r) => (xp[r] || 0) < TIER).sort((a, b) => (lv[a]?.level ?? 99) - (lv[b]?.level ?? 99));
+  const prog = Object.keys(SPREAD).filter((r) => xp[r]).map((r) => `${cap(r)} ${xp[r].toLocaleString()}`).join(", ");
+  const pri = goal === "cash" ? 28 : mins > 20 ? 78 : 68;
+  if (!left.length) return [goal === "cash" ? 30 : 58, "good", "Wardog XP", "500+ XP in every role", "Every role earns a match-end bonus. Stay to the end and push for the win: 1st place pays the most."];
+  const nx = left[0];
+  return [pri, "do", "Wardog XP", `Next: ${cap(nx)} (level ${lv[nx]?.level ?? "?"})`,
+    `${cap(nx)}: ${SPREAD[nx]}. Each role with ${TIER}+ XP this round gets its own end bonus, and low roles level fastest.` +
+    `${prog ? ` This round: ${prog} XP.` : ""}${tiers.length ? ` Bonus earned: ${tiers.map(cap).join(", ")}.` : ""} Finish the round to collect it.`];
+}
+
+function evidence() {
+  const cash = {}, xp = {};
+  let cashAll = 0, xpAll = 0;
+  for (const m of data?.matches || []) {
+    const main = mainRole(m);
+    for (const [k, v] of Object.entries(m.details?.rewards || {})) {
+      const r = /presence|prgence/i.test(k) ? main : roleOfReward(k);
+      if (!r || !v?.cash) continue;
+      cash[r] = (cash[r] || 0) + v.cash; cashAll += v.cash;
+    }
+    for (const [r, v] of Object.entries(m.details?.role_xp || {})) {
+      if (v?.gain > 0) { const k = r.toLowerCase() === "infantry" ? "assault" : r.toLowerCase(); xp[k] = (xp[k] || 0) + v.gain; xpAll += v.gain; }
+    }
+  }
+  const share = (o, all, r) => (all ? (o[r] || 0) / all : null);
+  return { cash, xp, cashShare: (r) => share(cash, cashAll, r), xpShare: (r) => share(xp, xpAll, r) };
+}
+
+let lastMoney = [], goal = "cash", mode = "infantry";
+try { goal = localStorage.getItem("wdt.goal") || "cash"; mode = localStorage.getItem("wdt.mode") || "infantry"; } catch {}
+// infantry mode: helicopters and trucks still spawn, armed vehicles don't
+const modeOk = (role, category, name = "") => mode !== "infantry" || category !== "vehicles" || !ARMED.test(name);
+// first moves per role, from the role guides and what pays in your reward feed
+const OPENERS = {
+  medic: ["Deploy at the FOB or squad closest to the Hot Zone.", "Stay just behind your squad: revives pay most (about $300 to $1,400 each), then heals. Only teammates count.",
+    "Stand inside the zone between patients so presence pay keeps ticking."],
+  recon: ["Take cover with a view of the Hot Zone, not inside it.", "Spot everything: \"Spotted Target Destroyed\" pays every time your team kills what you marked.",
+    "Use the Range Finder before long shots; move after a few kills."],
+  support: ["Drop an ammo supply near the zone first: resupplies pay all round.", "Save RPG and C4 for vehicles: they pay far more than infantry kills.", "Stay with your squad so they can use your supplies."],
+  assault: ["Push into the Hot Zone with your squad.", "Use an assault rifle: only Assault-tagged guns give Assault XP.", "Carry C4 or the Remote Detonator for vehicles."],
+  pilot: ["Load supply crates and fly them to the edge of the zone your team holds.", "Land behind cover, drop, take off: hovering gets you shot down.", "Only fly with a bankroll that can cover losing the helicopter."],
+  driver: ["Ferry your squad to the zone: transport and refuel pay.", "Park out of sight and stay near the truck for refuel and repair pay."],
+};
+
+function planPick() {
+  const top = lastMoney[0];
+  if (!top) return { role: "medic", why: "Medic in the Hot Zone: cheap kit, pays from zone presence, revives and heals." };
+  return { role: top.mt.role, why: `${top.mt.name}: ${top.why.slice(0, 3).join("; ")}.` };
+}
+
+// Wardog level is the sum of role levels: list roles lowest first, with what earns each
+function wardogPlan() {
+  const snap = data?.snapshots?.length ? data.snapshots[data.snapshots.length - 1].data : null;
+  const lv = snap?.roles || {};
+  const order = Object.keys(SPREAD).sort((a, b) => (lv[a]?.level ?? 99) - (lv[b]?.level ?? 99));
+  return `<p style="margin:10px 0 4px;font-size:13px"><b class="gold">Wardog ${snap?.wardogLevel ?? "?"}:</b> it's the sum of your role levels, and low levels are cheap.
+    Get ${TIER}+ XP in as many roles as you can each round (each one earns its own end bonus, more for 1st place) and stay until the end. Lowest first:</p>
+    <ol style="margin:0;padding-left:18px;line-height:1.5;font-size:13px">${order.slice(0, 4).map((r) => `<li><b>${cap(r)} ${lv[r]?.level ?? "?"}</b>: ${esc(SPREAD[r])}</li>`).join("")}</ol>`;
+}
+
+function planKit(role) {
+  const cat = data?.meta?.catalog?.items || [];
+  const owned = new Set((data?.unlocks || []).map((u) => u.name.toLowerCase().replace(/[^a-z0-9]/g, "")));
+  const price = (n) => cat.find((i) => i.name.toLowerCase() === n.toLowerCase())?.price;
+  const has = (n) => { const k = n.toLowerCase().replace(/[^a-z0-9]/g, ""); return owned.has(k) || [...owned].some((o) => o.startsWith(k)); };
+  const kit = Object.entries(KITS[role] || {}).map(([slot, opts]) => [slot, opts.find(has) || (slot === "Primary" ? "MP5" : null)]).filter(([, x]) => x);
+  return { kit, price, cost: kit.reduce((a, [, n]) => a + (price(n) || 0), 0) };
+}
+
+// In a match: one big thing to do, two smaller ones, and your plan. The rest sits behind "Show details".
+// profit and XP over the round, each on its own axis, against your usual pace (dashed)
+function renderLines(L, now, cashRate, xpRate) {
+  const off = L.between || !L.started;
+  $("liveCharts").style.display = off ? "none" : "";
+  if (off) return;
+  const t0 = L.started, end = Math.max(now, t0 + 60), m = (t) => Math.max(0, (t - t0) / 60);
+  const line = (id, sub, raw, rate, fmtY, unit, note) => {
+    const got = raw.filter(([t]) => t >= t0 - 15).map(([t, y]) => [Math.max(t, t0), y]);
+    // rounds start at 0, unless the first read is right at the start (a tracker restart mid-round)
+    const pts = got.length && got[0][0] - t0 < 15 ? got : [[t0, 0], ...got];
+    pts.push([end, pts[pts.length - 1][1]]);  // flat to now: nothing new since the last change
+    const ref = rate != null ? [{ x: t0, y: 0 }, { x: end, y: rate * m(end) }] : null;
+    const cur = pts[pts.length - 1][1], usual = rate != null ? rate * m(end) : null;
+    $(sub).textContent = usual == null ? note : `${fmtY(cur)} now, usually ${fmtY(usual)} by ${Math.round(m(end))} min${note ? " · " + note : ""}`;
+    chart($(id), { kind: "line", xTime: true, h: 170, xTitle: "Minutes into the round", yTitle: unit, yFmt: fmtY,
+      ref, refLabel: ref ? "your usual pace" : "", empty: "Fills in as the round goes",
+      points: pts.map(([t, y]) => ({ x: t, y, label: `${Math.round(m(t))}m`, tip: `<b>${fmtY(y)}</b> at ${liveClock(t - t0)}` })) });
+  };
+  line("cashLine", "cashLineSub", L.series?.cash || [], cashRate, money, "Profit", "");
+  line("xpLine", "xpLineSub", L.series?.xp || [], xpRate, (v) => fmt(v), "XP", "feed only, the end bonus lands at round end");
+}
+
+// the newest (or still open) session and its rounds
+function sessionSoFar() {
+  const s = data?.sessions?.[data.sessions.length - 1];
+  const ms = s ? (data?.matches || []).filter((m) => m.session_id === s.id) : [];
+  const dec = ms.map(won).filter((x) => x != null);
+  return { s, open: !!s && s.ended_at == null, n: ms.length, ms, xp: sum(ms, (m) => m.xp), net: sum(ms, net), secs: sum(ms, mlen),
+    wins: dec.filter((x) => x === 1).length, losses: dec.filter((x) => x === 0).length };
+}
+const lastBalance = () => { const m = (data?.matches || []).slice(-1)[0], snap = data?.snapshots?.slice(-1)[0];
+  return m?.details?.live_cash?.end_balance ?? snap?.data?.cash ?? 0; };
+
+// Between rounds and before the game starts: the round just played and the session so far.
+function renderIdle() {
+  const el = $("liveIdle"), ms = data?.matches || [], last = ms[ms.length - 1];
+  if (!last) { el.innerHTML = ""; return; }
+  const d = last.details || {}, n = net(last), me = d.board_end?.me, base = matchAverages(ms, last.id), s = sessionSoFar();
+  const role = mainRole(last);
+  const best = s.ms.filter((m) => net(m) != null).sort((a, b) => net(b) - net(a))[0];
+  el.innerHTML = `<div class="grid two">
+    <div class="card lastround"><h2>Last round <small>${when(last.ended_at)} · ${dur(mlen(last))}${d.map ? " · " + esc(d.map) : ""}${role ? " · mostly " + cap(role) : ""}</small></h2>
+      <div class="grid tiles" style="margin-top:0">
+        ${tile("Result", d.result ? `<span class="res ${d.result}">${d.result}</span>` : d.winner ? esc(d.winner) + " won" : "–", d.score ? "score " + esc(d.score) : "")}
+        ${tile("XP", fmt(last.xp), vsAvg(last.xp, base.xp))}
+        ${tile("Net cash", `<span class="${n < 0 ? "neg" : n > 0 ? "pos" : ""}">${money(n)}</span>`, vsAvg(n, base.cash))}
+        ${tile("Place", me?.rank ? `#${me.rank}` : "–", me?.rank ? `of ${d.board_end.players ?? "?"}${me.cash != null ? ` · ${money(me.cash)} earned` : ""}` : "open the Scoreboard tab at round end")}
+      </div>
+      <p style="margin:12px 0 0"><button data-go="${last.id}">Open the full round</button></p></div>
+    <div class="card"><h2>${s.open ? "This session" : "Last session"} <small>${s.s ? when(s.s.started_at) + (s.s.ended_at ? " to " + clock(s.s.ended_at) : ", still going") : ""}</small></h2>
+      <div class="grid tiles" style="margin-top:0">
+        ${tile("Rounds", fmt(s.n), s.wins + s.losses ? `${s.wins} won, ${s.losses} lost` : dur(s.secs) + " played")}
+        ${tile("XP", fmt(s.xp), s.secs > 300 ? fmt(s.xp / s.secs * 3600) + " XP / hour" : "")}
+        ${tile("Net cash", `<span class="${s.net < 0 ? "neg" : "pos"}">${money(s.net)}</span>`, s.secs > 300 ? money(s.net / s.secs * 60) + "/min" : "")}
+        ${tile("Best round", best ? `<button class="link" data-go="${best.id}" style="font-size:inherit;font-weight:inherit;color:inherit;padding:0">${money(net(best))}</button>` : "–", best ? clock(best.ended_at) : "")}
+      </div></div></div>`;
+}
+
+// reward and kill feeds merged, newest first; repeats a few seconds apart fold into one line
+let feedSeen = 0;
+function renderFeed(L) {
+  const t0 = L.started;
+  const all = [...(L.feed || []).map((e) => ({ t: e.t, key: e.label, text: esc(e.label), cash: e.cash || 0, xp: e.xp || 0 })),
+    ...(L.kill_log || []).map((k) => ({ t: k.t, key: k.kind + k.other, text: k.kind === "kill" ? `Killed <b>${esc(k.other)}</b>` : `<span class="neg">Killed by</span> <b>${esc(k.other)}</b>`, cash: 0, xp: 0 }))]
+    .filter((r) => !t0 || r.t >= t0 - 15).sort((a, b) => b.t - a.t);
+  const rows = [];
+  for (const r of all) {
+    const p = rows[rows.length - 1];
+    if (p && p.key === r.key && p.tLast - r.t <= 60) { p.n++; p.cash += r.cash; p.xp += r.xp; p.tLast = r.t; }
+    else rows.push({ ...r, n: 1, tLast: r.t });
+  }
+  $("liveFeed").innerHTML = rows.length ? rows.slice(0, 10).map((r) => `<li class="${feedSeen && r.t > feedSeen ? "fresh" : ""}"><span class="t">${liveClock(t0 ? r.t - t0 : null)}</span>
+      <span>${r.text}${r.n > 1 ? ` <span class="m">×${r.n}</span>` : ""}</span>
+      <span class="amt">${[r.cash ? `<span class="${r.cash < 0 ? "neg" : "pos"}">${signed(r.cash, money)}</span>` : "", r.xp ? `<span class="m">${signed(r.xp)} XP</span>` : ""].filter(Boolean).join(" ")}</span></li>`).join("")
+    : `<li class="m" style="display:block">Rewards and kills show here as they pop up in the game.</li>`;
+  feedSeen = Math.max(feedSeen, all[0]?.t || 0);
+}
+
+// your row from the last time the Scoreboard tab was open
+function boardTile(bd, now) {
+  if (!bd) return tile("Scoreboard", "–", "open the Scoreboard tab for a few seconds to see your place");
+  const me = bd.me || bd.me_seen, age = Math.round((now - (bd.me ? bd.t : bd.me_t || bd.t)) / 60);
+  if (!me) return tile("Scoreboard", "–", `your name wasn't on screen: scroll to it (rows #${bd.first ?? "?"} to #${(bd.first ?? 0) + bd.shown - 1} were showing)`);
+  const kd = me.kills != null && me.deaths != null ? `K/D ${me.kills}/${me.deaths}` : "";
+  const bits = [kd, me.assists != null ? `${me.assists} assists` : "", me.revives != null ? `${me.revives} revives` : "",
+    bd.above?.cash != null && me.cash != null ? `${money(bd.above.cash - me.cash)} behind #${bd.above.rank}` : "",
+    age >= 1 ? `${age} min ago` : "just now"].filter(Boolean);
+  return tile(`Scoreboard${bd.view && bd.view !== "Global" ? ` (${esc(bd.view)})` : ""}`,
+    `#${me.rank ?? "?"}${bd.players ? ` <span class="m" style="font-size:.6em">of ${bd.players}</span>` : ""}`,
+    `${me.cash != null ? `${money(me.cash)} earned · ` : ""}${bits.join(" · ")}`);
+}
+
+function renderFocus(L, tips, role, mins) {
+  const inMatch = !L.between;
+  $("focusCard").hidden = !inMatch;
+  if (!inMatch) return;
+  const [top, ...rest] = tips.filter((t) => t[2] !== cap(role) || t[0] >= 50);
+  $("focusNow").innerHTML = top ? `<div class="now ${top[1]}"><div class="lbl">${esc(top[2])}</div><div class="big">${top[3]}</div><div class="sub">${top[4]}</div></div>
+    <div class="next">${rest.slice(0, 2).map((t) => `<div><span class="ttag" style="background:#2a2e34">${esc(t[2])}</span>${t[3]}</div>`).join("")}</div>`
+    : `<div class="now good"><div class="big">All good</div><div class="sub">Keep doing what you're doing.</div></div>`;
+  const { kit, cost } = planKit(role);
+  $("focusPlan").innerHTML = `<div class="lbl m" style="font-size:11px;letter-spacing:.1em;text-transform:uppercase">Your plan</div>
+    <div class="role">${cap(role)}</div>
+    <div class="kitline">${kit.map(([, n]) => esc(n)).join(" · ")} · about ${money(cost)} per life</div>
+    <ol>${(OPENERS[role] || []).map((t) => `<li>${esc(t)}</li>`).join("")}</ol>`;
+}
+
+function renderPlan(L, mins) {
+  const card = $("planCard");
+  const show = L.between || showDetails;
+  card.hidden = !show;
+  if (!show) return;
+  for (const b of document.querySelectorAll("#goalSeg button")) b.classList.toggle("on", b.dataset.aim ? b.dataset.aim === goal : b.dataset.mode === mode);
+  const latest = data?.snapshots?.length ? data.snapshots[data.snapshots.length - 1].data : null;
+  const lv = latest?.roles || {}, cat = data?.meta?.catalog?.items || [];
+  const owned = new Set((data?.unlocks || []).map((u) => u.name.toLowerCase().replace(/[^a-z0-9]/g, "")));
+  const { role, why } = planPick();
+  // kit: what you own for that role, with loadout prices from the catalog
+  const { kit, price, cost } = planKit(role);
+  const lastM = (data?.matches || []).slice(-1)[0];
+  const rw = Object.entries(lastM?.details?.rewards || {}).sort((a, b) => b[1].cash - a[1].cash).slice(0, 2);
+  $("planSub").textContent = L.between ? "for your next round" : "first minutes of the round";
+  $("planBody").innerHTML = `<div class="tipx do top"><span class="ttag">Play</span><span><b class="h">${cap(role)}${lv[role]?.level ? ` (level ${lv[role].level})` : ""}</b><span class="t">${esc(why)}</span></span></div>
+    <div class="grid two" style="margin-top:10px">
+      <div><h3 class="gold" style="margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em">Loadout</h3>
+        <dl class="kit">${kit.map(([slot, n]) => `<dt>${esc(slot)}</dt><dd><b>${esc(n)}</b>${price(n) ? ` <span class="m">${money(price(n))}</span>` : ""}</dd>`).join("")}</dl>
+        <p class="m" style="margin:6px 0 0;font-size:12px">About ${money(cost)} per life${goal === "cash" ? ". Skip anything you won't use: lost gear is lost money." : ". XP doesn't care about gear price, so run what keeps you alive."}</p></div>
+      <div><h3 class="gold" style="margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.06em">First moves</h3>
+        <ol style="margin:0;padding-left:18px;line-height:1.5">${(OPENERS[role] || []).map((t) => `<li>${esc(t)}</li>`).join("")}</ol>
+        ${goal !== "cash" ? wardogPlan() : ""}
+        ${rw.length ? `<p class="m" style="margin:8px 0 0;font-size:12px">Last round your best pay was ${rw.map(([k, v]) => `${esc(k)} (${money(v.cash)})`).join(" and ")}.</p>` : ""}</div>
+    </div>`;
+}
+
+let showDetails = false;
+try { showDetails = localStorage.getItem("wdt.details") === "1"; } catch {}
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#detailsBtn")) return;
+  showDetails = !showDetails;
+  try { localStorage.setItem("wdt.details", showDetails ? "1" : "0"); } catch {}
+  renderLive(lastSt);
+});
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("#goalSeg button");
+  if (!b) return;
+  if (b.dataset.aim) goal = b.dataset.aim; else mode = b.dataset.mode;
+  try { localStorage.setItem("wdt.goal", goal); localStorage.setItem("wdt.mode", mode); } catch {}
+  renderLive(lastSt);
+});
+
+function renderMoney(L, recent, roles) {
+  const el = $("liveMoney");
+  if (!el) return;
+  for (const b of document.querySelectorAll("#teamSeg button")) b.classList.toggle("on", b.dataset.team === teamState);
+  const latest = data?.snapshots?.length ? data.snapshots[data.snapshots.length - 1].data : null;
+  const owned = new Set((data?.unlocks || []).map((u) => u.name.toLowerCase()));
+  // your own $/min per role from past rounds
+  const pay = {};
+  for (const m of recent) {
+    const len = mlen(m), n = net(m);
+    if (n == null || !len || len < 300) continue;
+    const r = mainRole(m);
+    if (r) { const o = pay[r] ||= { cash: 0, t: 0 }; o.cash += n; o.t += len; }
+  }
+  const ev = evidence();
+  const lv = latest?.roles || {}, cat = data?.meta?.catalog?.items || [];
+  const gapTo = (r) => { const it = cat.filter((i) => i.role === r && i.cost > 0 && modeOk(i.role, i.category, i.name) && lv[r]?.level < i.level).sort((a, b) => a.level - b.level)[0]; return it ? { it, gap: it.level - lv[r].level } : null; };
+  const c = { bal: L.balance ?? 0, team: teamState, downs: L.downs ?? 0, kills: L.kills ?? 0, deaths: L.deaths ?? 0 };
+  c.badFights = c.kills + c.deaths >= 3 && c.deaths > c.kills * 2;
+  const rows = METHODS.map((mt) => {
+    const hist = pay[mt.role] && pay[mt.role].t > 600 ? pay[mt.role].cash / pay[mt.role].t * 60 : null;
+    const cs = ev.cashShare(mt.role), xs = ev.xpShare(mt.role), next = gapTo(mt.role);
+    // your share of reward cash / role XP lifts a method; the prior only breaks ties
+    const cashSc = mt.guess * (cs == null ? 1 : 0.5 + 2 * cs) * mt.score(c);
+    const xpSc = (xs == null ? mt.guess : 0.5 + 2 * xs) * (next ? 1 + 1 / next.gap : 0.8) * (mt.id === "snipe" ? 0.8 : 1) * (lv[mt.role]?.level ? 10 / (lv[mt.role].level + 2) : 1);
+    const lvl = lv[mt.role]?.level;
+    const missing = (mt.needs || []).length && !(mt.needs || []).some((n) => owned.has(n.toLowerCase()));
+    let sc = (goal === "cash" ? cashSc : goal === "xp" ? xpSc : Math.sqrt(cashSc * xpSc)) * (missing ? 0.3 : 1);
+    if (roles.length === 1 && roles.includes(mt.role)) sc *= 1.05;  // no redeploy needed
+    const why = mt.why(c).filter(Boolean);
+    if (cs) why.unshift(`${Math.round(cs * 100)}% of your reward cash so far`);
+    if (goal !== "cash" && xs) why.unshift(`${Math.round(xs * 100)}% of your role XP so far`);
+    if (goal !== "cash" && next) why.push(`${next.gap} level${next.gap > 1 ? "s" : ""} to ${next.it.name}`);
+    if (missing) why.unshift(`you don't own ${mt.needs.join(" or ")} yet`);
+    return { mt, sc, hist, why, lvl, next };
+  }).sort((a, b) => b.sc - a.sc);
+  lastMoney = rows;
+  el.innerHTML = rows.slice(0, 4).map((r, i) => `<div class="mm${i === 0 ? " best" : ""}"><span class="rk">${i + 1}</span>
+      <span><b>${esc(r.mt.name)}</b><br><span class="m">${esc(r.why.slice(0, 2).join("; "))}.</span></span>
+      <span class="m num">${r.hist != null ? `${money(r.hist)}/min` : "no history"}${r.lvl != null ? `<br>${cap(r.mt.role)} ${r.lvl}` : ""}</span></div>`).join("")
+    + `<p class="m" style="margin:8px 0 0;font-size:12px">${teamState ? "" : "Pick what your team is doing above for a sharper pick. "}Ranked by ${goal === "cash" ? "the reward cash" : goal === "xp" ? "the role XP" : "the cash and XP"} your own rounds show for each role; wardogstracker.gg has no cash or XP guide.</p>`;
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("#teamSeg button");
+  if (!b) return;
+  teamState = teamState === b.dataset.team ? null : b.dataset.team;
+  try { teamState ? localStorage.setItem("wdt.team", teamState) : localStorage.removeItem("wdt.team"); } catch {}
+  if (typeof renderLive === "function") renderLive(lastSt);
+});
+
+function renderKit(role, L) {
+  const el = $("liveKit");
+  if (!el) return;
+  if (!role || !KITS[role]) { $("kitRole").textContent = ""; el.innerHTML = `<div class="empty">Shows once your role is seen on a loadout or deploy screen.</div>`; return; }
+  const norm = (x) => x.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const owned = new Set((data?.unlocks || []).map((u) => norm(u.name))), bought = new Set(owned);
+  // guns you actually played with count as available, ranked by how well they paid for this role
+  const gunPay = {};
+  for (const m of data?.matches || []) {
+    if (!(m.details?.used?.roles || []).some((r) => r.toLowerCase() === role)) continue;
+    for (const [gname, n] of Object.entries(m.details?.hud?.guns || {})) { owned.add(norm(gname)); gunPay[gname] = (gunPay[gname] || 0) + n * (perMinute(m) || 0); }
+  }
+  for (const gname of Object.keys(L?.guns || {})) owned.add(norm(gname));
+  // a gun picked up in a round but above your role level isn't one you can bring
+  const snap = data?.snapshots?.length ? data.snapshots[data.snapshots.length - 1].data : null;
+  const locked = (x) => (data?.meta?.catalog?.items || []).some((it) => norm(it.name) === norm(x) && it.level != null && !((snap?.roles?.[it.role]?.level ?? 0) >= it.level) && !bought.has(norm(x)));
+  for (const gn of [...Object.keys(gunPay), ...Object.keys(L?.guns || {})]) if (locked(gn)) owned.delete(norm(gn));
+  const has = (x) => owned.has(norm(x)) || [...owned].some((o) => o.startsWith(norm(x)) || norm(x).startsWith(o) && o.length > 3);
+  const rows = Object.entries(KITS[role]).map(([slot, opts]) => {
+    let pick = opts.find(has);
+    if (slot === "Primary") { const best = Object.entries(gunPay).filter(([gn]) => !locked(gn)).sort((a, b) => b[1] - a[1])[0]; if (best && best[1] > 0) pick = best[0]; }
+    const better = pick ? opts.slice(0, opts.indexOf(pick)).find((o) => !has(o)) : opts[0];
+    return `<dt>${esc(slot)}</dt><dd>${pick ? `<b>${esc(pick)}</b>` : `<span class="m">none owned</span>`}${better ? ` <span class="m">· upgrade: ${esc(better)}</span>` : ""}</dd>`;
+  }).join("");
+  $("kitRole").textContent = `for ${cap(role)}`;
+  el.innerHTML = `<dl class="kit">${rows}</dl>${buyNext(role, L, has)}`;
+}
+
+// Unlocks you've reached the level for but haven't bought, best first: your current role,
+// then how many players bought it (the site's "unlocked by"), cheaper first on ties.
+function buyNext(role, L, has) {
+  const items = data?.meta?.catalog?.items || [];
+  if (!items.length) return `<p class="m" style="margin:12px 0 0">Unlock prices load from wardogstracker.gg within a few minutes of the tracker starting.</p>`;
+  const latest = data?.snapshots?.length ? data.snapshots[data.snapshots.length - 1].data : null;
+  const lv = latest?.roles || {};
+  const cash = L?.balance ?? latest?.cash ?? 0;
+  const lvOf = (r) => r === "career" ? latest?.wardogLevel : lv[r]?.level;  // career items go by Wardog level
+  const open = items.filter((it) => it.cost > 0 && modeOk(it.role, it.category, it.name) && lvOf(it.role) >= it.level && !has(it.name));
+  const score = (it) => (it.owned_pct ?? 0) * (it.role === role ? 2 : 1) * (it.category === "attachments" ? 0.6 : 1);
+  open.sort((a, b) => score(b) - score(a) || a.cost - b.cost);
+  const row = (it, i) => `<div class="mm${i === 0 ? " best" : ""}"><span class="rk">${i + 1}</span>
+      <span><b>${esc(it.name)}</b> <span class="chip">${it.role === "career" ? "Wardog" : esc(cap(it.role))} ${it.level}</span><br>
+      <span class="m">${esc(cap(it.category))}${it.price ? ` · ${money(it.price)} per loadout` : ""}${it.owned_pct != null ? ` · ${it.owned_pct}% of players bought it` : ""}</span></span>
+      <span class="num"><b class="${it.cost <= cash ? "pos" : "m"}">${money(it.cost)}</b><br><span class="m">${it.cost <= cash ? "can buy now" : `${money(it.cost - cash)} short`}</span></span></div>`;
+  const ahead = items.filter((it) => it.role === role && it.cost > 0 && lv[role]?.level < it.level).sort((a, b) => a.level - b.level)[0];
+  return `<h3 style="margin:14px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.06em" class="gold">Best purchase you've already unlocked</h3>
+    ${open.length ? open.slice(0, 5).map(row).join("") : `<p class="m">Nothing left to buy at your current role levels.</p>`}
+    <p class="m" style="margin:8px 0 0;font-size:12px">${open.length > 5 ? `${open.length - 5} more available. ` : ""}Balance ${money(cash)}.${ahead ? ` Next ${cap(role)} unlock: ${esc(ahead.name)} at level ${ahead.level} (${money(ahead.cost)}).` : ""} Prices from wardogstracker.gg.</p>`;
+}
+
+// The role a match was really played as: the one that gained the most XP on the
+// Progression screen, or the only role seen. Loadout screens list every role, so
+// "roles seen" alone can't say.
+function mainRole(m) {
+  const rx = m.details?.role_xp;
+  if (rx) {
+    const best = Object.entries(rx).filter(([, v]) => v.gain > 0).sort((a, b) => b[1].gain - a[1].gain)[0];
+    if (best) return best[0].toLowerCase();
+  }
+  const seen = m.details?.used?.roles || [];
+  return seen.length === 1 ? seen[0].toLowerCase() : null;
+}
+
+// infantry servers still have helicopters and transport trucks, just nothing armed
+const ARMED = /\[|havoc|gepard|l2a6|sph-2|t-72/i;
+
+const STRATS = {
+  assault: { level: ["XP comes from fighting with Assault-tagged guns (assault rifles), so stay near the active Control Zone where fights never stop.",
+      "There's no shortcut, and it levels on its own while you play objectives, so it's the least urgent role to grind.",
+      "Unlocks: AK74 (L3), Galil (L10), M4 (L20), FAL (L35)."],
+    cash: ["Kills pay but dry up when the enemy stops pushing. Carry explosives too so you can cash in when vehicles show up.",
+      "The Hot Zone reportedly pays double, but lives are short there, so run a cheap kit.",
+      "Keep loadout cost below what you expect to earn: gear you lose is money gone."] },
+  medic: { level: ["Heal and revive teammates. Healing yourself doesn't count.",
+      "Stay with big groups just behind the front line so someone always needs patching up.",
+      "Unlocks: Field Resuscitator (L2), M18 Smoke (L5), Individual First Aid Kit (L9), Defibrillator (L11), Medical Bag (L24)."],
+    cash: ["Heals and revives pay even when you're losing gunfights, so Medic is one of the steadiest earners.",
+      "Hot Zone Medic is the top-ranked money method for newer players in the games.gg guide.",
+      "Start with Bandages and a resuscitator. The Defibrillator runs about $1,600 per loadout, so bring it when there are lots of downs."] },
+  recon: { level: ["Mark enemy players, vehicles and equipment with binoculars. You also get assist XP when teammates kill what you marked.",
+      "Keep enemy helicopters marked for teammates with anti-air.",
+      "Spotting with a sniper is reported to double Recon XP and cash. Unlocks: Monocular (L2), SKS (L5), Rangefinder (L8), Mosin Nagant (L10), AMR 50 (L35)."],
+    cash: ["Spotting is low-risk steady income. Prioritize transport helicopters, parachuting infantry and spawn APCs.",
+      "Keep your reticle on targets so their marks stay fresh.",
+      "Long-range kills stack on top of spotting pay, so better rifles and scopes raise your income."] },
+  support: { level: ["Build, repair and supply FOB defenses, and repair vehicles.",
+      "Destroy enemy vehicles and helicopters. C4 (L2) and the RPG-7 (L5) are the key tools. Hit vehicles from the side or rear.",
+      "Between vehicle chances, keep building and supplying FOBs. Later: Large Hammer (L8), M249 SAW (L15), MAAWS (L20)."],
+    cash: ["Placing and hammering buildables pays, and you keep earning when your buildables get kills.",
+      "L81 mortars work best within about 700 m of several good targets. Expect counter-fire, and rebuild.",
+      "A fuelled Drill Rig pulls the Hot Zone toward your FOB. Move on to new FOBs instead of idling in a finished base, and only bring the pricey anti-vehicle kit when enemy armor is a real problem."] },
+  driver: { level: ["Drive teammates to the Control Zone and carry supplies to FOBs on the way back.",
+      "Sitting in a parked vehicle at spawn earns nothing.",
+      "One guide reports about 500 Driver XP for parking the spawn vehicle in the Control Zone (unverified). Unlocks: URAL (L3), Dune Buggy (L8), Humvee (L15)."],
+    cash: ["Grab the M113 spawn APC as soon as any team nears 20 points. You earn for every player who spawns on it, plus their kills.",
+      "Park the spawner under roofs or towers so mortars can't reach it.",
+      "Bring a cheap kit (light weapon, bandages, repair item) and use Fuel Cans and FOB repair stations to stay out longer. Driving is safer than flying when enemy anti-air is up."] },
+  pilot: { level: ["Fly passengers toward the fight and carry supply crates to FOBs on empty trips.",
+      "Air-vehicle kills pay 250 XP in Season 1 (was 300). One guide reports about 750 Pilot XP per helicopter supply pallet (unverified).",
+      "Practice in the Firing Range first. Unlocks: AH-6M Miniguns (L4), Z20 Lakota (L10), AH-6R Rockets (L20)."],
+    cash: ["The helicopter taxi pays per passenger dropped in the zone, more if they survive a while, plus a share of their kills.",
+      "Dead passengers and crashes cost you, so carry flares against SAMs and parachutes for passengers.",
+      "Never fly back empty: haul ammo, medical gear or building materials to FOBs."] },
+};
+
+function renderStrategy(latest) {
+  const rates = roleRates(), fc = Object.fromEntries(forecastRows(latest).map((x) => [x.r, x]));
+  const byRole = Object.fromEntries(groupStats(data.matches, (m) => (m.details?.used?.roles || []).map((r) => r.toLowerCase())).map((r) => [r.k, r]));
+  const fastest = ROLE_KEYS.filter((r) => rates[r]).sort((a, b) => rates[b] - rates[a]);
+  const richest = ROLE_KEYS.filter((r) => byRole[r]?.cash != null).sort((a, b) => byRole[b].cash - byRole[a].cash);
+  const cheapest = ROLE_KEYS.filter((r) => fc[r]?.need != null).sort((a, b) => fc[a].need - fc[b].need);
+  $("stratMine").innerHTML = `<div class="grid tiles" style="margin-top:0">${[
+    tile("Fastest leveling role", fastest.length ? cap(fastest[0]) : "–", fastest.length ? fmt(rates[fastest[0]]) + " XP / hour played" : "needs a session between two syncs"),
+    tile("Best cash role", richest.length ? cap(richest[0]) : "–", richest.length ? money(byRole[richest[0]].cash) + " avg net per match" : "needs matches with roles read"),
+    tile("Closest level-up", cheapest.length ? cap(cheapest[0]) : "–", cheapest.length ? `level ${fc[cheapest[0]].v.level}, ~${fmt(fc[cheapest[0]].need)} XP to go` : ""),
+  ].join("")}</div><div class="s" style="color:var(--muted);margin-top:8px">Your Wardog level is the sum of all six role levels and low levels are cheap, so leveling your lowest roles raises it fastest.</div>`;
+
+  $("strat").innerHTML = ROLE_KEYS.map((r) => {
+    const s = STRATS[r], g = byRole[r], f = fc[r];
+    const top = g ? sourceRows(g.g).sort((a, b) => b.xp - a.xp).slice(0, 3) : [];
+    const mine = [
+      f ? `Level <b>${f.v.level}</b>, ${fmt(f.v.xp)} XP` + (f.need != null ? `, ~${fmt(f.need)} to next` : "") : null,
+      rates[r] != null ? `XP / hour played: <b>${fmt(rates[r])}</b>` + (f?.eta != null ? ` (next level in ~${etaText(f.eta)})` : "") : null,
+      g ? `${g.n} logged match${g.n === 1 ? "" : "es"}: avg <b>${fmt(g.xp)}</b> XP, <b class="${g.cash < 0 ? "neg" : ""}">${money(g.cash)}</b> net, win rate ${pct(g.win)}` : "No logged matches with this role yet.",
+      top.length ? `Your top sources: ${top.map((t) => `${esc(t.label)} ${short(t.xp)} XP`).join(", ")}` : null,
+    ].filter(Boolean).join("<br>");
+    return `<div class="card"><h3>${cap(r)}</h3>
+      <h4>Leveling</h4><ul>${s.level.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <h4>Making cash</h4><ul>${s.cash.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
+      <div class="mine"><b>You as ${cap(r)}</b><br>${mine}</div></div>`;
+  }).join("");
+}
+
+// goal inputs, personal-best dismiss, notes, match search
+document.addEventListener("change", async (e) => {
+  const t = e.target;
+  if (t.dataset.goal) {
+    const body = {};
+    document.querySelectorAll("[data-goal]").forEach((i) => { const v = i.value.replace(/[^\d]/g, ""); body[i.dataset.goal] = v === "" ? null : Number(v); });
+    await post("/api/settings", body); editing = false; load();
+  } else if (t.dataset.note) {
+    await post(`/api/match/${t.dataset.note}`, { notes: t.value.trim() || null }); editing = false; load();
+  }
+});
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-pbclose]");
+  if (b) { store.set("wdt-pb", b.dataset.pbclose); renderPB(); }
+});
+document.addEventListener("input", (e) => { if (e.target.id === "q" && data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); });
+</script>
+</body>
+</html>

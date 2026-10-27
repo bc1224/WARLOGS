@@ -1,0 +1,141 @@
+import os
+import tempfile
+import unittest
+from unittest import mock
+
+from wdt.ocr import details, downed, kill_feed, promotions, reward_feed, vendor_item
+from wdt.store import Store
+from wdt.tracker import DEFAULTS, Tracker
+
+
+def L(text, x=0, y=0):
+    return {"text": text, "x": x, "y": y}
+
+
+# text read from real in-match samples (data/samples, 2026-10-26)
+class RewardFeedTests(unittest.TestCase):
+    def test_cash_and_xp_entries(self):
+        got = reward_feed([L("CONTROL ZONE PRESENCE *$200"), L("REVIVED PLAYER ASSIST 50XP +"),
+                           L("VEHICLE REFUELLING -$5"), L("BRIBE -$500"), L("[ +$15"), L("+$20")])
+        self.assertEqual(got, [{"label": "Control Zone Presence", "cash": 200, "xp": None},
+                               {"label": "Revived Player Assist", "cash": None, "xp": 50},
+                               {"label": "Vehicle Refuelling", "cash": -5, "xp": None},
+                               {"label": "Bribe", "cash": -500, "xp": None}])
+
+    def test_ocr_noise_maps_to_known_labels(self):
+        got = reward_feed([L("CJERYIYEPPLAYER ASSIST 38xp"), L("DEPLOYED PLAYER ASSIST 38XP")])
+        self.assertEqual([g["label"] for g in got], ["Player Assist", "Deployed Player Assist"])
+
+
+class KillFeedTests(unittest.TestCase):
+    def test_kills_and_deaths(self):
+        lines = [L("Dogtag Hollisx", 53, 502), L("V (KILO] Dogtag (KNTX]Pavlov Helldiver", 36, 525),
+                 L("[A2M]junobug [MEDC]Sixgunner v'", 52, 573), L("e [OLD] Dogtag Wrenx", 36, 549),
+                 L("• [TEAM] Dogtag: push the hot zone", 44, 68)]
+        self.assertEqual(kill_feed(lines, "Dogtag"),
+                         [("kill", "Hollisx"), ("kill", "Pavlov Helldiver"), ("kill", "Wrenx")])
+        self.assertEqual(kill_feed([L("Foul Brickhouse Dogtag")], "Dogtag"), [("death", "Foul Brickhouse")])
+        self.assertEqual(kill_feed(lines, ""), [])
+
+
+class ScreenStateTests(unittest.TestCase):
+    def test_downed(self):
+        self.assertEqual(downed([L("GIVE UP", 796, 967)]), "down")
+        self.assertEqual(downed([L("BEING REVIVED BY", 922, 868), L("GIVE UP")]), "reviving")
+        self.assertIsNone(downed([L("DEPLOY FLARES")]))
+
+    def test_vendor_item(self):
+        lines = [L("// Garage Vendor", 222, 14), L("WEAPONS", 632, 23), L("AMMO", 774, 23),
+                 L("INDIVIDUAL FIRST AID KIT", 796, 356), L("MEDICAL // OUICK SLOT", 796, 378), L("C] Purchase", 781, 573)]
+        self.assertEqual(vendor_item(lines), "Individual First Aid Kit")
+        self.assertIsNone(vendor_item([L("INDIVIDUAL FIRST AID KIT"), L("MEDICAL // OUICK SLOT")]))  # not the vendor
+
+    def test_promotions(self):
+        self.assertEqual(promotions([L("A PROMOTED TD ASSAULT LVL9"), L("PROMOTED TO PILOT LVI_g"),
+                                     L("5 WARODG LVLE2"), L("+ MEDIC LVL 16")]),
+                         [("Assault", 9), ("Pilot", None)])
+
+    def test_map_name_from_end_screen(self):
+        lines = [L("BAKURANI 45'15.O\"N 122'25.OB\"W"), L("VALKYRA"), L("WINS")]
+        self.assertEqual(details(lines)["map"], "Bakurani")
+
+
+class TrackerFeedTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.tmp.name, "t.db"))
+        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name, role_save=os.path.join(self.tmp.name, "none.sav"),
+                   player_name="Dogtag")
+        self.t = Tracker(cfg, self.store, self.tmp.name)
+        self.t._start_session(100)
+
+    def tearDown(self):
+        self.store.db.close()
+        self.tmp.cleanup()
+
+    def test_feed_entries_count_once_while_they_stay_on_screen(self):
+        reads = [([L("CONTROL ZONE PRESENCE +$200")], [L("Dogtag Hollisx")]),
+                 ([L("CONTROL ZONE PRESENCE *$200"), L("BRIBE -$500")], [L("Dogtag Hollisx"), L("Foul Brickhouse Dogtag")]),
+                 ([], []),
+                 ([L("CONTROL ZONE PRESENCE +$200")], [])]
+        for i, (reward, kill) in enumerate(reads):
+            self.t._note_feeds(110 + 3 * i, reward, kill)
+        live = self.t.live(130)
+        self.assertEqual((live["kills"], live["deaths"]), (1, 1))
+        self.assertEqual(live["rewards"]["Control Zone Presence"], {"n": 2, "cash": 400, "xp": 0})
+        self.assertEqual(live["rewards"]["Bribe"]["cash"], -500)
+
+    def test_zone_presence_rewards_mean_you_are_in_the_hot_zone(self):
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_feeds(108, [L("HOT ZONE PRESENCE +$320")], [])
+            self.t._note_hud(110, [L("nothing")])
+            self.t._note_hud(140, [L("nothing")])  # no presence pay for 30 s
+        self.assertEqual([r["here"] for r in self.t.hud["timeline"]], ["hotzone", None])
+        self.assertEqual(self.t.hud["hot"], 1)
+
+    def test_misread_top_bar_does_not_swing_profit(self):
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("$9,835", 1706, 27), L("$44,920", 1818, 27)])
+            self.t._note_hud(120, [L("$160", 1818, 27)])  # balance misread as $160
+            self.t._note_hud(130, [L("$160", 1818, 27)])
+            self.t._note_hud(140, [L("$11,815", 1706, 27), L("$46,900", 1818, 27)])
+        self.assertEqual([e["net"] for e in self.t.live(141)["events"]], [9835, 11815])
+
+    def test_lobby_is_not_a_match_until_the_hud_shows_one(self):
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("PLAY"), L("LOADOUTS")])
+            self.assertTrue(self.t.live(111)["between"])
+            self.t._note_hud(150, [L("$1,200", 1706, 27), L("$45,000", 1818, 27)])
+        live = self.t.live(151)
+        self.assertFalse(live["between"])
+        self.assertEqual(live["started"], 150)
+
+    def test_menu_balance_is_not_round_profit(self):
+        with mock.patch.object(self.t, "_save_sample"):  # server browser, 2026-10-26 sample
+            self.t._note_hud(110, [L("// SERVER BROWSER", 222, 14), L("$117,732", 1583, 24), L("62", 1836, 26)])
+        live = self.t.live(111)
+        self.assertTrue(live["between"])
+        self.assertIsNone(live["net"])
+
+    def test_downs_vendor_and_combat_end_up_on_the_match(self):
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("$20,000", 1817, 27)])
+            self.t._note_hud(120, [L("// Garage Vendor"), L("WEAPONS"), L("AMMO"), L("INDIVIDUAL FIRST AID KIT", 796, 356),
+                                   L("MEDICAL // OUICK SLOT", 796, 378), L("-$800", 1709, 27), L("$19,200", 1817, 27)])
+            self.t._note_hud(130, [L("GIVE UP", 796, 967)])
+            self.t._note_hud(140, [L("GIVE UP", 796, 967)])  # same down
+            self.t._note_hud(150, [L("nothing")])
+            self.t._note_hud(160, [L("GIVE UP", 796, 967)])
+        self.t._note_feeds(165, [], [L("Dogtag Wrenx")])
+        self.t.record_end("hotkey", 200, lines=[L("BAKURANI 45'15.0\"N 122'25.08\"W"), L("VALKYRA"), L("WINS")])
+        m = self.store.dump()["matches"][0]
+        self.assertEqual(m["details"]["map"], "Bakurani")
+        self.assertEqual(m["details"]["combat"], {"kills": 1, "deaths": 0, "downs": 2})
+        self.assertEqual(m["details"]["vendor"], {"Individual First Aid Kit": 800})
+        full = self.store.match_full(m["id"])["details"]
+        self.assertEqual(full["kill_log"][0]["other"], "Wrenx")
+        self.assertNotIn("feed", m["details"])
+
+
+if __name__ == "__main__":
+    unittest.main()
