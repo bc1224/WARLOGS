@@ -6,7 +6,7 @@ Free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app
 - **Live view** for your second monitor: round profit, $/min vs your usual, scoreboard place
 - **History** that shows which roles and guns actually pay off for you
 
-It reads the screen like OBS does and never touches the game. Everything stays on your PC.
+It reads the screen like OBS does and never changes the game or its files. Everything stays on your PC.
 
 ![Live view mid-round](docs/screenshots/live-in-round.png)
 
