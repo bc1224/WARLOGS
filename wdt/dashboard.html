@@ -1004,6 +1004,17 @@ function unlockEvents() {
   return ev.sort((a, b) => b.t - a.t);
 }
 
+// final team points from the score bar under the minimap, read every few seconds in the round
+const TEAM_NAMES = { blue: "Blue", red: "Red", green: "Green" };
+function teamChips(t) {
+  if (!t?.scores) return "";
+  const rows = Object.entries(t.scores).filter(([k, v]) => v != null && (t.mode === "3 teams" || k !== "blue")).sort((a, b) => b[1] - a[1]);
+  if (!rows.length) return "";
+  const top = rows[0][1];
+  const pts = rows.map(([k, v], i) => `${TEAM_NAMES[k]} <b>${v}</b>${i ? ` (${v - top})` : rows.length > 1 ? ` (won by ${top - rows[1][1]})` : ""}`).join(", ");
+  return `<span class="chip" title="Last points read off the score bar under the minimap; can be a few points short of the final">${t.mode === "2 teams" ? "50 v 50" : "3 teams"}: ${pts}</span>`;
+}
+
 function unlockCard(u, sub, isNew) {
   const img = u.image && data?.online !== false ? `<img src="${esc(u.image)}" alt="" loading="lazy">` : "";
   const inner = `${img}<span>${esc(u.name)}<small>${esc(sub)}</small></span>`;
@@ -1601,7 +1612,7 @@ async function renderMatchPage(id) {
   <div class="card"><div class="mp-head">
     <div><button class="link" data-all-matches>← All matches</button>
       <h2>${when(m.ended_at)} <span class="m" style="font-size:14px;font-weight:400">${dur(len)}${d.duration_s != null ? "" : " (estimated)"} · ${m.started_at ? `${when(m.started_at)} to ${new Date(m.ended_at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}</span></h2>
-      <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.result ? `<span class="res ${d.result}">${d.result}</span>` : ""}${d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : ""}${d.score ? `<span class="chip">Score <b>${esc(d.score)}</b></span>` : ""}${d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : ""}${h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : ""}<span class="chip">logged by ${esc(m.source)}</span></div></div>
+      <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.result ? `<span class="res ${d.result}">${d.result}</span>` : ""}${d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : ""}${d.score ? `<span class="chip">Score <b>${esc(d.score)}</b></span>` : ""}${teamChips(d.teams)}${d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : ""}${h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : ""}<span class="chip">logged by ${esc(m.source)}</span></div></div>
     <div class="mp-nav"><button data-go="${prev?.id || ""}" ${prev ? "" : "disabled"}>← Older</button><button data-go="${next?.id || ""}" ${next ? "" : "disabled"}>Newer →</button></div>
   </div></div>
 

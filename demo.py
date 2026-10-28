@@ -114,6 +114,9 @@ def build(ddir, now, idle):
                 "hud": {"reads": hud_reads, "hot": hot, "fob": int(hud_reads * rng.uniform(0.02, 0.15)),
                         "team": rng.choice(TEAMS), "guns": {rng.choice(OWNED[:4]): hud_reads // 3}},
                 "combat": {"kills": kills, "deaths": deaths, "downs": rng.randint(0, 4)},
+                "teams": {"mode": "2 teams" if hot % 2 else "3 teams", "players": {},
+                          "scores": {"blue": None if hot % 2 else 30 + kills, "red": 100 if win else 60 + deaths,
+                                     "green": 70 + kills if win else 100}},
                 "rewards": totals, "feed": feed,
                 "sources": [{"label": k, "xp": v["xp"] or None, "cash": v["cash"] or None}
                             for k, v in totals.items()] + [{"label": "Round bonus", "xp": None, "cash": bonus}],

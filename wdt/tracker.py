@@ -29,6 +29,7 @@ from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_stat
 from .catalog import refresh_catalog
 from .sources import pull_api, pull_status, read_role_levels
 from .scoreboard import Gray, is_scoreboard, read_board
+from . import teams
 from .store import Store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -313,6 +314,9 @@ class Tracker:
             info["respawns_log"] = h["respawns_log"]
         if h["board"]:
             info["board"] = h["board"]
+        score = teams.summary(h["team_reads"])
+        if score:
+            info["teams"] = score
         for key in ("rewards", "feed", "vendor", "promos"):
             if h[key]:
                 info[key] = h[key]
@@ -463,7 +467,7 @@ class Tracker:
                 "respawns_log": [], "life_new": None, "revives_log": [], "promos": [], "vendor": {},
                 "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None, "life_start": None,
                 "cash_seen": None,
-                "playing": None, "board": None}
+                "playing": None, "board": None, "team_reads": []}
 
     def _note_cash(self, now, lines):
         """Round profit and balance from the top bar; each change is logged with
@@ -680,6 +684,23 @@ class Tracker:
         else:
             self._note_feeds(now, *got)
 
+    def _read_teams(self, now):
+        """The team score bar under the minimap, enlarged cell by cell for one OCR read."""
+        if not self.rect or self.hud["playing"] is None:
+            return
+        x, y, w, h = self.rect
+        crops = []
+        for fx0, fx1, fy0, fy1 in teams.CELLS:
+            r = (x + round(fx0 * w), y + round(fy0 * h), round((fx1 - fx0) * w), round((fy1 - fy0) * h))
+            ow, oh = r[2] * teams.ZOOM * 720 // max(h, 1) or 1, r[3] * teams.ZOOM * 720 // max(h, 1) or 1
+            crops.append((winapi.grab(r, ow, oh), ow, oh))
+        data, ww, hh, starts = teams.strip(crops)
+        lines = self._ocr_frame(data, ww, hh)
+        if lines:
+            got = teams.read(lines, starts)
+            if any(v is not None for v in got["s"]):
+                self.hud["team_reads"] = (self.hud["team_reads"] + [dict(got, t=round(now))])[-400:]
+
     def _save_sample(self, now, tag, lines):
         self.next_sample = now + self.cfg["sample_seconds"]
         if not self.rect:
@@ -794,6 +815,7 @@ class Tracker:
                 self._note_used(lines)
                 if hud:
                     self._note_hud(now, lines)
+                    self._read_teams(now)
             return False
         if between:
             self._merge_end(now, lines)
