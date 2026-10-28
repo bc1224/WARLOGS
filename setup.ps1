@@ -25,6 +25,7 @@ param(
 $ErrorActionPreference = "Stop"
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Shortcut = Join-Path ([Environment]::GetFolderPath("Startup")) "WARDOGS Match Tracker.lnk"
+$MenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "WARDOGS Dashboard.lnk"
 $Port = 8790
 
 function Say($text, $color = "Gray") { Write-Host $text -ForegroundColor $color }
@@ -49,6 +50,7 @@ function Stop-Tracker {
 if ($Uninstall) {
     Stop-Tracker
     if (Test-Path $Shortcut) { Remove-Item $Shortcut }
+    if (Test-Path $MenuShortcut) { Remove-Item $MenuShortcut }
     Say "Tracker stopped and removed from Startup. Your match log is still in $Here\data." Green
     exit 0
 }
@@ -181,8 +183,19 @@ for ($i = 0; $i -lt 20 -and -not $ok; $i++) {
 if ($ok) { Say "Tracker running. Dashboard: http://127.0.0.1:$Port" Green }
 else { Say "The dashboard didn't answer yet. Check $Here\data\tracker.log." Red }
 
-Set-Content -Path (Join-Path $Here "WARDOGS Dashboard.url") -Value "[InternetShortcut]`r`nURL=http://127.0.0.1:$Port/" -Encoding ASCII
-if ($ok -and -not $NoOpen) { Start-Process "http://127.0.0.1:$Port/#live" }
+# the dashboard opens in its own window (Edge or Chrome app mode) from the Start menu
+$open = Join-Path $Here "Open Dashboard.vbs"
+$sh = New-Object -ComObject WScript.Shell
+$lnk = $sh.CreateShortcut($MenuShortcut)
+$lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
+$lnk.Arguments = '"' + $open + '"'
+$lnk.WorkingDirectory = $Here
+$lnk.Description = "WARDOGS Match Tracker dashboard"
+$lnk.Save()
+$oldUrl = Join-Path $Here "WARDOGS Dashboard.url"
+if (Test-Path $oldUrl) { Remove-Item $oldUrl }
+Say "Added WARDOGS Dashboard to the Start menu." Green
+if ($ok -and -not $NoOpen) { Start-Process wscript.exe -ArgumentList ('"' + $open + '"') }
 
 Say ""
 Say "Done. Two things to do once:" Yellow
