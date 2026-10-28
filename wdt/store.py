@@ -84,6 +84,15 @@ class Store:
         sets = ", ".join(f"{k}=?" for k in cols)
         self.db.execute(f"UPDATE matches SET {sets} WHERE id=?", (*cols.values(), mid))
 
+    def add_end_shot(self, mid, path):
+        """Keep a picture of another results tab (cash, XP) with the match."""
+        row = self.db.execute("SELECT details FROM matches WHERE id=?", (mid,)).fetchone()
+        if not row:
+            return
+        det = json.loads(row[0]) if row[0] else {}
+        det.setdefault("end_shots", []).append(path)
+        self.db.execute("UPDATE matches SET details=? WHERE id=?", (json.dumps(det), mid))
+
     def fill_match(self, mid, parsed, info):
         """Fill what a match is still missing (XP, cash, detail keys) from another
         results screen of the same break; nothing already there is overwritten."""

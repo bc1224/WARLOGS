@@ -164,9 +164,15 @@ class TrackerHudTests(unittest.TestCase):
         self.t.record_end("auto", 200, lines=[L("VICTORY"), L("CASH EARNED", 599, 918), L("$71,410", 1304, 918)])
         self.t.next_read = 210  # the money screen read just now
         self.assertEqual(self.t._scan_wait(201), 1.0)  # every second until the XP tab is read
-        with mock.patch.object(self.t, "_read_screen", return_value=(b"", 1, 1, PROGRESSION)):
+        with mock.patch.object(self.t, "_read_screen", return_value=(b"", 1, 1, PROGRESSION)), \
+                mock.patch("wdt.tracker.winapi.write_png") as png:
             self.t._maybe_read([10, 200, 10, 200], 202)  # read on the first frame, not once it settles
+            self.t._read_and_log(212, "auto-read", hud=True)  # the same tab read again: one picture
         self.assertEqual(self.store.dump()["matches"][0]["xp"], 2903 + 6615 + 3213)
+        shots = self.store.match_full(1)["details"]["end_shots"]
+        self.assertEqual([os.path.basename(p) for p in shots], [os.path.basename(png.call_args[0][0])])
+        self.assertTrue(shots[0].endswith("-tab.png"))
+        self.assertEqual(png.call_count, 1)
         self.assertEqual(self.t._scan_wait(203), DEFAULTS["scan_seconds"])  # back to the usual pace
 
     def test_live_cash_and_round_split(self):

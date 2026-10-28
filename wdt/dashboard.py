@@ -114,6 +114,15 @@ def make_handler(app):
                     ctype = "image/png" if row[0].lower().endswith(".png") else "image/jpeg"
                     with open(row[0], "rb") as f:
                         return self._send(200, f.read(), ctype)
+            m = re.fullmatch(r"/shot/(\d+)/(\d+)", path)  # the later results tabs, in order
+            if m:
+                with app.lock:
+                    full = app.store.match_full(int(m.group(1)))
+                shots = (full or {}).get("details", {}).get("end_shots", [])
+                n = int(m.group(2))
+                if n < len(shots) and os.path.isfile(shots[n]):
+                    with open(shots[n], "rb") as f:
+                        return self._send(200, f.read(), "image/png")
             self._send(404, {"error": "not found"})
 
         def do_POST(self):

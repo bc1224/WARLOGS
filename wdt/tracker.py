@@ -25,7 +25,7 @@ import time
 
 from . import winapi
 from .matcher import EndScreenMatcher, distance
-from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, round_break, kill_feed, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources
+from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, round_break, kill_feed, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources, _text as _line_text
 from .catalog import refresh_catalog
 from .sources import pull_api, pull_status, read_role_levels
 from .scoreboard import Gray, is_scoreboard, read_board
@@ -111,6 +111,7 @@ class Tracker:
         self.still = 0
         self.last_read_sig = None
         self.need_xp = False  # a round was logged without XP; its XP tab may still be coming
+        self.end_text = None  # text of the last results tab pictured, so re-reads aren't saved twice
         self.next_read = 0.0
         self.reads = 0
         self.item_names = self.store.unlock_names()
@@ -325,6 +326,7 @@ class Tracker:
         self.match_start = now
         self.used = {}
         self.need_xp = screen and parsed.get("xp") is None
+        self.end_text = [_line_text(l) for l in lines or []]
         self.last_event = f"match {mid} ({source})"
         log.info("match %s ended via %s: %s", mid, source,
                  {k: parsed.get(k) for k in ("xp", "cash_earned", "cash_spent")})
@@ -400,6 +402,19 @@ class Tracker:
         self.store.fill_match(mid, parsed, info)
         if parsed.get("xp") is not None:
             self.need_xp = False
+
+    def _save_end_shot(self, now, frame, rw, rh, lines):
+        """A picture of each results tab after the first, skipping re-reads of the same one."""
+        text = [_line_text(l) for l in lines]
+        mid = self.store.last_match(self.session)
+        if mid is None or text == self.end_text:
+            return
+        self.end_text = text
+        path = self._shot_path(now)[:-4] + "-tab.png"
+        if os.path.exists(path):
+            return
+        winapi.write_png(path, frame, rw, rh)
+        self.store.add_end_shot(mid, path)
 
     def _round_cash(self, lines, parsed, info):
         """When the results screen gave no cash, use the top bar: profit for the
@@ -754,6 +769,7 @@ class Tracker:
             return False
         if between:
             self._merge_end(now, lines)
+            self._save_end_shot(now, frame, rw, rh, lines)
             return True
         image = self._shot_path(now)
         winapi.write_png(image, frame, rw, rh)
