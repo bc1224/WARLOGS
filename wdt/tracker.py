@@ -29,7 +29,7 @@ from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_stat
 from .catalog import refresh_catalog
 from .sources import pull_api, pull_status, read_role_levels
 from .scoreboard import Gray, is_scoreboard, read_board
-from . import teams
+from . import teams, track
 from .store import Store
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -57,6 +57,9 @@ DEFAULTS = {
     "sample_seconds": 180.0,   # keep one plain in-match screenshot this often
     "samples_max": 150,        # screenshots kept in data/samples for tuning
     "check_updates": True,     # ask GitHub every few hours whether a newer version is out
+    "track_seconds": 3.0,      # save a small minimap picture this often for the replay map (0 = off)
+    "track_rounds": 15,        # rounds of minimap pictures kept (a replay already worked out stays)
+    "track_maps": 80,          # big map pictures kept as the replay's background
 }
 SIG_W, SIG_H = 64, 36
 STILL = 3.0        # thumbnail change below this counts as "not moving"
@@ -123,6 +126,8 @@ class Tracker:
         self.digits = None  # scoreboard digit shapes, learned from its cash column
         self.next_feed = 0.0
         self.next_sample = 0.0
+        self.next_track = 0.0
+        self.next_map = 0.0
         self.last_event = None
 
     # --- inputs -----------------------------------------------------------
@@ -320,6 +325,8 @@ class Tracker:
         for key in ("rewards", "feed", "vendor", "promos"):
             if h[key]:
                 info[key] = h[key]
+        if h["track"]:
+            info["track"] = {"dir": h["track"], "n": h["track_n"], "maps": h["maps"]}
         self.hud = self._new_hud()
         roles = self._roles()
         level_ups = None
@@ -467,7 +474,7 @@ class Tracker:
                 "respawns_log": [], "life_new": None, "revives_log": [], "promos": [], "vendor": {},
                 "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None, "life_start": None,
                 "cash_seen": None,
-                "playing": None, "board": None, "team_reads": []}
+                "playing": None, "board": None, "team_reads": [], "track": None, "track_n": 0, "maps": []}
 
     def _note_cash(self, now, lines):
         """Round profit and balance from the top bar; each change is logged with
@@ -701,6 +708,64 @@ class Tracker:
             if any(v is not None for v in got["s"]):
                 self.hud["team_reads"] = (self.hud["team_reads"] + [dict(got, t=round(now))])[-400:]
 
+    def _snap_minimap(self, now):
+        """A small minimap picture for the replay map. Nothing is worked out here:
+        the dashboard matches the pictures to the big map after the round."""
+        h = self.hud
+        root = os.path.join(self.ddir, "track")
+        if h["track"] is None:
+            h["track"] = time.strftime("%Y%m%d-%H%M%S", time.localtime(now))
+            track.prune(root, max(0, int(self.cfg["track_rounds"]) - 1))
+        d = os.path.join(root, h["track"])
+        try:
+            os.makedirs(d, exist_ok=True)
+            winapi.write_jpg(os.path.join(d, f"{int(now)}.jpg"),
+                             winapi.grab(track.box(self.rect, track.MINIMAP), track.SNAP_W, track.SNAP_H),
+                             track.SNAP_W, track.SNAP_H)
+            h["track_n"] += 1
+        except OSError as e:
+            log.warning("minimap save failed: %s", e)
+
+    def _note_map(self, now, rw, rh, lines):
+        """The big map is open on a screen just read: keep its picture with the map
+        coordinates of its edges, read off the grid labels (enlarged, so they read
+        reliably). Only happens while you're looking at the map."""
+        if not self.rect or now < self.next_map or not track.map_open(lines):
+            return
+        self.next_map = now + 8
+        self.next_hud = min(self.next_hud, now + 4)  # catch it again if you pan or zoom
+        got = list(lines)
+        for frac in track.LABEL_STRIPS:
+            r = track.box(self.rect, frac)
+            z = track.LABEL_ZOOM * 720 / max(self.rect[3], 1)
+            ow, oh = max(1, round(r[2] * z)), max(1, round(r[3] * z))
+            strip = self._ocr_frame(winapi.grab(r, ow, oh), ow, oh)
+            got += track.unzoom(strip or [], frac, ow, oh, rw, rh)
+        geo = track.georef(got, rw, rh)
+        if not geo:
+            return
+        d = os.path.join(self.ddir, "track", "maps")
+        name = time.strftime("%Y%m%d-%H%M%S", time.localtime(now))
+        r = track.box(self.rect, track.PANE)
+        pw = min(r[2], 900)  # plenty for the map's detail; keeps each picture small
+        ph = round(r[3] * pw / max(r[2], 1))
+        try:
+            os.makedirs(d, exist_ok=True)
+            img = winapi.write_jpg(os.path.join(d, name + ".jpg"), winapi.grab(r, pw, ph), pw, ph, quality=85)
+            with open(os.path.join(d, name + ".json"), "w", encoding="utf-8") as f:
+                json.dump(dict(geo, t=round(now), file=os.path.basename(img), round=self.hud["track"],
+                               w=pw, h=ph), f)
+        except OSError as e:
+            log.warning("map save failed: %s", e)
+            return
+        self.hud["maps"].append(name)
+        for old in sorted(glob.glob(os.path.join(d, "*.json")))[:-max(1, int(self.cfg["track_maps"]))]:
+            for p in (old, old[:-5] + ".jpg", old[:-5] + ".png"):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
+
     def _save_sample(self, now, tag, lines):
         self.next_sample = now + self.cfg["sample_seconds"]
         if not self.rect:
@@ -816,6 +881,7 @@ class Tracker:
                 if hud:
                     self._note_hud(now, lines)
                     self._read_teams(now)
+                    self._note_map(now, rw, rh, lines)
             return False
         if between:
             self._merge_end(now, lines)
@@ -884,6 +950,10 @@ class Tracker:
                 and not self.matcher.recently_ended(now)):
             self.next_feed = now + self.cfg["feed_seconds"]
             self._read_feeds(now)
+        if (self.rect and self.cfg["track_seconds"] and now >= self.next_track
+                and self.hud["playing"] is not None and not self.matcher.recently_ended(now)):
+            self.next_track = now + max(1.0, float(self.cfg["track_seconds"]))
+            self._snap_minimap(now)
         if now >= self.next_api:
             self._pull_api(now)
         return self._scan_wait(now)

@@ -50,6 +50,50 @@ class DashboardSecurityTests(unittest.TestCase):
         self.assertEqual(self.get("/api/refresh", host="evil.example", method="POST")[0].status, 403)
         self.assertEqual(self.get("/api/version", host=f"localhost:{self.port}")[0].status, 200)
 
+    def test_replay_pictures_are_served_only_from_the_track_folder(self):
+        import os
+        rnd = os.path.join(self.tmp.name, "track", "20261027-210000")
+        os.makedirs(rnd, exist_ok=True)
+        os.makedirs(os.path.join(self.tmp.name, "track", "maps"), exist_ok=True)
+        with open(os.path.join(rnd, "1761600000.jpg"), "wb") as f:
+            f.write(b"JPEGDATA")
+        r, body = self.get("/track/20261027-210000/1761600000.jpg")
+        self.assertEqual((r.status, r.getheader("Content-Type"), body), (200, "image/jpeg", b"JPEGDATA"))
+        r, body = self.get("/api/track/20261027-210000")
+        self.assertEqual(json.loads(body)["snaps"], [[1761600000, "1761600000.jpg"]])
+        for bad in ("/track/20261027-210000/..%2F..%2Fwardogs.db", "/track/../wardogs.db", "/track/maps/..",
+                    "/track/20261027-210000/wardogs.db", "/api/track/..%2F..", "/track/maps/x.json"):
+            self.assertEqual(self.get(bad)[0].status, 404, bad)
+        self.assertEqual(self.get("/track/20261027-210000/1761600000.jpg", host="evil.example")[0].status, 403)
+
+    def test_replay_routes_are_checked_before_they_are_kept(self):
+        mid = self.app.store.add_match(self.app.store.start_session(1), 1, 2, "auto", details={"track": {"dir": "x"}})
+        ok = json.dumps({"path": [[1761600000, 70.5, 104.25, 0.7]], "refs": ["20261027-210100"]}).encode()
+        evil = {"Origin": "https://evil.example"}
+        self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", headers=evil, body=ok)[0].status, 403)
+        for bad in ({"path": "x"}, {"path": [[1, 2, 3]]}, {"path": [[1, 2, 3, "<b>"]]}, {"path": [[1, 2, 3, True]]},
+                    {"path": [], "refs": ["../../t"]}, {"path": [[0, 0, 0, 0]] * 5001}, [1]):
+            r, _ = self.get(f"/api/match/{mid}/track", method="POST", body=json.dumps(bad).encode())
+            self.assertIn(r.status, (400, 413), bad)
+        r, _ = self.get(f"/api/match/{mid}/track", method="POST", headers={"Content-Length": str(500 * 1024)})
+        self.assertEqual(r.status, 413)
+        self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=ok)[0].status, 200)
+        det = self.app.store.match_full(mid)["details"]
+        self.assertEqual(det["track_route"], {"path": [[1761600000, 70.5, 104.25, 0.7]], "refs": ["20261027-210100"]})
+
+    def test_odd_request_bodies_are_turned_away(self):
+        mid = self.app.store.add_match(self.app.store.start_session(1), 1, 2, "auto")
+        for path in (f"/api/match/{mid}/track", "/api/settings", f"/api/match/{mid}"):
+            for length in ("-1", "12abc", "+5", "1 2"):  # -1 would read until the client hangs up
+                r, _ = self.get(path, method="POST", headers={"Content-Length": length})
+                self.assertEqual(r.status, 400, (path, length))
+            for body in (b"{not json", b"[1, 2]", b"\xff\xfe", b"[" * 100000):
+                r, _ = self.get(path, method="POST", body=body)
+                self.assertEqual(r.status, 400, (path, body[:10]))
+        r, _ = self.get("/api/settings", method="POST", headers={"Content-Length": str(2 * 1024 * 1024)})
+        self.assertEqual(r.status, 413)
+        self.assertEqual(self.get("/api/version")[0].status, 200)  # still serving
+
     def test_posts_from_other_sites_are_refused(self):
         r, _ = self.get("/api/settings", method="POST", headers={"Origin": "https://evil.example"})
         self.assertEqual(r.status, 403)

@@ -5,6 +5,7 @@ Free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app
 - **Logs every round automatically**: XP, cash, win/loss, role and gun
 - **Live view** for your second monitor: round profit, $/min vs your usual, scoreboard place
 - **History** that shows which roles and guns actually pay off for you
+- **Replay map** on each match: scrub through the round and watch where you went
 
 It reads the screen like OBS does and never changes the game or its files. Everything stays on your PC.
 

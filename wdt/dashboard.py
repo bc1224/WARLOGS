@@ -14,6 +14,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .sources import pull_api, pull_status
+from . import track
 from .store import Store
 from .update import Updater, installed_version
 
@@ -21,6 +22,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # the Report an issue button posts here (relay/ in this repo), which files a GitHub issue
 REPORT_URL = "https://wardogs-report-relay.bcf1224.workers.dev/report"
 REPORT_MAX = 6 * 1024 * 1024  # a 4 MB screenshot, base64 encoded, plus the text
+ROUTE_MAX = 400 * 1024        # a worked-out replay route: a few thousand points
+BODY_MAX = 256 * 1024         # settings, match edits and the rest
 LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
 # only our own inline scripts run; names read off the screen or the API can't become code
 CSP = ("default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; "
@@ -93,9 +96,22 @@ def make_handler(app):
             self._send(403, {"error": "forbidden"})
             return False
 
+        def _length(self):
+            """The body's declared size; ValueError unless it's plain digits."""
+            n = self.headers.get("Content-Length") or "0"
+            if not re.fullmatch(r"[0-9]{1,12}", n):
+                raise ValueError("bad length")
+            return int(n)
+
         def _json_body(self):
-            n = int(self.headers.get("Content-Length") or 0)
-            return json.loads(self.rfile.read(n) or b"{}")
+            """The body as a JSON object; ValueError for anything else."""
+            try:
+                body = json.loads(self.rfile.read(self._length()) or b"{}")
+            except RecursionError:
+                raise ValueError("too deep") from None
+            if not isinstance(body, dict):
+                raise ValueError("not an object")
+            return body
 
         def do_GET(self):
             if not self._local_host():
@@ -131,6 +147,17 @@ def make_handler(app):
             if m:
                 with app.lock:
                     return self._send(200, {"lines": app.store.match_text(int(m.group(1)))})
+            m = re.fullmatch(r"/api/track/([0-9]{8}-[0-9]{6})", path)
+            if m:  # a round's minimap pictures and the big map pictures, for the replay map
+                return self._send(200, track.listing(app.ddir, m.group(1)))
+            m = re.fullmatch(r"/track/(maps|[0-9]{8}-[0-9]{6})/([0-9A-Za-z_.-]+)", path)
+            if m:
+                p = track.file_path(app.ddir, m.group(1), m.group(2))
+                try:
+                    with open(p, "rb") as f:
+                        return self._send(200, f.read(), "image/png" if p.endswith(".png") else "image/jpeg")
+                except (OSError, TypeError):  # not one of ours, or cleared away just now
+                    pass
             m = re.fullmatch(r"/shot/(\d+)", path)
             if m:
                 with app.lock:
@@ -158,6 +185,28 @@ def make_handler(app):
             origin = self.headers.get("Origin", "")
             if origin and not re.fullmatch(r"http://(127\.0\.0\.1|localhost):\d+", origin):
                 return self._send(403, {"error": "forbidden"})
+            try:
+                n = self._length()
+            except ValueError:
+                return self._send(400, {"error": "bad request"})
+            limit = REPORT_MAX if self.path == "/api/report" else ROUTE_MAX if self.path.endswith("/track") else BODY_MAX
+            if n > limit:
+                return self._send(413, {"error": "That screenshot is too big (4 MB max)." if limit == REPORT_MAX
+                                        else "too big"})
+            try:
+                return self._post(origin)
+            except (ValueError, UnicodeDecodeError):  # a body that isn't a JSON object
+                return self._send(400, {"error": "bad request"})
+
+        def _post(self, origin):
+            m = re.fullmatch(r"/api/match/([0-9]+)/track", self.path)
+            if m:  # the dashboard worked out a round's replay route: keep it with the match
+                route = track.clean_route(self._json_body())
+                if route is None:
+                    return self._send(400, {"error": "bad route"})
+                with app.lock:
+                    app.store.fill_match(int(m.group(1)), {}, {"track_route": route})
+                return self._send(200, {"ok": True})
             m = re.fullmatch(r"/api/match/(\d+)(/delete|/not-end-screen)?", self.path)
             if m:
                 mid, action = int(m.group(1)), m.group(2)
@@ -190,8 +239,6 @@ def make_handler(app):
             if self.path == "/api/report":
                 if not origin:  # sends data off this PC: only from the dashboard page itself
                     return self._send(403, {"error": "forbidden"})
-                if int(self.headers.get("Content-Length") or 0) > REPORT_MAX:
-                    return self._send(413, {"error": "That screenshot is too big (4 MB max)."})
                 return self._send(*app.report(self._json_body()))
             if self.path == "/api/refresh":
                 try:

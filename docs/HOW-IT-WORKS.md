@@ -30,6 +30,10 @@ The details behind the tracker. For setup, see the [README](../README.md).
   the cash ("CONTROL ZONE PRESENCE +$200") and the kill feed. Lines naming your
   `player_name` count as your kills or deaths. An entry that scrolls past between reads
   can be missed.
+- **Every 3 seconds** (`track_seconds`, 0 turns it off): a small minimap picture
+  (171 x 153, about 6 KB) for the replay map. Nothing is worked out while you play.
+- **While the big map is open** (on a screen read anyway): its picture, plus where its
+  edges are in map coordinates, read off the grid labels. At most one every 8 seconds.
 - XP isn't on the HUD, so round XP lands when the round ends. Open the in-game
   Scoreboard tab for a few seconds to update your place.
 
@@ -42,7 +46,7 @@ and they stay open or closed the way you left them.
 |---|---|---|
 | **Live** | In a round: profit and $/min vs your usual, pace, scoreboard place, one "do this now" tip, charts, reward/kill feed. Between rounds: last round and session so far. | **More detail** (balance, spending, Hot Zone/FOB time, K/D, best money maker, loadout, best unlock to buy) and the **Round plan**. |
 | **Overview** | Summary tiles, session recap, best rounds. | XP and cash per match, goals and streaks, sessions. |
-| **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. | |
+| **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. **Where you went**: a map of your route with kills, deaths, downs and purchases on it; drag the slider or press play. | |
 | **Insights** | Win rate and averages, stats by role and by item. | Win rate over time, where XP and cash came from, zone/team/map/fights, when you play best, tips per role from community guides. |
 | **Career** | Players around you on the leaderboard, level forecast per role. | Career XP, cash and rank over time, unlocks, synced totals. |
 
@@ -50,6 +54,13 @@ and they stay open or closed the way you left them.
 - Numbers in gold are text-recognition guesses. Click one to fix it. **not a match**
   removes a wrong entry.
 - The header shows WARDOGS server status (checked every 10 minutes).
+
+## Replay map
+
+The first time you open a match, the dashboard matches each minimap picture against the
+big map pictures you've taken (a few seconds, in your browser) and saves the route with
+the match. The route only covers parts of the map you've opened at least once, and it's
+approximate. Open the big map for a moment now and then to fill in more of it.
 
 ## Unlocks and totals
 
@@ -62,7 +73,10 @@ from. The XP table isn't published, so "XP to next" is an estimate.
 
 - `data/wardogs.db`: your match log (SQLite). Back this up to keep your history.
 - `data/shots/`: end-of-match screenshots.
+- `data/track/`: minimap pictures for the last `track_rounds` rounds (15) and up to
+  `track_maps` big map pictures (80). A worked-out route stays with its match.
 - `data/tracker.log`: what the tracker did.
 - `config.json`: Steam ID, `player_name`, hotkeys, scan speed, `auto_read`,
-  `still_scans`, `read_gap_seconds`, `match_threshold`, `dashboard_port`
+  `still_scans`, `read_gap_seconds`, `match_threshold`, `dashboard_port`,
+  `track_seconds`, `track_rounds`, `track_maps`
   (see `config.example.json`).

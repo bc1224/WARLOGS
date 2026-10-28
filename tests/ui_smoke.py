@@ -1,6 +1,7 @@
 """Quick UI check: open every dashboard page with demo data in headless Chrome, on a
 desktop and a phone-sized window, and fail on script errors, "NaN" or "undefined" on
-screen, a page wider than the window, or a Report an issue window that won't open.
+screen, a page wider than the window, a Report an issue window that won't open, or a
+replay map that puts the demo round's route in the wrong place.
 
     py -3 -m pip install playwright && py -3 -m playwright install chromium
     py -3 tests/ui_smoke.py
@@ -25,11 +26,12 @@ BAD_TEXT = re.compile(r"\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b")
 
 
 def serve():
-    store, sid, balance = demo.build(tempfile.mkdtemp(prefix="wardogs-qa-"), time.time(), False)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(demo.DemoApp(store, sid, balance, False)))
+    ddir = tempfile.mkdtemp(prefix="wardogs-qa-")
+    store, sid, balance = demo.build(ddir, time.time(), False)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(demo.DemoApp(store, sid, balance, False, ddir)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
     latest = max(m["id"] for m in store.dump()["matches"])
-    return server, f"http://127.0.0.1:{server.server_address[1]}/", latest
+    return server, f"http://127.0.0.1:{server.server_address[1]}/", latest, store
 
 
 def check(page, base, hsh, size):
@@ -50,8 +52,30 @@ def check(page, base, hsh, size):
     return errors
 
 
+def check_replay(page, base, store, latest):
+    """The replay on the latest demo match finds most of the round, near where it was."""
+    page.goto(base + f"#match/{latest}")
+    try:
+        page.wait_for_selector("#rpBody[data-status=ready]", timeout=60000)
+    except Exception:
+        return [f"the replay map never finished (status {page.get_attribute('#rpBody', 'data-status')!r})"]
+    page.wait_for_timeout(500)
+    route = (store.match_full(latest)["details"].get("track_route") or {}).get("path") or []
+    truth = {t: (x, y) for t, x, y in demo.TRUTH}
+    near = [p for p in route if p[0] in truth and abs(p[1] - truth[p[0]][0]) < 0.3 and abs(p[2] - truth[p[0]][1]) < 0.3]
+    errors = []
+    if len(near) < 0.7 * len(truth):
+        errors.append(f"replay placed {len(near)} of {len(truth)} minimap pictures within 30 m ({len(route)} placed)")
+    if truth:
+        page.eval_on_selector("#rpTime", "(s, v) => { s.value = v; s.dispatchEvent(new Event('input')); }",
+                              sorted(truth)[len(truth) // 2])
+    if not page.inner_text(".rp-now").strip():
+        errors.append("the replay slider shows nothing for the moment it is on")
+    return errors
+
+
 def main():
-    server, base, latest = serve()
+    server, base, latest, store = serve()
     failures = []
     with sync_playwright() as p:
         browser = p.chromium.launch(channel=os.environ.get("QA_BROWSER_CHANNEL") or None)
@@ -63,6 +87,10 @@ def main():
                 for e in check(page, base, hsh, size):
                     failures.append(f"{size} {hsh}: {e}")
                 page.close()
+            page = ctx.new_page()
+            for e in check_replay(page, base, store, latest):
+                failures.append(f"{size} replay: {e}")
+            page.close()
             page = ctx.new_page()
             page.goto(base + "#matches")
             page.click("#reportOpen")

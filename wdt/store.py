@@ -217,7 +217,7 @@ class Store:
             if k in fields:
                 try:
                     v = int(float(fields[k]))
-                except (TypeError, ValueError):
+                except (TypeError, ValueError, OverflowError):  # "inf" too
                     v = None
                 cur[k] = v if v and v > 0 else None
         self.set_meta("settings", cur)

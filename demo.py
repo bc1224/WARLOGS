@@ -13,6 +13,8 @@ import tempfile
 import threading
 import time
 import webbrowser
+import struct
+import zlib
 from http.server import ThreadingHTTPServer
 
 from wdt.dashboard import make_handler
@@ -43,6 +45,74 @@ CATALOG = [
     ("Adrenaline Pen", "equipment", 16, "medic", 25000, 250, 32),
     ("Infrared Range Finder", "equipment", 32, "recon", 50000, 1200, 4),
     ("Large Hammer", "equipment", 8, "support", 75000, 2400, 57)]
+TRUTH = []  # where the demo round's minimap pictures were really taken: [t, x, y]
+
+
+def _png(path, w, h, rgb):
+    """rgb: bytes, 3 per pixel."""
+    raw = b"".join(b"\x00" + rgb[r * w * 3:(r + 1) * w * 3] for r in range(h))
+    chunk = lambda tag, data: struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data))
+    with open(path, "wb") as f:
+        f.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+                + chunk(b"IDAT", zlib.compress(raw, 3)) + chunk(b"IEND", b""))
+
+
+def build_track(ddir, rng, t0, t1):
+    """A made-up map (blocks and roads on a 10 m grid), one big map picture of it and
+    a round of minimap pictures along a known route, for the replay map."""
+    X0, Y0, N = 60.0, 110.0, 150  # 15 x 15 (100 m units), cells of 10 m
+    cells = bytearray(rng.randrange(40, 90) for _ in range(N * N))
+    for _ in range(140):  # buildings
+        x, y, w, h, v = rng.randrange(N), rng.randrange(N), rng.randrange(2, 7), rng.randrange(2, 7), rng.randrange(120, 200)
+        for yy in range(y, min(N, y + h)):
+            cells[yy * N + x:yy * N + min(N, x + w)] = bytes([v]) * (min(N, x + w) - x)
+    for _ in range(9):  # roads
+        if rng.random() < 0.5:
+            x = rng.randrange(N)
+            for yy in range(N):
+                cells[yy * N + x] = 25
+        else:
+            y = rng.randrange(N)
+            cells[y * N:(y + 1) * N] = bytes([25]) * N
+    at = lambda X, Y: cells[min(N - 1, max(0, int((Y0 - Y) * 10))) * N + min(N - 1, max(0, int((X - X0) * 10)))]
+    root = os.path.join(ddir, "track")
+    rnd = time.strftime("%Y%m%d-%H%M%S", time.localtime(t0))
+    os.makedirs(os.path.join(root, "maps"), exist_ok=True)
+    os.makedirs(os.path.join(root, rnd), exist_ok=True)
+    ppu = 40  # the big map picture
+    rgb = bytearray()
+    for py in range(N * ppu // 10):
+        for px in range(N * ppu // 10):
+            v = at(X0 + (px + 0.5) / ppu, Y0 - (py + 0.5) / ppu)
+            rgb += bytes((v, v, v))
+    name = time.strftime("%Y%m%d-%H%M%S", time.localtime(t0 + 60))
+    _png(os.path.join(root, "maps", name + ".png"), N * ppu // 10, N * ppu // 10, bytes(rgb))
+    with open(os.path.join(root, "maps", name + ".json"), "w") as f:
+        json.dump({"x0": X0, "x1": X0 + 15, "y0": Y0, "y1": Y0 - 15, "t": round(t0 + 60), "file": name + ".png",
+                   "round": rnd, "w": N * ppu // 10, "h": N * ppu // 10}, f)
+    TRUTH.clear()
+    n = 0
+    for i, t in enumerate(range(int(t0) + 30, int(t1) - 30, 20)):
+        a = i / 9
+        X, Y = 67.5 + 2.4 * __import__("math").cos(a), 102.5 + 2.0 * __import__("math").sin(a * 1.3)
+        TRUTH.append([t, round(X, 2), round(Y, 2)])
+        rgb = bytearray()
+        for py in range(153):
+            for px in range(171):
+                if abs(px - 85) + abs(py - 76) < 6:
+                    rgb += b"\xff\xff\xff"  # your arrow
+                elif (px - 30 - i % 40) ** 2 + (py - 40) ** 2 < 25 or (px - 120) ** 2 + (py - 100 - i % 20) ** 2 < 25:
+                    rgb += b"\x30\xd0\x50"  # teammates
+                elif px > 100 and py > 135:
+                    rgb += b"\x60\x60\x60"  # the NAV text
+                else:
+                    v = at(X + (px - 85.5) / 93, Y - (py - 76.5) / 93)
+                    rgb += bytes((v // 2 + 20, v // 2 + 40, v // 2 + 20))  # tinted green, like a held zone
+        _png(os.path.join(root, rnd, f"{t}.png"), 171, 153, bytes(rgb))
+        n += 1
+    return {"dir": rnd, "n": n, "maps": [name]}
+
+
 OWNED = ["Galil", "MP5", "Mosin Nagant", "SKS", "RPG-7", "Large Hammer", "Adrenaline Pen", "Field Resuscitator"]
 
 
@@ -153,6 +223,20 @@ def build(ddir, now, idle):
         "health": "ok", "summary": "Game servers are up", "players": 121400, "officialServers": 902,
         "usualPlayers": 118000, "detail": "121,400 players on 902 official servers."},
         "login": {"health": "ok", "summary": "Login servers are up", "latencyMs": 92}, "playersHourly": hourly})
+    # the latest round has a replay map, with a few fights and purchases on it
+    last = store.dump()["matches"][-1]
+    t0, t1 = last["started_at"], last["ended_at"]
+    trk = build_track(ddir, rng, t0, t1)
+    ts = [p[0] for p in TRUTH]
+    store.fill_match(last["id"], {}, {
+        "track": trk,
+        "kill_log": [{"t": ts[8], "kind": "kill", "other": "Rook", "gun": "Galil"},
+                     {"t": ts[21], "kind": "kill", "other": "Moth", "gun": "Galil"},
+                     {"t": ts[30], "kind": "death", "other": "Cinder", "gun": "Galil"}],
+        "downs_log": [{"t": ts[30] - 5, "here": "hotzone"}], "respawns_log": [{"t": ts[31], "here": None}],
+        "cash_events": [{"t": ts[4], "delta": -1800, "net": -1800, "vendor": "RPG-7", "here": "fob", "gun": "Galil"}],
+        "timeline": [{"t": t, "here": "hotzone" if 10 < i < 30 else None, "gun": "Galil", "net": i * 300}
+                     for i, t in enumerate(ts)]})
     return store, sid, balance
 
 
@@ -201,8 +285,8 @@ def live_round(now, balance, idle):
 
 
 class DemoApp:
-    def __init__(self, store, sid, balance, idle):
-        self.store, self.sid, self.balance, self.idle = store, sid, balance, idle
+    def __init__(self, store, sid, balance, idle, ddir):
+        self.store, self.sid, self.balance, self.idle, self.ddir = store, sid, balance, idle, ddir
         self.cfg = {"steam_id": STEAM_ID, "player_name": NAME, "dashboard_port": PORT, "check_updates": False}
         self.lock = threading.Lock()
         self.on_templates_changed = lambda: None
@@ -222,7 +306,7 @@ def main():
         PORT = int(sys.argv[sys.argv.index("--port") + 1])
     ddir = tempfile.mkdtemp(prefix="wardogs-demo-")
     store, sid, balance = build(ddir, time.time(), idle)
-    server = ThreadingHTTPServer(("127.0.0.1", PORT), make_handler(DemoApp(store, sid, balance, idle)))
+    server = ThreadingHTTPServer(("127.0.0.1", PORT), make_handler(DemoApp(store, sid, balance, idle, ddir)))
     print(f"Demo dashboard with made-up data: http://127.0.0.1:{PORT}  (Ctrl+C to stop)")
     if "--no-open" not in sys.argv:
         webbrowser.open(f"http://127.0.0.1:{PORT}/#live")

@@ -44,7 +44,9 @@ function Read-Text([string]$imagePath) {
     }
     $lines = foreach ($line in $result.Lines) {
         $box = (@($line.Words) | Select-Object -First 1).BoundingRect
-        [pscustomobject]@{ text = $line.Text; x = [int]($box.X / $scale); y = [int]($box.Y / $scale) }
+        $end = (@($line.Words) | Select-Object -Last 1).BoundingRect
+        [pscustomobject]@{ text = $line.Text; x = [int]($box.X / $scale); y = [int]($box.Y / $scale)
+                           w = [int](($end.X + $end.Width - $box.X) / $scale); h = [int]($box.Height / $scale) }
     }
     ConvertTo-Json -InputObject @($lines) -Compress
 }
