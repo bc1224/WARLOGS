@@ -6,7 +6,6 @@
 * remembers what that screen looks like, so later ones are caught from the
   thumbnail alone
 * Ctrl+Alt+E or Steam's F12 on the results screen still work as a manual log
-* notes role level-ups from the game's own save file
 * pulls your synced totals from the wardogstracker.gg API now and then
 * serves the dashboard at http://127.0.0.1:<dashboard_port>
 """
@@ -27,7 +26,7 @@ from . import winapi
 from .matcher import EndScreenMatcher, distance
 from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, round_break, kill_feed, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources, _text as _line_text
 from .catalog import refresh_catalog
-from .sources import pull_api, pull_status, read_role_levels
+from .sources import pull_api, pull_status
 from .scoreboard import Gray, is_scoreboard, read_board
 from . import teams, track
 from .store import Store
@@ -38,7 +37,6 @@ DEFAULTS = {
     "game_exe": "WardogsClient-Win64-Shipping.exe",
     "steam_app_id": "1867240",
     "steam_userdata": r"C:\Program Files (x86)\Steam\userdata",
-    "role_save": r"%LOCALAPPDATA%\Wardogs\Saved\SaveGames\PlayerRoleProgress.sav",
     "hotkey_end": "ctrl+alt+e",
     "hotkey_start": "ctrl+alt+s",
     "scan_seconds": 2.0,
@@ -84,7 +82,6 @@ def load_config():
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             cfg.update(json.load(f))
-    cfg["role_save"] = os.path.expandvars(cfg["role_save"])
     return cfg
 
 
@@ -105,7 +102,6 @@ class Tracker:
         self.pids = set()
         self.rect = None
         self.seen_shots = set(self._steam_shots())
-        self.roles_at_last_match = None
         self.next_api = 0.0
         self.next_status = 0.0
         self.next_live_save = 0.0
@@ -136,12 +132,6 @@ class Tracker:
                                self.cfg["steam_app_id"], "screenshots", "*.jpg")
         return glob.glob(pattern)
 
-    def _roles(self):
-        try:
-            return read_role_levels(self.cfg["role_save"])
-        except OSError:
-            return None
-
     def _thumb(self):
         return winapi.signature(winapi.grab(self.rect, SIG_W, SIG_H), SIG_W, SIG_H)
 
@@ -157,7 +147,6 @@ class Tracker:
         resumed = self.store.open_session()  # tracker restarted while the game was running
         self.session = resumed or self.store.start_session(now)
         self.match_start = (resumed and self.store.last_match_end(resumed)) or now
-        self.roles_at_last_match = self._roles()
         self.used = {}
         self.hud = self._new_hud()
         self.next_api = now
@@ -327,13 +316,13 @@ class Tracker:
                 info[key] = h[key]
         if h["track"]:
             info["track"] = {"dir": h["track"], "n": h["track_n"], "maps": h["maps"]}
+        # level-ups from the "PROMOTED TO ASSAULT LVL 9" lines seen this round, highest per role
+        level_ups = {}
+        for p in h["promos"]:
+            if p["level"]:
+                level_ups[p["role"]] = max(p["level"], level_ups.get(p["role"], 0))
+        level_ups = level_ups or None
         self.hud = self._new_hud()
-        roles = self._roles()
-        level_ups = None
-        if roles and self.roles_at_last_match:
-            level_ups = {k: v for k, v in roles.items()
-                         if v > self.roles_at_last_match.get(k, v)} or None
-        self.roles_at_last_match = roles or self.roles_at_last_match
         started = self.match_start or self.store.last_match_end(self.session)
         mid = self.store.add_match(self.session, started, now, source, image, lines,
                                    parsed, level_ups, info)

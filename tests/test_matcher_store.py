@@ -3,7 +3,6 @@ import tempfile
 import unittest
 
 from wdt.matcher import EndScreenMatcher, distance
-from wdt.sources import read_role_levels
 from wdt.store import Store
 
 END = bytes([200] * 50 + [20] * 50)
@@ -67,18 +66,6 @@ class StoreTests(unittest.TestCase):
         self.s.add_match(sid, 100, 500, "auto")
         self.s.close_open_sessions()
         self.assertEqual(self.s.dump()["sessions"][0]["ended_at"], 500)
-
-
-class RoleSaveTests(unittest.TestCase):
-    def test_reads_utf16_save(self):
-        text = '{\r\n\t"_x":\r\n\t{\r\n\t\t"(TagName=\\"Meta.Role.Wardog\\")": 58,\r\n' \
-               '\t\t"(TagName=\\"Meta.Role.Medic\\")": 14\r\n\t}\r\n}'
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".sav") as f:
-            f.write(text.encode("utf-16-le"))
-        try:
-            self.assertEqual(read_role_levels(f.name), {"Wardog": 58, "Medic": 14})
-        finally:
-            os.unlink(f.name)
 
 
 if __name__ == "__main__":

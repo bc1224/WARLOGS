@@ -1,7 +1,5 @@
-"""Read-only data sources: the wardogstracker.gg public API and the game's
-role-level save file. Neither touches the running game."""
+"""Read-only data source: the wardogstracker.gg public API. It never touches the running game."""
 import json
-import re
 import urllib.request
 
 BASE = "https://wardogstracker.gg/api/v1"
@@ -70,14 +68,3 @@ def pull_status(store):
     """Game and login server status (WARDOGS Tracker's /status)."""
     s = _get(BASE + "/status")
     store.set_meta("server_status", {k: s.get(k) for k in ("overall", "servers", "login", "playersHourly")})
-
-
-ROLE_RE = re.compile(r'Meta\.Role\.(\w+)\\?"\)"\s*:\s*(\d+)')
-
-
-def read_role_levels(path):
-    """{'Wardog': 58, 'Medic': 14, ...} from PlayerRoleProgress.sav (UTF-16 JSON)."""
-    with open(path, "rb") as f:
-        raw = f.read()
-    text = raw.decode("utf-16-le" if raw[1:2] == b"\x00" else "utf-8", errors="ignore")
-    return {name: int(level) for name, level in ROLE_RE.findall(text)}

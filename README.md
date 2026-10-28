@@ -52,11 +52,10 @@ To uninstall: `powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall`, t
 
 ## Is it safe?
 
-The game process is never opened, read, injected or hooked. The tracker only:
+The game process is never opened, read, injected or hooked, and none of its files are read. The tracker only:
 
 - checks the process list to see if WARDOGS is running (like Task Manager)
 - copies pixels from the screen while WARDOGS is in front (like OBS)
-- reads the game's `PlayerRoleProgress.sav` to spot role level-ups
 - calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
 - asks GitHub every few hours whether a newer version is out (turn off with
   `"check_updates": false` in `config.json`)
