@@ -40,6 +40,11 @@ class TeamScoreTests(unittest.TestCase):
         self.assertEqual(teams.summary(reads)["mode"], "3 teams")
         self.assertIsNone(teams.summary([{"s": [None] * 3, "n": [None] * 3}]))
         self.assertIsNone(teams.summary([]))
+        # 50 v 50: a few players waiting on blue for a spot, and one misread blue score
+        wait = [{"s": [0, 20, 30], "n": [4, 50, 50]}, {"s": [8, 25, 33], "n": [3, 50, 49]},
+                {"s": [0, 30, 40], "n": [6, 48, 50]}]
+        self.assertEqual(teams.summary(wait)["mode"], "2 teams")
+        self.assertEqual(teams.summary([dict(r, n=[30, 33, 33]) for r in wait])["mode"], "3 teams")
         self.assertIsNone(teams.summary([{"s": [0, 5, 7], "n": [None] * 3}]))  # one read could be a misread
 
 

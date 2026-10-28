@@ -80,5 +80,9 @@ def summary(reads):
         players[team] = ns[len(ns) // 2] if ns else None
     if all(v is None for v in scores.values()):
         return None
-    blue = (scores["blue"] or 0) > 0 or (players["blue"] or 0) >= 5
+    # Blue only plays in 3-team rounds. In 50 v 50 blue is a waiting room for a few players
+    # until a red or green spot opens, so a handful of blue players isn't enough; blue
+    # points (read at least twice, so one misread doesn't count) or a real team of them is.
+    scored = sum(1 for r in reads if (r["s"][0] or 0) > 0) >= 2
+    blue = scored or (players["blue"] or 0) >= 15
     return {"scores": scores, "players": players, "mode": "3 teams" if blue else "2 teams"}
