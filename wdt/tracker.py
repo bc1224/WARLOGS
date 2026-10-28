@@ -327,6 +327,23 @@ class Tracker:
                  {k: parsed.get(k) for k in ("xp", "cash_earned", "cash_spent")})
         self.next_api = min(self.next_api, now + 120)
 
+    def _auto_end(self, sig, now):
+        """A frame that looks like a learned results screen: confirm by reading it before
+        logging, without re-reading the same look-alike screen over and over."""
+        before = self.matcher.last_end
+        between = self.matcher.recently_ended(now)  # feed() marks this screen as the end
+        if not (self.matcher.templates and self.matcher.feed(sig, now)):
+            return False
+        fresh = (self.last_read_sig is None
+                 or distance(sig, self.last_read_sig) >= NEW_SCREEN
+                 or now >= self.next_read)
+        if fresh:
+            self.last_read_sig = sig
+            self.next_read = now + self.cfg["read_gap_seconds"]
+        if not (fresh and self._read_and_log(now, "auto", between=between)):
+            self.matcher.last_end = before
+        return True
+
     def _maybe_read(self, sig, now):
         """Read the text of a screen that has stopped moving, once."""
         moving = self.prev_sig is None or distance(sig, self.prev_sig) >= STILL
@@ -707,14 +724,15 @@ class Tracker:
         self._save_sample(now, "scoreboard", lines) if "scoreboard" not in self.hud["saved"] else None
         self.hud["saved"].add("scoreboard")
 
-    def _read_and_log(self, now, source, hud=False):
+    def _read_and_log(self, now, source, hud=False, between=None):
         """OCR the current screen; log a match if it is a results screen. In-match
         reads (hud=True) also tally Hot Zone / FOB / team."""
         got = self._read_screen()
         if got is None:
             return False
         frame, rw, rh, lines = got
-        between = self.matcher.recently_ended(now)
+        if between is None:
+            between = self.matcher.recently_ended(now)
         if is_scoreboard(lines):
             self._note_board(now, frame, rw, rh, lines)
             return False
@@ -779,19 +797,7 @@ class Tracker:
                     self.record_end("f12", now, image=shot)
         if self.rect:
             sig = self._thumb()
-            before = self.matcher.last_end
-            if self.matcher.templates and self.matcher.feed(sig, now):
-                # looks like a results screen: confirm by reading it before logging,
-                # without re-reading the same look-alike screen over and over
-                fresh = (self.last_read_sig is None
-                         or distance(sig, self.last_read_sig) >= NEW_SCREEN
-                         or now >= self.next_read)
-                if fresh:
-                    self.last_read_sig = sig
-                    self.next_read = now + self.cfg["read_gap_seconds"]
-                if not (fresh and self._read_and_log(now, "auto")):
-                    self.matcher.last_end = before
-            elif self.cfg["auto_read"]:
+            if not self._auto_end(sig, now) and self.cfg["auto_read"]:
                 self._maybe_read(sig, now)
         else:
             self.prev_sig, self.still = None, 0

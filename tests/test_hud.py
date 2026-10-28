@@ -138,6 +138,25 @@ class TrackerHudTests(unittest.TestCase):
         self.assertEqual((m["cash_earned"], m["cash_spent"], m["xp"]), (71410, 12823, 2572 + 567))
         self.assertEqual(m["details"]["board_end"]["me"]["rank"], 15)
 
+    def test_a_learned_end_screen_logs_its_own_round(self):
+        # 2026-10-27: a 1.5 hour round's results screen matched a learned look, but the
+        # matcher marked the end before the read, so it was merged into the round before
+        self.t._start_session(100)
+        self.t.record_end("auto", 200, lines=PROGRESSION)
+        self.t.matcher.templates = [[0] * 4]
+        money = [L("$70,957", 1660, 30), L("$114,012", 1790, 30), L("VICTORY"), L("CASH SPENT", 599, 863),
+                 L("-$12,823", 1288, 863), L("CASH EARNED", 599, 918), L("$71,410", 1304, 918),
+                 L("TOTAL PROFIT", 599, 1028), L("$70,957", 1297, 1028)]
+        with mock.patch.object(self.t, "_read_screen", return_value=(b"", 1, 1, money)), \
+                mock.patch.object(self.t, "_shot_path", return_value=os.path.join(self.tmp.name, "s.png")), \
+                mock.patch("wdt.tracker.winapi.write_png"):
+            self.t._auto_end([0] * 4, 6000)
+            self.t._auto_end([0] * 4, 6003)
+        first, second = self.store.dump()["matches"]
+        self.assertEqual((first["cash_earned"], first["cash_spent"]), (24681, None))
+        self.assertEqual((second["started_at"], second["ended_at"]), (200, 6003))
+        self.assertEqual((second["cash_earned"], second["cash_spent"]), (71410, 12823))
+
     def test_live_cash_and_round_split(self):
         self.t._start_session(100)
         with mock.patch.object(self.t, "_save_sample"):
