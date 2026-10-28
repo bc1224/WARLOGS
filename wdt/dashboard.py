@@ -24,12 +24,11 @@ CSP = ("default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe
 
 
 class App:
-    def __init__(self, cfg, ddir, on_templates_changed=None, on_updated=None, updater=None, in_game=None):
+    def __init__(self, cfg, ddir, on_templates_changed=None, on_updated=None, updater=None):
         self.cfg, self.ddir = cfg, ddir
         self.store = Store(os.path.join(ddir, "wardogs.db"))  # own connection
         self.on_templates_changed = on_templates_changed or (lambda: None)
         self.on_updated = on_updated or (lambda: None)
-        self.in_game = in_game or (lambda: False)  # updates restart the tracker: never mid-game
         self.updater = updater or Updater(os.path.dirname(HERE), ddir)
         self.lock = threading.Lock()
 
@@ -96,7 +95,7 @@ def make_handler(app):
             if path == "/api/update":
                 if not app.cfg.get("check_updates", True):
                     return self._send(200, {"available": False, "off": True})
-                return self._send(200, dict(app.updater.state(), in_game=app.in_game()))
+                return self._send(200, app.updater.state())
             m = re.fullmatch(r"/api/match/(\d+)", path)
             if m:
                 with app.lock:
@@ -150,8 +149,6 @@ def make_handler(app):
             if self.path == "/api/update":
                 if not origin:  # installs code: only from the dashboard page itself
                     return self._send(403, {"error": "forbidden"})
-                if app.in_game():
-                    return self._send(409, {"ok": False, "error": "close WARDOGS first, so the restart can't miss part of a round"})
                 res = app.updater.apply(str(self._json_body().get("sha", "")))
                 if res["ok"]:
                     threading.Timer(1.0, app.on_updated).start()  # after this reply is sent
@@ -172,9 +169,9 @@ def make_handler(app):
     return Handler
 
 
-def start_server(cfg, ddir, on_templates_changed=None, on_updated=None, in_game=None):
+def start_server(cfg, ddir, on_templates_changed=None, on_updated=None):
     """Serve in a background thread. Returns the server, or None if the port is taken."""
-    app = App(cfg, ddir, on_templates_changed, on_updated, in_game=in_game)
+    app = App(cfg, ddir, on_templates_changed, on_updated)
     try:
         server = ThreadingHTTPServer(("127.0.0.1", cfg["dashboard_port"]), make_handler(app))
     except OSError:

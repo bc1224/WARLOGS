@@ -981,8 +981,6 @@ let lastFull = 0;
 async function poll() {
   try {
     const r = await (await fetch("/api/version")).json();
-    const playing = !!r.status?.game_running;  // the Update button waits for the game to close
-    if (upd?.available && playing !== !!upd.in_game) { upd.in_game = playing; renderUpdate(); }
     if (!data || r.v !== data.version || Date.now() - lastFull > 30000) { await load(); lastFull = Date.now(); }
     else renderStatus(r.status);
   } catch { renderStatus({ alive: false }); }
@@ -1006,8 +1004,8 @@ function renderUpdate(msg) {
   el.innerHTML = msg ? `<span>${esc(msg)}</span>`
     : `<span><b>Update available</b> · ${esc(upd.title)}${day ? ` · ${esc(day)}` : ""}</span>
        <span class="acts"><a href="${esc(upd.url)}" target="_blank" rel="noopener">What's new</a>
-       <button class="link" id="updLater">Later</button>${upd.in_game ? `<span class="m">close WARDOGS to install</span>`
-         : `<button id="updGo" title="Downloads the new version from GitHub and restarts the tracker. Your matches and settings stay.">Update</button>`}</span>`;
+       <button class="link" id="updLater">Later</button><span class="m">the tracker restarts for about 3 seconds, so best from the menu or with WARDOGS closed</span>
+       <button id="updGo" title="Downloads the new version from GitHub and restarts the tracker. Your matches and settings stay.">Update</button></span>`;
 }
 async function installUpdate(btn) {
   btn.disabled = true; btn.textContent = "Updating…";

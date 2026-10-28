@@ -848,7 +848,7 @@ class Tracker:
     def run(self):
         from .dashboard import start_server
         start_server(self.cfg, self.ddir, on_templates_changed=self.reload_templates,
-                     on_updated=self.restart, in_game=lambda: bool(self.pids))
+                     on_updated=self.restart)
         threading.Thread(target=winapi.hotkey_loop, daemon=True,
                          args=({HK_END: self.cfg["hotkey_end"],
                                 HK_START: self.cfg["hotkey_start"]}, self.on_hotkey)).start()
