@@ -126,8 +126,9 @@ class Updater:
 
     def _apply(self, sha):
         c, blobs = self._latest()
-        if c["sha"] != sha:
-            return {"ok": False, "error": "a newer version came out; check again"}
+        if c["sha"] != sha:  # pushed again since the last check: install the newest instead
+            log.info("offered %s, installing the newer %s", sha[:7], c["sha"][:7])
+            sha = c["sha"]
         if os.path.isdir(os.path.join(self.root, ".git")):
             r = subprocess.run(["git", "-C", self.root, "pull", "--ff-only", "origin", "main"],
                                capture_output=True, text=True, timeout=120, creationflags=NO_WINDOW)

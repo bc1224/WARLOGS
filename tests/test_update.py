@@ -108,11 +108,12 @@ class UpdateTests(unittest.TestCase):
         self.assertFalse(res["ok"])
         self.assertEqual(self.read("wdt/tracker.py"), b"old\n")
 
-    def test_only_the_version_that_was_offered_is_installed(self):
+    def test_a_version_pushed_after_the_offer_is_installed_instead(self):
+        # 2026-10-27: the offer was hours old, and refusing it kept failing until the next check
         gh = FakeGitHub("abc", {"wdt/tracker.py": b"new\n"})
-        res = Updater(self.root, self.ddir, fetch=gh).apply("other")
-        self.assertFalse(res["ok"])
-        self.assertEqual(self.read("wdt/tracker.py"), b"old\n")
+        res = Updater(self.root, self.ddir, fetch=gh).apply("older")
+        self.assertTrue(res["ok"], res)
+        self.assertEqual(self.read("wdt/tracker.py"), b"new\n")
 
     def test_paths_outside_the_folder_are_never_written(self):
         gh = FakeGitHub("abc", {"../escape.py": b"x\n", "data/wardogs.db": b"wiped", "wdt/tracker.py": b"new\n"})

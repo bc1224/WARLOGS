@@ -3,6 +3,7 @@ import tempfile
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
+from unittest import mock
 
 from wdt.dashboard import App, make_handler
 
@@ -56,6 +57,14 @@ class DashboardSecurityTests(unittest.TestCase):
         self.assertEqual(r.status, 403)
         r, _ = self.get("/api/update", method="POST")  # no Origin: not a page in a browser
         self.assertEqual(r.status, 403)
+
+    def test_updates_wait_until_the_game_is_closed(self):
+        # installing restarts the tracker, which could miss part of a round being played
+        with mock.patch.object(self.app, "in_game", return_value=True), \
+                mock.patch.object(self.app.updater, "apply") as apply:
+            r, _ = self.get("/api/update", method="POST", headers={"Origin": "http://127.0.0.1:8790"})
+        self.assertEqual(r.status, 409)
+        apply.assert_not_called()
 
 
 if __name__ == "__main__":
