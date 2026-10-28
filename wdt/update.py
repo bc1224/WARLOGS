@@ -16,7 +16,7 @@ import time
 import urllib.request
 import zipfile
 
-REPO = "bc1224/warlogs"
+REPO = "bc1224/WARLOGS"
 API = f"https://api.github.com/repos/{REPO}"
 UA = "wardogs-local-tracker/1.0 (update check)"
 KEEP = {"config.json", ".python-path", "WARDOGS Dashboard.url"}

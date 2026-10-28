@@ -5,7 +5,7 @@
 //
 // Bindings (wrangler.toml): IMAGES (KV), LIMITER (rate limit, per IP); secret GITHUB_TOKEN.
 
-export const REPO = "bc1224/warlogs";
+export const REPO = "bc1224/WARLOGS";
 export const LABEL = "from-app";
 const MAX_TEXT = 4000;
 const MAX_IMAGE = 4 * 1024 * 1024;
