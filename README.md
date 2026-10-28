@@ -107,6 +107,17 @@ No password or login is ever asked for or read.
 Each match logs from your screen either way, with its XP and cash. With the first two off,
 nothing leaves your PC unless you send a report.
 
+**What it writes and where it connects.** It only writes inside its own folder: `config.json`
+and the `data` folder (match log, recent frames, `tracker.log`). Setup also adds the Start menu
+and Startup shortcuts, and if you say yes, installs Python with winget. The only places it
+connects to:
+
+| Address | When |
+|---|---|
+| `wardogstracker.gg` | Only with **Stats from wardogstracker.gg** on |
+| `api.github.com`, `codeload.github.com` | Checking for and downloading updates, with **Check for updates** on |
+| `wardogs-report-relay.bcf1224.workers.dev` | Only when you press Send in **Report an issue** |
+
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.
 
