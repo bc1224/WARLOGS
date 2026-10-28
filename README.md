@@ -23,20 +23,20 @@ It reads the screen like OBS does and never changes the game or its files. Every
 
 1. [Download the ZIP](https://github.com/bc1224/WARLOGS/archive/refs/heads/main.zip) and unzip it anywhere.
 2. Double-click **`Setup.bat`**. It finds Python (or installs it), suggests your Steam ID and
-   name, then starts the tracker and opens the dashboard.
+   name ([why it needs them](#is-it-safe)), then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
 
 The tracker starts with Windows. Open the dashboard from **WARDOGS Dashboard** in the Start
 menu (or `Open Dashboard.vbs` in the folder): it opens in its own window with no tabs or address
-bar, using Edge or Chrome's app mode, and starts the tracker first if it isn't running. It's also
-at http://127.0.0.1:8790 in any browser.
+bar, using Edge or Chrome's app mode, and starts the tracker first if it isn't running. While the
+tracker is running, the dashboard is also at http://127.0.0.1:8790 in any browser (that address
+means "this PC", so it only works on the PC running the tracker).
 
 **Updates:** when a new version is out, the dashboard shows an Update button. It downloads
-the new files from this repo, checks each one against GitHub, keeps your settings and match
-log, and restarts the tracker. Nothing updates unless you click it, or turn on **Install
-updates automatically** under **More**: then new versions install on their own while you're not in
-a game. Changes that only touch docs don't show up as an update. A git clone updates with
-`git pull` instead.
+the new files from this repo, checks that each one is exactly what GitHub lists, keeps your
+settings and match log, and restarts the tracker. Nothing updates unless you click it, or turn
+on **Install updates automatically** under **More**: then new versions install on their own
+while you're not in a game. A git clone updates with `git pull` instead.
 
 <details>
 <summary>Using Claude Code, Codex or another AI agent? Paste this instead.</summary>
@@ -53,7 +53,13 @@ Set up the WARDOGS Match Tracker from https://github.com/bc1224/WARLOGS on this 
 Install Python 3.10+, copy `config.example.json` to `config.json`, fill in your SteamID64
 and in-game name, then run `Start Tracker.vbs`.
 
-To uninstall: `powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall`, then delete the folder.
+To uninstall, run this in the folder, then delete the folder. It stops the tracker and removes the Start menu and
+Startup shortcuts. (`-ExecutionPolicy Bypass` only lets this one script run; it doesn't change
+any Windows setting.)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall
+```
 
 </details>
 
@@ -62,9 +68,13 @@ To uninstall: `powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall`, t
 The game process is never opened, read, injected or hooked, and none of its files are read. The tracker only:
 
 - checks the process list to see if WARDOGS is running (like Task Manager)
-- copies pixels from the screen while WARDOGS is in front (like OBS)
-- looks for new pictures in your Steam screenshots folder, so pressing **F12** on the results
-  screen logs a match
+- copies pixels from the screen while WARDOGS is in front (like OBS). It keeps the latest 150
+  frames (about 20 MB) and recent minimap pictures for the replay map in its own `data` folder,
+  and deletes older ones as it goes
+- reads (never writes) your Steam screenshots folder for WARDOGS. Steam's own **F12**
+  screenshot key is an optional backup: if a round wasn't logged, press F12 on the results
+  screen and the tracker reads that picture. It doesn't take Steam screenshots itself, so that
+  folder only grows when you press F12
 - calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
 - asks GitHub every few hours whether a newer version is out (turn off with
   `"check_updates": false` in `config.json`)
@@ -72,9 +82,10 @@ The game process is never opened, read, injected or hooked, and none of its file
   screenshot you added and the app version go to a small relay (`relay/`) that files them as a
   public GitHub issue. Nothing else from your PC is sent
 
-**Your Steam ID and name.** Setup reads Steam's list of accounts on this PC
-(`Steam\config\loginusers.vdf`) to suggest your Steam ID and name, and you confirm or change
-them. Both stay in `config.json` on your PC:
+**Your Steam ID and name.** Setup reads the file where Steam lists the accounts that have signed
+in on this PC (`Steam\config\loginusers.vdf`: account numbers and names, no passwords) to
+suggest your Steam ID and name, and you confirm or change them. Both stay in `config.json` on
+your PC:
 
 - the **Steam ID** is how the tracker looks up your public profile on wardogstracker.gg for
   career totals, unlocks and leaderboard rank
@@ -91,7 +102,12 @@ matches. Turn it back on to reconnect.
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.
 
-It's light: about 150 MB of RAM, no GPU. Use at your own risk.
+It's light: about 150 MB of RAM, no GPU.
+
+**Ban risk.** The WARDOGS [terms](https://www.wardogs.com/eula) forbid "unauthorised third-party
+software", and the developers haven't approved or reviewed this tracker. It never touches the
+game or sends input, which is what anti-cheat looks for, but that isn't permission. Use it at
+your own risk.
 
 ## Troubleshooting
 
