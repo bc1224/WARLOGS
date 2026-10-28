@@ -131,30 +131,60 @@ class DashboardSecurityTests(unittest.TestCase):
                                                                  "Content-Length": str(7 * 1024 * 1024)}, body=b"")
         self.assertEqual(r.status, 413)
 
-    def test_offline_mode_stops_every_outside_call(self):
-        page = {"Origin": f"http://127.0.0.1:{self.port}"}
-        self.assertEqual(self.get("/api/online", method="POST", body=b'{"on": false}')[0].status, 403)  # no Origin
-        r, body = self.get("/api/online", method="POST", headers=page, body=b'{"on": false}')
-        self.assertEqual((r.status, json.loads(body)), (200, {"online": False}))
-        try:
-            self.assertFalse(json.loads(self.get("/api/data")[1])["online"])
-            with mock.patch("wdt.dashboard.urllib.request.urlopen", side_effect=AssertionError("went online")),                     mock.patch("wdt.dashboard.pull_api", side_effect=AssertionError("went online")):
-                self.assertEqual(json.loads(self.get("/api/update")[1])["off"], True)
-                self.assertEqual(self.get("/api/report", method="POST", headers=page,
-                                          body=b'{"text": "Round did not log"}')[0].status, 409)
-                self.assertEqual(self.get("/api/refresh", method="POST", headers=page)[0].status, 409)
-        finally:
-            self.get("/api/online", method="POST", headers=page, body=b'{"on": true}')
-        self.assertTrue(json.loads(self.get("/api/data")[1])["online"])
+    def switch(self, name, on, headers=None):
+        page = {"Origin": f"http://127.0.0.1:{self.port}"} if headers is None else headers
+        return self.get("/api/switch", method="POST", headers=page, body=json.dumps({"name": name, "on": on}).encode())
 
-    def test_auto_update_switch_only_from_the_page(self):
+    def switches(self):
+        return json.loads(self.get("/api/data")[1])["switches"]
+
+    def test_switches_start_private_and_change_only_from_the_page(self):
+        # a new install asks before looking you up on wardogstracker.gg; update checks send nothing about you
+        self.assertEqual(self.switches(), {"stats": False, "updates": True, "auto_update": False})
+        for name in ("stats", "updates", "auto_update"):
+            self.assertEqual(self.switch(name, True, headers={})[0].status, 403)  # no Origin
+        self.assertEqual(self.switch("evil", True)[0].status, 400)
+        r, body = self.switch("stats", True)
+        self.assertEqual((r.status, json.loads(body)["stats"]), (200, True))
+        self.switch("stats", False)
+
+    def test_each_switch_stops_only_its_own_calls(self):
         page = {"Origin": f"http://127.0.0.1:{self.port}"}
-        self.assertEqual(self.get("/api/auto_update", method="POST", body=b'{"on": true}')[0].status, 403)
-        self.assertFalse(json.loads(self.get("/api/data")[1])["auto_update"])  # starts off
-        r, body = self.get("/api/auto_update", method="POST", headers=page, body=b'{"on": true}')
-        self.assertEqual((r.status, json.loads(body)), (200, {"auto_update": True}))
-        self.assertTrue(json.loads(self.get("/api/data")[1])["auto_update"])
-        self.get("/api/auto_update", method="POST", headers=page, body=b'{"on": false}')
+        self.switch("updates", False)
+        try:
+            with mock.patch("wdt.dashboard.pull_api", side_effect=AssertionError("asked wardogstracker.gg")):
+                self.assertEqual(self.get("/api/refresh", method="POST", headers=page)[0].status, 409)  # stats off
+            self.assertEqual(json.loads(self.get("/api/update")[1])["off"], True)
+            self.assertEqual(self.get("/api/update", method="POST", headers=page, body=b"{}")[0].status, 409)
+            self.switch("stats", True)
+            with mock.patch("wdt.dashboard.pull_api", return_value=(False, [])), \
+                    mock.patch("wdt.dashboard.pull_status"):
+                self.assertEqual(self.get("/api/refresh", method="POST", headers=page)[0].status, 200)
+        finally:
+            self.switch("updates", True)
+            self.switch("stats", False)
+
+    def test_reports_send_whatever_the_switches_say(self):
+        # Report an issue only ever sends when you press Send, so no switch blocks it
+        self.switch("updates", False)
+        with mock.patch("wdt.dashboard.urllib.request.urlopen",
+                        lambda req, timeout: io.BytesIO(b'{"ok": true, "number": 8, "url": "u"}')):
+            r, _ = self.get("/api/report", method="POST", headers={"Origin": f"http://127.0.0.1:{self.port}"},
+                            body=b'{"text": "Round did not log"}')
+        self.switch("updates", True)
+        self.assertEqual(r.status, 200)
+
+    def test_old_offline_mode_keeps_both_lookups_off(self):
+        self.app.store.db.execute("DELETE FROM meta WHERE key='switches'")  # never touched the new switches
+        self.app.store.set_meta("offline", True)
+        self.assertEqual(self.switches(), {"stats": False, "updates": False, "auto_update": False})
+        self.app.store.set_meta("offline", False)
+
+    def test_existing_stats_users_stay_on(self):
+        self.app.store.db.execute("DELETE FROM meta WHERE key='switches'")
+        self.app.store.db.execute("INSERT INTO snapshots(taken_at, synced_at, data) VALUES (1, 't', '{}')")
+        self.assertTrue(self.switches()["stats"])
+        self.app.store.db.execute("DELETE FROM snapshots")
 
 
 class AutoUpdateTests(unittest.TestCase):
@@ -183,9 +213,9 @@ class AutoUpdateTests(unittest.TestCase):
 
     def test_never_mid_game_offline_or_switched_off(self):
         self.assertFalse(self.run_with({"alive": True, "session": 4}))
-        self.app.store.set_online(False)
+        self.app.store.set_switch("updates", False)
         self.assertFalse(self.run_with({"alive": True, "session": None}))
-        self.app.store.set_online(True)
+        self.app.store.set_switch("updates", True)
         self.app.store.set_auto_update(False)
         self.assertFalse(self.run_with({"alive": True, "session": None}))
         self.updater.apply.assert_not_called()

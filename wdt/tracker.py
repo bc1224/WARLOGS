@@ -203,7 +203,7 @@ class Tracker:
 
     def _pull_status(self, now):
         self.next_status = now + 600
-        if not self.store.online():
+        if not self.store.stats_on():
             return
         try:
             pull_status(self.store)
@@ -212,7 +212,7 @@ class Tracker:
 
     def _pull_api(self, now):
         self.next_api = now + self.cfg["api_minutes"] * 60
-        if not self.cfg["steam_id"] or not self.store.online():
+        if not self.cfg["steam_id"] or not self.store.stats_on():
             return
         try:
             new, unlocked = pull_api(self.store, self.cfg["steam_id"], now)

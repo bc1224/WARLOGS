@@ -75,9 +75,11 @@ The game process is never opened, read, injected or hooked, and none of its file
   screenshot key is an optional backup: if a round wasn't logged, press F12 on the results
   screen and the tracker reads that picture. It doesn't take Steam screenshots itself, so that
   folder only grows when you press F12
-- calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
-- asks GitHub every few hours whether a newer version is out (turn off with
-  `"check_updates": false` in `config.json`)
+- only if you turn on **Stats from wardogstracker.gg**: asks that fan site's public
+  [API](https://wardogstracker.gg/developers) for your lifetime totals, unlocks and rank. Off on a
+  new install
+- asks GitHub every few hours whether a newer version is out (sends nothing about you; switch
+  off **Check for updates** to stop it)
 - sends a report only when you click **Report an issue** and press Send: your text, the
   screenshot you added and the app version go to a small relay (`relay/`) that files them as a
   public GitHub issue. Nothing else from your PC is sent
@@ -87,17 +89,23 @@ in on this PC (`Steam\config\loginusers.vdf`: account numbers and names, no pass
 suggest your Steam ID and name, and you confirm or change them. Both stay in `config.json` on
 your PC:
 
-- the **Steam ID** is how the tracker looks up your public profile on wardogstracker.gg for
-  career totals, unlocks and leaderboard rank
+- the **Steam ID** is how the tracker looks up your profile on wardogstracker.gg, if you turn
+  that on. It only finds anything if you've synced your profile on their site
 - your **in-game name** is how it spots your own kills and deaths in the kill feed and your row
   on the scoreboard
 
 No password or login is ever asked for or read.
 
-Turn off **Online** under **More** at the top of the dashboard and nothing leaves your PC: no
-stats sync from wardogstracker.gg (career totals, unlocks, rank), no item prices or server
-status, no update checks, and issue reports can't send. It keeps reading your screen and logging
-matches. Turn it back on to reconnect.
+**What each switch does.** They're under **More** at the top of the dashboard:
+
+| Switch | On | Off |
+|---|---|---|
+| Stats from wardogstracker.gg (starts off) | Sends your Steam ID there every 15 minutes or so for lifetime level and XP, unlocks, rank, item prices and server status | Nothing about you goes there |
+| Check for updates (starts on) | Asks GitHub every few hours if there's a new version; sends nothing about you | No Update button; download again to update |
+| Install updates automatically (starts off) | Installs new versions between games and restarts the tracker | You click Update when one shows |
+
+Each match logs from your screen either way, with its XP and cash. With the first two off,
+nothing leaves your PC unless you send a report.
 
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.

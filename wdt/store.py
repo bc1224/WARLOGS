@@ -210,20 +210,39 @@ class Store:
         self.db.execute("INSERT OR REPLACE INTO meta(key, value, updated) VALUES (?,?,?)",
                         (key, json.dumps(value), time.time()))
 
-    def online(self):
-        """False once Online mode is switched off on the dashboard: then nothing talks to
-        GitHub, wardogstracker.gg or the report relay until it's switched back on."""
-        return not self.get_meta("offline")
+    def switches(self):
+        """The More menu's switches, each covering one kind of outside call:
+        stats       ask wardogstracker.gg for your career totals, unlocks, rank, item prices
+                    and server status. Off on a new install (it sends your Steam ID there);
+                    on for anyone who already has stats from it
+        updates     ask GitHub whether a newer version is out (sends nothing about you)
+        auto_update install those new versions on its own between games (starts off)
+        The old single Online switch, once off, keeps the first two off."""
+        saved = self.get_meta("switches") or {}
+        off = bool(self.get_meta("offline"))
+        had_stats = self.db.execute("SELECT 1 FROM snapshots LIMIT 1").fetchone() is not None
+        return {"stats": bool(saved.get("stats", had_stats and not off)),
+                "updates": bool(saved.get("updates", not off)),
+                "auto_update": bool(saved.get("auto_update", self.get_meta("auto_update")))}
 
-    def set_online(self, on):
-        self.set_meta("offline", not on)
+    def set_switch(self, name, on):
+        if name not in self.switches():
+            raise ValueError(name)
+        saved = self.get_meta("switches") or {}  # only this one: the others keep their defaults
+        saved[name] = bool(on)
+        self.set_meta("switches", saved)
+
+    def stats_on(self):
+        return self.switches()["stats"]
+
+    def updates_on(self):
+        return self.switches()["updates"]
 
     def auto_update(self):
-        """True once Install updates automatically is switched on (it starts off)."""
-        return bool(self.get_meta("auto_update"))
+        return self.switches()["auto_update"]
 
     def set_auto_update(self, on):
-        self.set_meta("auto_update", bool(on))
+        self.set_switch("auto_update", on)
 
     def save_settings(self, fields):
         cur = self.get_meta("settings") or {}
