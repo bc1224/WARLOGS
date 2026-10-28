@@ -138,6 +138,18 @@ class UpdateTests(unittest.TestCase):
         up.state()
         self.assertEqual(len(gh.hits), 4)
 
+    def test_refresh_button_checks_now_but_not_twice_a_minute(self):
+        gh = FakeGitHub("abc", {"wdt/tracker.py": b"old\n"})
+        clock = [1000.0]
+        up = Updater(self.root, self.ddir, fetch=gh, now=lambda: clock[0], background=False)
+        up.state()
+        clock[0] += 30
+        up.state(now=True)
+        self.assertEqual(len(gh.hits), 2)  # GitHub allows 60 calls an hour
+        clock[0] += 60
+        up.state(now=True)
+        self.assertEqual(len(gh.hits), 4)
+
     def test_offline_is_reported_not_raised(self):
         def offline(url):
             raise OSError("no network")

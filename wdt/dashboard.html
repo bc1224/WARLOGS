@@ -338,6 +338,11 @@ details.menu > summary:focus-visible { outline: 2px solid var(--gold); outline-o
 .pill.offline { color: var(--gold); border-color: rgba(227,169,43,.4); }
 button.ghost { background: none; color: var(--muted); padding: 4px 10px; font-size: 13px; }
 button.ghost:hover { color: var(--text); background: none; }
+#refreshAll { display: inline-flex; padding: 4px 6px; }
+#refreshAll svg { width: 16px; height: 16px; }
+#refreshAll.busy svg { animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #refreshAll.busy svg { animation: none; opacity: 0.5; } }
 button.primary { background: var(--gold); border-color: var(--gold); color: #1a1406; font-weight: 600; }
 button.primary:hover { background: var(--gold); filter: brightness(1.1); }
 button.primary:disabled { opacity: .6; cursor: default; filter: none; }
@@ -370,7 +375,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 <main>
   <header>
     <h1><svg class="logo" aria-hidden="true" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#17191c"/><polygon points="8,16 14.5,16 18.5,36 21.5,24 26.5,24 29.5,36 33.5,16 40,16 33,48 27,48 24,37 21,48 15,48" fill="#e3a92b"/><polygon points="45,16 51,16 51,42 57,42 57,48 45,48" fill="#e9e6df"/></svg>WARLOGS</h1>
-    <div class="hdr-r"><div class="pills" id="pills"></div><span class="pill offline" id="offlinePill" title="Stats and update checks are both off, so nothing leaves this PC unless you send a report. Turn them on under More." hidden>Offline</span><button id="reportOpen" class="ghost" type="button">Report an issue</button>
+    <div class="hdr-r"><div class="pills" id="pills"></div><span class="pill offline" id="offlinePill" title="Stats and update checks are both off, so nothing leaves this PC unless you send a report. Turn them on under More." hidden>Offline</span><button id="refreshAll" class="ghost" type="button" title="Refresh: reloads the page, checks for a new version and, if Stats from wardogstracker.gg is on, gets your latest stats" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></button><button id="reportOpen" class="ghost" type="button">Report an issue</button>
       <details class="menu" id="moreMenu"><summary>More</summary>
         <div class="menu-pop">
           <label class="menu-row"><b>Stats from wardogstracker.gg</b><input type="checkbox" role="switch" class="switch" data-switch="stats">
@@ -1191,6 +1196,7 @@ document.addEventListener("click", async (e) => {
   if (t.dataset.shot) { const d = $("shot"); d.querySelector("img").src = `/shot/${t.dataset.shot}`; d.showModal(); }
   if (t.id === "updLater") { store.set("wdt-skip-update", upd.sha); renderUpdate(); return; }
   if (t.id === "updGo") { installUpdate(t); return; }
+  if (t.id === "refreshAll") { refreshAll(t); return; }
   if (t.id === "refresh") {
     t.disabled = true; t.textContent = "Checking…";
     const r = await (await post("/api/refresh")).json();
@@ -1254,6 +1260,25 @@ async function installUpdate(btn) {
 }
 checkUpdate();
 setInterval(checkUpdate, 30 * 60 * 1000);
+// The refresh icon: new stats (if that switch is on), an update check now, then a fresh page.
+async function refreshAll(btn) {
+  if (btn.classList.contains("busy")) return;
+  btn.classList.add("busy");
+  const sw = data?.switches || {};
+  try {
+    await Promise.all([
+      sw.stats ? post("/api/refresh") : null,
+      sw.updates ? (async () => {
+        let u = await (await fetch("/api/update?now=1")).json();
+        for (let i = 0; u.checking && i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          u = await (await fetch("/api/update")).json();
+        }
+      })() : null,
+    ]);
+  } catch {}
+  location.reload();
+}
 </script>
 <script>
 // ---- insights, goals, streaks, leaderboard, forecasts, strategy -------------
