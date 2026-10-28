@@ -334,6 +334,7 @@ details.menu > summary:focus-visible { outline: 2px solid var(--gold); outline-o
 .switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .switch:disabled { opacity: .4; cursor: default; }
 .menu-row:has(.switch:disabled) { cursor: default; }
+.menu-note { margin: 4px 10px 8px; font-size: 12px; color: var(--muted); }
 .pill.offline { color: var(--gold); border-color: rgba(227,169,43,.4); }
 button.ghost { background: none; color: var(--muted); padding: 4px 10px; font-size: 13px; }
 button.ghost:hover { color: var(--text); background: none; }
@@ -369,13 +370,16 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 <main>
   <header>
     <h1>WARDOGS <span>Match Log</span></h1>
-    <div class="hdr-r"><div class="pills" id="pills"></div><span class="pill offline" id="offlinePill" title="Nothing leaves this PC. Turn Online back on under More." hidden>Offline</span><button id="reportOpen" class="ghost" type="button">Report an issue</button>
+    <div class="hdr-r"><div class="pills" id="pills"></div><span class="pill offline" id="offlinePill" title="Stats and update checks are both off, so nothing leaves this PC unless you send a report. Turn them on under More." hidden>Offline</span><button id="reportOpen" class="ghost" type="button">Report an issue</button>
       <details class="menu" id="moreMenu"><summary>More</summary>
         <div class="menu-pop">
-          <label class="menu-row"><b>Online</b><input type="checkbox" role="switch" class="switch" id="onlineToggle" checked>
-            <small>Off: nothing leaves this PC. No stats sync from wardogstracker.gg (career totals, unlocks, rank), no item prices or server status, no update checks, and Report an issue can't send. Matches still log from your screen.</small></label>
-          <label class="menu-row"><b>Install updates automatically</b><input type="checkbox" role="switch" class="switch" id="autoToggle">
-            <small>Installs new versions from GitHub while you're not in a game, then restarts the tracker in a few seconds. Off: an Update button shows here instead. Needs Online.</small></label>
+          <label class="menu-row"><b>Stats from wardogstracker.gg</b><input type="checkbox" role="switch" class="switch" data-switch="stats">
+            <small><b>On:</b> sends your Steam ID to wardogstracker.gg (a fan site) every 15 minutes or so for your lifetime level and XP, unlocks and leaderboard rank, plus item prices and server status. Only works if you've synced your profile on their site.<br><b>Off:</b> nothing about you goes there. Every match still logs from your screen, with its XP and cash.</small></label>
+          <label class="menu-row"><b>Check for updates</b><input type="checkbox" role="switch" class="switch" data-switch="updates">
+            <small><b>On:</b> asks GitHub every few hours whether a new version is out. It sends nothing about you.<br><b>Off:</b> no Update button. To update, download it again.</small></label>
+          <label class="menu-row"><b>Install updates automatically</b><input type="checkbox" role="switch" class="switch" data-switch="auto_update">
+            <small><b>On:</b> installs new versions while you're not in a game, then restarts the tracker (a few seconds).<br><b>Off:</b> you click Update when one shows. Needs Check for updates.</small></label>
+          <p class="menu-note">Report an issue only sends when you press Send.</p>
         </div>
       </details></div>
   </header>
@@ -665,10 +669,10 @@ function renderRangeHint(ms) {
 async function load() {
   if (editing) return;
   data = await (await fetch("/api/data")).json();
-  $("onlineToggle").checked = data.online !== false;
-  $("autoToggle").checked = !!data.auto_update;
-  $("autoToggle").disabled = data.online === false;
-  $("offlinePill").hidden = data.online !== false;
+  const sw = data.switches || {};
+  document.querySelectorAll("[data-switch]").forEach((el) => { el.checked = !!sw[el.dataset.switch]; });
+  document.querySelector('[data-switch="auto_update"]').disabled = !sw.updates;
+  $("offlinePill").hidden = sw.stats || sw.updates;
   render();
 }
 
@@ -831,6 +835,8 @@ function renderStatus(st) {
     ${st.last_event ? `<span class="pill">Last <b>${esc(st.last_event)}</b></span>` : ""}${serverPill()}`;
   $("notice").innerHTML = !st.alive
     ? `<div class="notice">The background tracker isn't running. It starts when you log in to Windows; to start it now, run <b>Start Tracker.vbs</b> in the tracker folder.</div>`
+    : data && !data.switches?.stats && !data.snapshots.length && data.matches.length && store.get("wdt-stats-asked") !== "1"
+    ? `<div class="notice">Want your lifetime level, unlocks and leaderboard rank too? They come from wardogstracker.gg, a fan site, which needs your Steam ID. <button data-switch-on="stats">Turn on</button> <button class="link" data-stats-no>No thanks</button> (you can change this under More)</div>`
     : !st.templates && !data?.matches.length
     ? `<div class="notice">Just play. When a match ends and the results screen sits still for a few seconds, the tracker reads it and logs the match here on its own. If one ever gets missed, press <kbd>${esc(st.hotkey_end || "ctrl+alt+e")}</kbd> on the results screen.</div>`
     : "";
@@ -1055,7 +1061,7 @@ function teamChips(t) {
 }
 
 function unlockCard(u, sub, isNew) {
-  const img = u.image && data?.online !== false ? `<img src="${esc(u.image)}" alt="" loading="lazy">` : "";
+  const img = u.image && data?.switches?.stats ? `<img src="${esc(u.image)}" alt="" loading="lazy">` : "";
   const inner = `${img}<span>${esc(u.name)}<small>${esc(sub)}</small></span>`;
   return u.url ? `<a class="unlock${isNew ? " new" : ""}" href="${esc(u.url)}" target="_blank" rel="noopener">${inner}</a>`
     : `<div class="unlock${isNew ? " new" : ""}">${inner}</div>`;
@@ -1092,8 +1098,6 @@ function openReport() {
   const d = $("report");
   if (d.open) return;
   $("reportStatus").textContent = ""; $("reportStatus").className = "small";
-  $("reportSend").disabled = data?.online === false;
-  if (data?.online === false) { $("reportStatus").textContent = "Online is off, so reports can't be sent. Turn it on under More at the top of the page."; $("reportStatus").className = "small err"; }
   d.showModal(); $("reportText").focus();
 }
 function setReportImage(url) {
@@ -1151,6 +1155,17 @@ async function post(url, body) {
 }
 
 document.addEventListener("focusin", (e) => { if (e.target.classList?.contains("edit")) editing = true; });
+async function setSwitch(name, on) {
+  await post("/api/switch", { name, on });
+  if (name === "stats" && on) post("/api/refresh").then(load);
+  if (name === "updates") { if (on) checkUpdate(); else { upd = null; renderUpdate(); } }
+  await load();
+}
+document.addEventListener("click", (e) => {
+  const on = e.target.closest?.("[data-switch-on]");
+  if (on) { store.set("wdt-stats-asked", "1"); setSwitch(on.dataset.switchOn, true); }
+  if (e.target.closest?.("[data-stats-no]")) { store.set("wdt-stats-asked", "1"); poll(); }
+});
 document.addEventListener("change", async (e) => {
   const t = e.target;
   if (t.dataset.k) {
@@ -1179,7 +1194,7 @@ document.addEventListener("click", async (e) => {
   if (t.id === "refresh") {
     t.disabled = true; t.textContent = "Checking…";
     const r = await (await post("/api/refresh")).json();
-    t.textContent = !r.ok ? (data?.online === false ? "Online mode is off" : "Couldn't reach WARDOGS Tracker") : r.unlocked?.length ? `New: ${r.unlocked.join(", ")}` : r.new ? "New sync stored" : "No new sync yet";
+    t.textContent = !r.ok ? (!data?.switches?.stats ? "Stats from wardogstracker.gg are off" : "Couldn't reach WARDOGS Tracker") : r.unlocked?.length ? `New: ${r.unlocked.join(", ")}` : r.new ? "New sync stored" : "No new sync yet";
     setTimeout(() => { t.disabled = false; t.textContent = "Check for new sync"; }, 2500);
     load();
   }
@@ -2772,11 +2787,9 @@ document.addEventListener("click", (e) => {
 document.addEventListener("click", (e) => { const m = $("moreMenu"); if (m.open && !m.contains(e.target)) m.open = false; });
 document.addEventListener("keydown", (e) => { const m = $("moreMenu"); if (e.key === "Escape" && m.open) { m.open = false; m.querySelector("summary").focus(); } });
 document.addEventListener("change", async (e) => {
-  if (e.target.id === "autoToggle") { await post("/api/auto_update", { on: e.target.checked }); return load(); }
-  if (e.target.id !== "onlineToggle") return;
-  await post("/api/online", { on: e.target.checked });
-  if (e.target.checked) { post("/api/refresh"); checkUpdate(); } else { upd = null; renderUpdate(); }
-  load();
+  const name = e.target.dataset?.switch;
+  if (!name) return;
+  await setSwitch(name, e.target.checked);
 });
 document.addEventListener("input", (e) => { if (e.target.id === "q" && data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); });
 </script>
