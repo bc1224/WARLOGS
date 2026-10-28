@@ -1,6 +1,6 @@
 # Setting this up for a user (instructions for AI coding agents)
 
-You're installing the WARDOGS Match Tracker on the user's Windows PC. It's a local Python
+You're installing WARLOGS on the user's Windows PC. It's a local Python
 app that reads the screen (like OBS) and serves a dashboard on http://127.0.0.1:8790.
 
 ## Rules
@@ -15,8 +15,8 @@ app that reads the screen (like OBS) and serves a dashboard on http://127.0.0.1:
 ## Steps
 
 1. Clone the repo somewhere the user owns, for example
-   `git clone https://github.com/bc1224/wardogs-match-tracker "$env:USERPROFILE\Documents\wardogs-tracker"`.
-   No git? Download and unzip `https://github.com/bc1224/wardogs-match-tracker/archive/refs/heads/main.zip`.
+   `git clone https://github.com/bc1224/warlogs "$env:USERPROFILE\Documents\wardogs-tracker"`.
+   No git? Download and unzip `https://github.com/bc1224/warlogs/archive/refs/heads/main.zip`.
 2. Ask the user for their exact WARDOGS in-game name (as it appears on the scoreboard).
    If they don't know, skip `-PlayerName`; setup uses their Steam display name.
 3. From the repo folder run:

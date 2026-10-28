@@ -1,6 +1,6 @@
-# WARDOGS Match Tracker
+# WARLOGS
 
-Free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app/1867240/) on Windows.
+WARLOGS is a free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app/1867240/) on Windows.
 
 - **Logs every round automatically**: XP, cash earned and spent, win/loss, map, role, gun, K/D
 - **Live view** for your second monitor: round profit, $/min vs your usual, scoreboard place
@@ -21,12 +21,12 @@ It reads the screen like OBS does and never changes the game or its files. Every
 
 ## Setup
 
-1. [Download the ZIP](https://github.com/bc1224/wardogs-match-tracker/archive/refs/heads/main.zip) and unzip it anywhere.
+1. [Download the ZIP](https://github.com/bc1224/warlogs/archive/refs/heads/main.zip) and unzip it anywhere.
 2. Double-click **`Setup.bat`**. It finds Python (or installs it), suggests your Steam ID and
    name, then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
 
-The tracker starts with Windows. Open the dashboard from **WARDOGS Dashboard** in the Start
+The tracker starts with Windows. Open the dashboard from **WARLOGS** in the Start
 menu (or `Open Dashboard.vbs` in the folder): it opens in its own window with no tabs or address
 bar, using Edge or Chrome's app mode, and starts the tracker first if it isn't running. It's also
 at http://127.0.0.1:8790 in any browser.
@@ -42,7 +42,7 @@ a game. Changes that only touch docs don't show up as an update. A git clone upd
 <summary>Using Claude Code, Codex or another AI agent? Paste this instead.</summary>
 
 ```text
-Set up the WARDOGS Match Tracker from https://github.com/bc1224/wardogs-match-tracker on this Windows PC: clone it into my Documents folder, follow its AGENTS.md, ask me for anything it can't detect, and tell me when the dashboard is open.
+Set up WARLOGS from https://github.com/bc1224/warlogs on this Windows PC: clone it into my Documents folder, follow its AGENTS.md, ask me for anything it can't detect, and tell me when the dashboard is open.
 ```
 
 </details>

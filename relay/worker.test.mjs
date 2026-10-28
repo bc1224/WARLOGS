@@ -30,7 +30,7 @@ test("a report becomes an issue with its screenshot", async () => {
   assert.equal(res.status, 200);
   assert.equal((await res.json()).number, 7);
   const [url, init] = sent[0];
-  assert.equal(url, "https://api.github.com/repos/bc1224/wardogs-match-tracker/issues");
+  assert.equal(url, "https://api.github.com/repos/bc1224/warlogs/issues");
   assert.equal(init.headers.authorization, "Bearer test-token");
   const issue = JSON.parse(init.body);
   assert.equal(issue.title, "From the app: Round didn't log after I quit");
