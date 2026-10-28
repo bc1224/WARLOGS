@@ -126,11 +126,11 @@ class Updater:
             self.last = st
         return st
 
-    def state(self):
-        """The last check, starting a new one when it's old."""
+    def state(self, now=False):
+        """The last check, starting a new one when it's old (or, with now, over a minute old)."""
         with self.lock:
-            stale = not self.checking and (self.last["checked"] is None
-                                           or self.now() - self.last["checked"] > CHECK_EVERY)
+            age = None if self.last["checked"] is None else self.now() - self.last["checked"]
+            stale = not self.checking and (age is None or age > (60 if now else CHECK_EVERY))
             if stale:
                 self.checking = True
         if stale:

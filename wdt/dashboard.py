@@ -167,7 +167,7 @@ def make_handler(app):
             if path == "/api/update":
                 if not app.cfg.get("check_updates", True) or not app.store.updates_on():
                     return self._send(200, {"available": False, "off": True})
-                return self._send(200, app.updater.state())
+                return self._send(200, app.updater.state(now="now=1" in self.path))
             m = re.fullmatch(r"/api/match/(\d+)", path)
             if m:
                 with app.lock:
