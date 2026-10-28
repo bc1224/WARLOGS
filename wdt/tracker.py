@@ -61,6 +61,7 @@ SIG_W, SIG_H = 64, 36
 STILL = 3.0        # thumbnail change below this counts as "not moving"
 NEW_SCREEN = 6.0   # don't re-read a still screen we already read
 NEW_ROUND_GAP = 300  # with no between-rounds screen seen, this long without the top bar may be one missed
+XP_SCAN_SECONDS = 1.0  # the XP tab after the money screen only shows for a few seconds
 HK_END, HK_START = 1, 2
 # screen corners read every few seconds, as fractions of the window: x, y, w, h
 FEED_AREAS = ((0.78, 0.045, 0.22, 0.18),   # reward feed under the top-right cash
@@ -109,6 +110,7 @@ class Tracker:
         self.prev_sig = None
         self.still = 0
         self.last_read_sig = None
+        self.need_xp = False  # a round was logged without XP; its XP tab may still be coming
         self.next_read = 0.0
         self.reads = 0
         self.item_names = self.store.unlock_names()
@@ -322,6 +324,7 @@ class Tracker:
             self._learn(sig, mid)
         self.match_start = now
         self.used = {}
+        self.need_xp = screen and parsed.get("xp") is None
         self.last_event = f"match {mid} ({source})"
         log.info("match %s ended via %s: %s", mid, source,
                  {k: parsed.get(k) for k in ("xp", "cash_earned", "cash_spent")})
@@ -352,7 +355,8 @@ class Tracker:
         self.prev_sig = sig
         self.still = 0 if moving else self.still + 1
         if self.matcher.recently_ended(now):
-            if self.still < 1 or is_blank(sig):
+            # still waiting on the XP tab: read every new frame rather than miss it settling
+            if is_blank(sig) or (self.still < 1 and not self.need_xp):
                 return
         elif self.still < self.cfg["still_scans"] or now < self.next_read or is_blank(sig):
             return
@@ -394,6 +398,8 @@ class Tracker:
         self._note_progress(lines, parsed, info)
         self._round_cash(lines, parsed, info)
         self.store.fill_match(mid, parsed, info)
+        if parsed.get("xp") is not None:
+            self.need_xp = False
 
     def _round_cash(self, lines, parsed, info):
         """When the results screen gave no cash, use the top bar: profit for the
@@ -814,6 +820,13 @@ class Tracker:
             self._read_feeds(now)
         if now >= self.next_api:
             self._pull_api(now)
+        return self._scan_wait(now)
+
+    def _scan_wait(self, now):
+        """Seconds to the next scan: every second from the money screen until the XP tab
+        that follows it has been read, the usual pace otherwise."""
+        if self.need_xp and self.matcher.recently_ended(now):
+            return XP_SCAN_SECONDS
         return self.cfg["scan_seconds"]
 
     def run(self):
