@@ -246,12 +246,74 @@ tr.me td { background: #1d1a12; color: var(--gold); }
 .mfilter button[aria-pressed="true"] { background: #2a2d33; color: var(--text); }
 .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .toolbar .search { margin-bottom: 10px; }
-.update { display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;
-          border-left: 3px solid var(--blue); background: #121a24; padding: 10px 14px; border-radius: 6px; margin-top: 16px; }
+.update { display: flex; gap: 8px 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+          border: 1px solid #23364d; background: linear-gradient(90deg, #122033, #11161d); padding: 8px 8px 8px 14px; border-radius: 10px; margin-top: 16px; font-size: 13px; }
 .update[hidden] { display: none; }
-.update .acts { display: flex; gap: 10px; align-items: center; }
-.update a { color: var(--blue); }
-.update #updGo { border-color: var(--blue); }
+.update .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.update .what b { color: var(--blue); margin-right: 6px; }
+.update .what a { color: var(--text); text-decoration: none; border-bottom: 1px dotted var(--muted); }
+.update .what a:hover { color: var(--blue); border-color: var(--blue); }
+.update .acts { display: flex; gap: 10px; align-items: center; font-size: 12px; }
+.update #updGo { background: var(--blue); border-color: var(--blue); color: #0b1420; font-weight: 600; padding: 5px 14px; }
+.update #updGo:hover { filter: brightness(1.1); }
+.update #updGo:disabled { opacity: .7; cursor: default; }
+.update button.link:hover { color: var(--text); }
+
+/* ---- polish ------------------------------------------------------------------ */
+:root { --panel: #16181c; --panel2: #1b1e23; --line: #25292f; --glow: rgba(227,169,43,.07); }
+body { background: radial-gradient(1200px 500px at 50% -200px, var(--glow), transparent 70%), var(--bg); background-attachment: fixed; line-height: 1.45; }
+::selection { background: #5a4410; }
+* { scrollbar-width: thin; scrollbar-color: #33383f transparent; }
+header { padding: 4px 0 2px; }
+h1 { font-size: 20px; letter-spacing: .08em; display: flex; align-items: center; gap: 10px; }
+h1::before { content: ""; width: 10px; height: 22px; border-radius: 3px; background: linear-gradient(var(--gold), #b9801a); box-shadow: 0 0 12px rgba(227,169,43,.35); }
+h1 span { font-weight: 500; }
+.pill { background: var(--panel); padding: 5px 12px; }
+.card { background: linear-gradient(180deg, var(--panel2), var(--panel)); border-radius: 12px; box-shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 6px 20px -12px rgba(0,0,0,.7); }
+.card h2 { color: #a3a9b1; }
+.tile .v { letter-spacing: -.01em; }
+.grid { gap: 14px; }
+#matchPage .grid.two { align-items: start; }
+#matchPage .card { overflow-x: auto; }  /* wide tables scroll inside their card on a phone */
+button { border-radius: 8px; transition: border-color .15s, background .15s, color .15s; }
+button:hover { background: #262a30; }
+button.link:hover { background: none; }
+button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible, .mcard:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tabs { border-bottom-color: var(--line); }
+.tabs button { padding: 10px 14px; font-weight: 500; transition: color .15s, border-color .15s; }
+.tabs button[aria-selected="true"] { color: var(--gold); }
+@media (max-width: 520px) { .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; } .tabs button { padding: 10px 10px; flex: none; } }
+.topbar { background: rgba(14,15,17,.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.seg { border-radius: 10px; }
+.seg button[aria-pressed="true"], .mfilter button[aria-pressed="true"] { background: #2b2f36; color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.4); }
+th { border-bottom-color: #2d3238; }
+tbody tr { transition: background .12s; }
+tbody tr:hover td { background: rgba(255,255,255,.025); }
+.mcard { border-radius: 12px; background: linear-gradient(180deg, #1c1f24, #191b1f); transition: border-color .15s, transform .15s; }
+.mcard:hover { transform: translateY(-1px); }
+.mcard .bar { border-radius: 12px 0 0 12px; }
+@media (prefers-reduced-motion: reduce) { .mcard, .mcard:hover { transition: none; transform: none; } }
+.chip { background: #24282e; }
+details.sec > summary { border-radius: 12px; background: linear-gradient(180deg, var(--panel2), var(--panel)); }
+/* "show more" toggles: one quiet line with a chevron */
+details.more > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+  padding: 5px 10px; margin-top: 4px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: #1a1d21; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "▸"; color: var(--gold); transition: transform .15s; }
+details.more[open] > summary::before { transform: rotate(90deg); }
+details.more > summary:hover { color: var(--text); border-color: #3a3f46; }
+details.more > .tips { margin-top: 8px; }
+/* match story as a timeline */
+.story li { grid-template-columns: 48px 12px 1fr; align-items: baseline; padding: 5px 0; border-bottom: 0; position: relative; }
+.story li::before { content: ""; grid-column: 2; grid-row: 1; width: 7px; height: 7px; border-radius: 50%; background: #3a3f46; align-self: center; justify-self: center; }
+.story li:has(.pos)::before { background: var(--pos); } .story li:has(.neg)::before { background: var(--neg); }
+.story li > :last-child { grid-column: 3; }
+.story li > .t { grid-column: 1; grid-row: 1; text-align: right; font-size: 12px; }
+.tipx { border-radius: 10px; }
+.feed li { padding: 6px 0; }
+.notice { border-radius: 10px; }
+dialog { border-radius: 12px; }
+footer { border-top: 1px solid var(--line); padding-top: 14px; }
 </style>
 </head>
 <body>
@@ -1002,9 +1064,9 @@ function renderUpdate(msg) {
   if (!show) return;
   const day = upd.date ? new Date(upd.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   el.innerHTML = msg ? `<span>${esc(msg)}</span>`
-    : `<span><b>Update available</b> · ${esc(upd.title)}${day ? ` · ${esc(day)}` : ""}</span>
-       <span class="acts"><a href="${esc(upd.url)}" target="_blank" rel="noopener">What's new</a>
-       <button class="link" id="updLater">Later</button><span class="m">the tracker restarts for about 3 seconds, so best from the menu or with WARDOGS closed</span>
+    : `<span class="what"><b>New version</b> <a href="${esc(upd.url)}" target="_blank" rel="noopener" title="What changed">${esc(upd.title)}</a>${day ? ` <span class="m">${esc(day)}</span>` : ""}</span>
+       <span class="acts"><span class="m" title="Your matches and settings stay. Updating mid-round is fine, the round picks back up.">3s restart, best between rounds</span>
+       <button class="link" id="updLater">Later</button>
        <button id="updGo" title="Downloads the new version from GitHub and restarts the tracker. Your matches and settings stay.">Update</button></span>`;
 }
 async function installUpdate(btn) {
@@ -1365,27 +1427,34 @@ async function renderMatchPage(id) {
   const topRole = roleRows.filter(([, v]) => v.gain).sort((a, b) => b[1].gain - a[1].gain)[0];
   const bestPlace = Object.entries(byPlace).sort((a, b) => (b[1].gain - b[1].loss) - (a[1].gain - a[1].loss))[0];
 
-  // the story of the match: notable moments, oldest first
+  // the story of the match, oldest first: [t, text, key]. Key moments show; the rest
+  // (every gun, zone and role change the HUD reads flicker through) sit behind "show all"
   const story = [];
   if (tl.length) {
-    if (tl[0].bal != null) story.push([tl[0].t, `Started with ${money(tl[0].bal - (tl[0].net || 0))} in the bank.`]);
-    let lastGun = null, lastPlace = null, lastRoles = "";
+    if (tl[0].bal != null) story.push([tl[0].t, `Started with ${money(tl[0].bal - (tl[0].net || 0))} in the bank.`, true]);
+    let lastGun = null, lastPlace = null, lastRoles = "", seenPlace = {};
     for (const r of tl) {
-      if (r.gun && r.gun !== lastGun) { story.push([r.t, `${lastGun ? "Switched to" : "Picked up"} the <b>${esc(r.gun)}</b>.`]); lastGun = r.gun; }
+      if (r.gun && r.gun !== lastGun) { story.push([r.t, `${lastGun ? "Switched to" : "Picked up"} the <b>${esc(r.gun)}</b>.`, !lastGun]); lastGun = r.gun; }
       const p = place(r.here);
-      if (p !== lastPlace && p !== "none") story.push([r.t, `Reached the <b>${placeName[p]}</b>.`]);
+      if (p !== lastPlace && p !== "none") { story.push([r.t, `Reached the <b>${placeName[p]}</b>.`, !seenPlace[p]]); seenPlace[p] = 1; }
       lastPlace = p;
       const rs = (r.roles || []).join(", ");
-      if (rs && rs !== lastRoles) { story.push([r.t, `Playing <b>${esc(rs)}</b>.`]); lastRoles = rs; }
+      if (rs && rs !== lastRoles) { story.push([r.t, `Playing <b>${esc(rs)}</b>.`, false]); lastRoles = rs; }
     }
   }
-  for (const k of d.kill_log || []) story.push([k.t, k.kind === "kill" ? `Killed <b>${esc(k.other)}</b>${k.gun ? ` with the ${esc(k.gun)}` : ""}.` : `Killed by <b>${esc(k.other)}</b>.`]);
-  for (const x of d.downs_log || []) story.push([x.t, `<span class="neg">Went down</span>${x.here ? ` in the ${placeName[x.here]}` : ""}.`]);
-  for (const x of d.promos || []) story.push([x.t, `Promoted to <b>${esc(x.role)}${x.level ? " level " + x.level : ""}</b>.`]);
+  for (const k of d.kill_log || []) story.push([k.t, k.kind === "kill" ? `Killed <b>${esc(k.other)}</b>${k.gun ? ` with the ${esc(k.gun)}` : ""}.` : `Killed by <b>${esc(k.other)}</b>.`, true]);
+  for (const x of d.downs_log || []) story.push([x.t, `<span class="neg">Went down</span>${x.here ? ` in the ${placeName[x.here]}` : ""}.`, false]);
+  for (const x of d.promos || []) story.push([x.t, `Promoted to <b>${esc(x.role)}${x.level ? " level " + x.level : ""}</b>.`, true]);
   const big = ev.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 6);
-  for (const e of big) story.push([e.t, `${e.delta > 0 ? `Made <b class="pos">${money(e.delta)}</b>` : e.vendor ? `Bought <b>${esc(e.vendor)}</b> for <b class="neg">${money(-e.delta)}</b>` : `Spent or lost <b class="neg">${money(-e.delta)}</b>`}${e.here ? ` in the ${placeName[e.here]}` : ""}${e.gun ? ` with the ${esc(e.gun)}` : ""}${e.items?.length ? ` <span class="m">(${esc(e.items.slice(0, 3).join(", "))} on screen)</span>` : ""}.`]);
-  story.push([m.ended_at, `Match over${d.winner ? `: <b>${esc(d.winner)}</b> won` : ""}${n != null ? `, ${n >= 0 ? "up" : "down"} <b class="${n >= 0 ? "pos" : "neg"}">${money(Math.abs(n))}</b>` : ""}${m.xp != null ? ` and <b>${fmt(m.xp)} XP</b>` : ""}.`]);
+  for (const e of big) story.push([e.t, `${e.delta > 0 ? `Made <b class="pos">${money(e.delta)}</b>` : e.vendor ? `Bought <b>${esc(e.vendor)}</b> for <b class="neg">${money(-e.delta)}</b>` : `Spent or lost <b class="neg">${money(-e.delta)}</b>`}${e.here ? ` in the ${placeName[e.here]}` : ""}${e.gun ? ` with the ${esc(e.gun)}` : ""}${e.items?.length ? ` <span class="m">(${esc(e.items.slice(0, 3).join(", "))} on screen)</span>` : ""}.`, true]);
+  story.push([m.ended_at, `Match over${d.winner ? `: <b>${esc(d.winner)}</b> won` : ""}${n != null ? `, ${n >= 0 ? "up" : "down"} <b class="${n >= 0 ? "pos" : "neg"}">${money(Math.abs(n))}</b>` : ""}${m.xp != null ? ` and <b>${fmt(m.xp)} XP</b>` : ""}.`, true]);
   story.sort((a, b) => a[0] - b[0]);
+  const keyMoments = story.filter((s) => s[2]);
+  const storyList = (rows) => `<ul class="story">${rows.map(([t, s]) => `<li><span class="t">${at(t)}</span><span>${s}</span></li>`).join("")}</ul>`;
+  const storyBody = (keyMoments.length < story.length ? storyList(keyMoments.length > 12 ? [...keyMoments.slice(0, 11), keyMoments[keyMoments.length - 1]] : keyMoments)
+      + `<details class="more"><summary>Show all ${story.length} moments</summary>${storyList(story)}</details>` : storyList(story));
+  const KILLS_SHOWN = 6, kl = d.kill_log || [];
+  const killRow = (k) => `<tr><td class="m">${at(k.t)}</td><td class="${k.kind === "kill" ? "pos" : "neg"}">${k.kind === "kill" ? "Kill" : "Death"}</td><td>${esc(k.other)}</td><td>${esc(k.gun || "–")}</td><td>${k.here ? placeName[k.here] : "–"}</td></tr>`;
 
   const card = (title, body, sub = "") => `<div class="card"><h2>${title}${sub ? ` <small>${sub}</small>` : ""}</h2>${body}</div>`;
   const pctBar = (v) => `<div class="hbar"><span style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%"></span></div>`;
@@ -1445,7 +1514,7 @@ async function renderMatchPage(id) {
   <div class="grid two">
     ${card("What you did", `${tl.length ? `<div class="strip" aria-label="Where you were over the match">${segs.map((g) => `<span class="${g.p}" style="flex:${g.n}" title="${placeName[g.p]}"></span>`).join("")}</div>
       <div class="legend"><span><i style="background:var(--gold)"></i>Hot Zone ${pct(share.hotzone || 0)}</span><span><i style="background:var(--blue)"></i>FOB ${pct(share.fob || 0)}</span><span><i style="background:#3a3e45"></i>Elsewhere ${pct(share.none || 0)}</span></div>` : ""}
-      <ul class="story" style="margin-top:10px">${story.map(([t, s]) => `<li><span class="t">${at(t)}</span><span>${s}</span></li>`).join("")}</ul>`, "timeline from the in-match reads")}
+      <div style="margin-top:10px">${storyBody}</div>`, "key moments, oldest first")}
     ${card("Money over the match", tl.some((r) => r.net != null) ? `<div id="mpCash"></div>` : noTimeline, "round profit from the top bar")}
   </div>
 
@@ -1467,8 +1536,8 @@ async function renderMatchPage(id) {
     ${card("Compared to your average", `<table><thead><tr><th></th><th class="num">This match</th><th class="num">Your average</th><th></th></tr></thead><tbody>
       ${[["XP", m.xp, base.xp, fmt], ["Net cash", n, base.cash, money], ["XP / min", xpMin, base.xpMin, (v) => v.toFixed(0)], ["Cash / min", cashMin, base.cashMin, money], ["Length", len, base.len, dur]].map(([k, v, a, f]) =>
         `<tr><td>${k}</td><td class="num">${v == null ? "–" : f(v)}</td><td class="num">${a == null ? "–" : f(a)}</td><td>${vsAvg(v, a)}</td></tr>`).join("")}</tbody></table>`)}
-    ${card("Fights", d.combat ? `${(d.kill_log || []).length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${d.kill_log.map((k) =>
-        `<tr><td class="m">${at(k.t)}</td><td class="${k.kind === "kill" ? "pos" : "neg"}">${k.kind === "kill" ? "Kill" : "Death"}</td><td>${esc(k.other)}</td><td>${esc(k.gun || "–")}</td><td>${k.here ? placeName[k.here] : "–"}</td></tr>`).join("")}</tbody></table>`
+    ${card("Fights", d.combat ? `${kl.length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${kl.slice(0, KILLS_SHOWN).map(killRow).join("")}</tbody></table>
+        ${kl.length > KILLS_SHOWN ? `<details class="more"><summary>Show all ${kl.length} fights</summary><table><tbody>${kl.slice(KILLS_SHOWN).map(killRow).join("")}</tbody></table></details>` : ""}`
       : `<div class="empty" style="padding:10px">No kills or deaths with your name showed in the kill feed.</div>`}
       <p class="m">Downed ${d.combat.downs} time${d.combat.downs === 1 ? "" : "s"}. The kill feed is read every 3 seconds, so fast ones can be missed.</p>`
       : `<div class="empty">Kills, deaths and downs are tracked for matches from now on.</div>`, "from the kill feed")}
@@ -1603,16 +1672,22 @@ function renderLive(st) {
   if (!L.between && mins != null && mins >= 2) tips.push(spreadTip(L, goal, mins));
   if (mins > 25 && L.net != null && L.net > 0) tips.push([42, "good", "Strategy", "Protect your profit", `You're up ${money(L.net)} late in the round. Play safer and skip pricey gear so you keep it.`]);
   tips.sort((a, b) => b[0] - a[0]);
-  $("liveTips").innerHTML = tips.map(([, kind, tag, head, text], i) =>
-    `<div class="tipx ${kind}${i === 0 ? " top" : ""}"><span class="ttag">${esc(tag)}</span><span><b class="h">${head}</b><span class="t">${text}</span></span></div>`).join("");
+  const tipRow = ([, kind, tag, head, text], i) =>
+    `<div class="tipx ${kind}${i === 0 ? " top" : ""}"><span class="ttag">${esc(tag)}</span><span><b class="h">${head}</b><span class="t">${text}</span></span></div>`;
+  const TIPS_SHOWN = 4, tipsOpen = $("liveTips").querySelector("details")?.open;
+  $("liveTips").innerHTML = tips.slice(0, TIPS_SHOWN).map(tipRow).join("")
+    + (tips.length > TIPS_SHOWN ? `<details class="more"${tipsOpen ? " open" : ""}><summary>${tips.length - TIPS_SHOWN} more tips</summary><div class="tips">${tips.slice(TIPS_SHOWN).map((t, i) => tipRow(t, i + TIPS_SHOWN)).join("")}</div></details>` : "");
   renderKit(role, L);
   renderPlan(L, mins);
   renderFocus(L, tips, role, mins);
   const rw = Object.entries(L.rewards || {});
   $("liveRewards").innerHTML = rw.length ? `<table style="margin-bottom:10px"><thead><tr><th>Reward</th><th class="num">Times</th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${rw.sort((a, b) => Math.abs(b[1].cash) - Math.abs(a[1].cash) || b[1].xp - a[1].xp).map(([k, r]) =>
     `<tr><td>${esc(k)}</td><td class="num">${r.n}</td><td class="num ${r.cash < 0 ? "neg" : r.cash > 0 ? "pos" : ""}">${r.cash ? signed(r.cash, money) : "–"}</td><td class="num">${r.xp ? signed(r.xp) : "–"}</td></tr>`).join("")}</tbody></table>` : "";
-  $("liveEvents").innerHTML = L.events.length ? `<table><thead><tr><th>When</th><th class="num">Change</th><th class="num">Round profit</th><th>Gear on screen</th></tr></thead><tbody>${L.events.slice().reverse().map((e) =>
-    `<tr><td>${liveClock(L.started ? e.t - L.started : null)}</td><td class="num ${e.delta < 0 ? "neg" : "pos"}">${signed(e.delta, money)}</td><td class="num">${money(e.net)}</td><td class="used">${e.vendor ? `bought ${esc(e.vendor)}` : esc((e.items || []).join(", ")) || "–"}</td></tr>`).join("")}</tbody></table>`
+  // newest few changes; the rest of the round on demand (keeps it open across refreshes)
+  const evRow = (e) => `<tr><td>${liveClock(L.started ? e.t - L.started : null)}</td><td class="num ${e.delta < 0 ? "neg" : "pos"}">${signed(e.delta, money)}</td><td class="num">${money(e.net)}</td><td class="used">${e.vendor ? `bought ${esc(e.vendor)}` : esc((e.items || []).join(", ")) || "–"}</td></tr>`;
+  const evs = L.events.slice().reverse(), EV_SHOWN = 5, evOpen = $("liveEvents").querySelector("details")?.open;
+  $("liveEvents").innerHTML = evs.length ? `<table><thead><tr><th>When</th><th class="num">Change</th><th class="num">Round profit</th><th>Gear on screen</th></tr></thead><tbody>${evs.slice(0, EV_SHOWN).map(evRow).join("")}</tbody></table>
+    ${evs.length > EV_SHOWN ? `<details class="more"${evOpen ? " open" : ""}><summary>Show ${evs.length - EV_SHOWN} earlier changes</summary><table><tbody>${evs.slice(EV_SHOWN).map(evRow).join("")}</tbody></table></details>` : ""}`
     : `<div class="empty">No cash changes yet this round.</div>`;
 }
 // Suggested kit per role, best first; only items you own (or guns you've used) are suggested.
