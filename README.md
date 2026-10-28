@@ -81,6 +81,6 @@ It's light: about 150 MB of RAM, no GPU. Use at your own risk.
 ## More
 
 - [How it works](docs/HOW-IT-WORKS.md): every tab, what gets read and when, and where your data lives
-- Tests: `py -3 -m unittest discover -s tests -t .`
+- Tests: `py -3 -m unittest discover -s tests -t .`; UI check (needs Playwright): `py -3 tests/ui_smoke.py`. Both run in GitHub Actions (QA) on every push and PR
 - Not affiliated with the WARDOGS developers or wardogstracker.gg
 - MIT license

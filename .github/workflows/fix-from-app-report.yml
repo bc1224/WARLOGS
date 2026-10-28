@@ -23,6 +23,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      actions: write  # to start QA on the fix branch
       id-token: write
     steps:
       - uses: actions/checkout@v4
@@ -31,13 +32,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: python -m pip install playwright==1.59.0 && python -m playwright install chromium
       - uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: >-
             --max-turns 60
-            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(python -m unittest:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git checkout -b fix/:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin fix/:*),Bash(gh pr create:*),Bash(gh issue comment:*)"
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(python -m unittest:*),Bash(python tests/ui_smoke.py),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(git checkout -b fix/:*),Bash(git add:*),Bash(git commit:*),Bash(git push -u origin fix/:*),Bash(gh pr create:*),Bash(gh issue comment:*)"
           prompt: |
             Issue #${{ github.event.issue.number }} in ${{ github.repository }} was filed by a player
             through the tracker's Report an issue button. Read it with the GitHub tools
@@ -52,7 +54,8 @@ jobs:
                information is missing, and stop.
             2. Otherwise make the smallest fix, with a test that fails before it, on a
                new branch named fix/issue-${{ github.event.issue.number }}.
-            3. Run `python -m unittest discover -s tests -t .` and make sure it passes.
+            3. Run `python -m unittest discover -s tests -t .` and `python tests/ui_smoke.py`
+               and make sure both pass.
             4. Push the branch and open a pull request into main whose body starts with
                "Fixes #${{ github.event.issue.number }}", explains the cause and the fix,
                and lists the tests you ran.
@@ -61,3 +64,17 @@ jobs:
             anything under .github/ or relay/, wdt/update.py, or how the app updates or
             what it sends off the PC. Never add new network calls, dependencies or
             secrets. Keep the change to what the report needs.
+      # a PR opened with this job's token doesn't start other workflows, so start QA on the
+      # branch by hand; its checks then show on the PR
+      - name: Run QA on the fix branch
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: fix/issue-${{ github.event.issue.number }}
+        run: |
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null; then
+            gh workflow run qa.yml --ref "$BRANCH"
+          else
+            echo "No fix branch was pushed."
+          fi

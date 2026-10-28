@@ -36,7 +36,7 @@ app that reads the screen (like OBS) and serves a dashboard on http://127.0.0.1:
 ## Other commands
 
 - Try the dashboard with made-up data (no game needed): `py -3 demo.py` (port 8791).
-- Tests: `py -3 -m unittest discover -s tests -t .`
+- Tests: `py -3 -m unittest discover -s tests -t .`; UI check (needs Playwright): `py -3 tests/ui_smoke.py`. Both run in GitHub Actions (QA) on every push and PR
 - Uninstall: `powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall`, then delete the folder.
 
 ## Issue reports
