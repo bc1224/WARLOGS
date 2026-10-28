@@ -21,7 +21,7 @@ It reads the screen like OBS does and never changes the game or its files. Every
 
 ## Setup
 
-1. [Download the ZIP](https://github.com/bc1224/wardogs-match-tracker/archive/refs/heads/main.zip) and unzip it anywhere.
+1. [Download the ZIP](https://github.com/bc1224/WARLOGS/archive/refs/heads/main.zip) and unzip it anywhere.
 2. Double-click **`Setup.bat`**. It finds Python (or installs it), suggests your Steam ID and
    name, then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
@@ -42,7 +42,7 @@ a game. Changes that only touch docs don't show up as an update. A git clone upd
 <summary>Using Claude Code, Codex or another AI agent? Paste this instead.</summary>
 
 ```text
-Set up the WARDOGS Match Tracker from https://github.com/bc1224/wardogs-match-tracker on this Windows PC: clone it into my Documents folder, follow its AGENTS.md, ask me for anything it can't detect, and tell me when the dashboard is open.
+Set up the WARDOGS Match Tracker from https://github.com/bc1224/WARLOGS on this Windows PC: clone it into my Documents folder, follow its AGENTS.md, ask me for anything it can't detect, and tell me when the dashboard is open.
 ```
 
 </details>
