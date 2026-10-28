@@ -67,7 +67,7 @@ class App:
         """With Install updates automatically on, install a new version while no game is
         running. Returns True when it installed one (the tracker then restarts)."""
         with self.lock:
-            on = self.store.auto_update() and self.store.online()
+            on = self.store.auto_update() and self.store.updates_on()
         s = self.status()
         if not on or not self.cfg.get("check_updates", True) or not s["alive"] or s.get("session") is not None:
             return False
@@ -162,11 +162,10 @@ def make_handler(app):
                     data["version"] = app.store.version()
                 data["status"] = app.status()
                 data["steam_id"] = app.cfg["steam_id"]
-                data["online"] = app.store.online()
-                data["auto_update"] = app.store.auto_update()
+                data["switches"] = app.store.switches()
                 return self._send(200, data)
             if path == "/api/update":
-                if not app.cfg.get("check_updates", True) or not app.store.online():
+                if not app.cfg.get("check_updates", True) or not app.store.updates_on():
                     return self._send(200, {"available": False, "off": True})
                 return self._send(200, app.updater.state())
             m = re.fullmatch(r"/api/match/(\d+)", path)
@@ -253,20 +252,19 @@ def make_handler(app):
             if self.path == "/api/settings":
                 with app.lock:
                     return self._send(200, app.store.save_settings(self._json_body()))
-            if self.path == "/api/online":
-                if not origin:  # only from the dashboard page itself
+            if self.path == "/api/switch":
+                if not origin:  # these decide what leaves this PC: only from the dashboard page itself
                     return self._send(403, {"error": "forbidden"})
+                body = self._json_body()
                 with app.lock:
-                    app.store.set_online(bool(self._json_body().get("on")))
-                    return self._send(200, {"online": app.store.online()})
-            if self.path == "/api/auto_update":
-                if not origin:  # installs code later: only from the dashboard page itself
-                    return self._send(403, {"error": "forbidden"})
-                with app.lock:
-                    app.store.set_auto_update(bool(self._json_body().get("on")))
-                    return self._send(200, {"auto_update": app.store.auto_update()})
-            if self.path in ("/api/update", "/api/report", "/api/refresh") and not app.store.online():
-                return self._send(409, {"ok": False, "error": "Online mode is off. Turn it on under More at the top of the page first."})
+                    if body.get("name") not in app.store.switches():
+                        return self._send(400, {"error": "no such switch"})
+                    app.store.set_switch(body["name"], bool(body.get("on")))
+                    return self._send(200, app.store.switches())
+            if self.path == "/api/refresh" and not app.store.stats_on():
+                return self._send(409, {"ok": False, "error": "Stats from wardogstracker.gg are off. Turn them on under More at the top of the page."})
+            if self.path == "/api/update" and not app.store.updates_on():
+                return self._send(409, {"ok": False, "error": "Update checks are off. Turn them on under More at the top of the page."})
             if self.path == "/api/update":
                 if not origin:  # installs code: only from the dashboard page itself
                     return self._send(403, {"error": "forbidden"})
