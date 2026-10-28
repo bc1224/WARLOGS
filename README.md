@@ -33,7 +33,9 @@ at http://127.0.0.1:8790 in any browser.
 
 **Updates:** when a new version is out, the dashboard shows an Update button. It downloads
 the new files from this repo, checks each one against GitHub, keeps your settings and match
-log, and restarts the tracker. Nothing updates unless you click it. A git clone updates with
+log, and restarts the tracker. Nothing updates unless you click it, or turn on **Install
+updates automatically** under **More**: then new versions install on their own while you're not in
+a game. Changes that only touch docs don't show up as an update. A git clone updates with
 `git pull` instead.
 
 <details>
@@ -81,8 +83,10 @@ them. Both stay in `config.json` on your PC:
 
 No password or login is ever asked for or read.
 
-Untick **Online** at the top of the dashboard and it never contacts GitHub, wardogstracker.gg or
-the report relay; it keeps reading your screen and logging matches. Tick it again to reconnect.
+Turn off **Online** under **More** at the top of the dashboard and nothing leaves your PC: no
+stats sync from wardogstracker.gg (career totals, unlocks, rank), no item prices or server
+status, no update checks, and issue reports can't send. It keeps reading your screen and logging
+matches. Turn it back on to reconnect.
 
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.
