@@ -26,7 +26,10 @@ It reads the screen like OBS does and never changes the game or its files. Every
    name, then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
 
-The dashboard lives at http://127.0.0.1:8790 and the tracker starts with Windows.
+The tracker starts with Windows. Open the dashboard from **WARDOGS Dashboard** in the Start
+menu (or `Open Dashboard.vbs` in the folder): it opens in its own window with no tabs or address
+bar, using Edge or Chrome's app mode, and starts the tracker first if it isn't running. It's also
+at http://127.0.0.1:8790 in any browser.
 
 **Updates:** when a new version is out, the dashboard shows an Update button. It downloads
 the new files from this repo, checks each one against GitHub, keeps your settings and match
