@@ -51,7 +51,7 @@ DEFAULTS = {
     "read_width": 1920,
     "dashboard_port": 8790,
     "hud_seconds": 10.0,       # how often to read the screen during a match
-    "feed_seconds": 3.0,       # how often to read just the kill feed and reward feed corners
+    "feed_seconds": 1.5,       # how often to read just the kill feed and reward feed corners (XP entries go by fast)
     "player_name": "",         # your in-game name, to find your kills and deaths in the kill feed
     "sample_seconds": 180.0,   # keep one plain in-match screenshot this often
     "samples_max": 150,        # screenshots kept in data/samples for tuning

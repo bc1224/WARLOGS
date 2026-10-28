@@ -442,11 +442,17 @@ MAP_RE = re.compile(r"^\W*([A-Za-z][A-Za-z\-' ]{2,24}?)\s+\d{1,3}\s*['’°]\s*\
 
 
 # --- reward feed under the top-right cash: "CONTROL ZONE PRESENCE +$200" ------
-FEED_RE = re.compile(rf"^\W*([A-Za-z][A-Za-z \-'/.]*?[A-Za-z])\s*\W*?\s*([+*\-−]?)\s*(\$?)\s*({NUM})\s*(XP)?\W*$", re.I)
+FEED_RE = re.compile(rf"^\W*([A-Za-z][A-Za-z \-'/.,]*?[A-Za-z])\s*\W*?\s*([+*\-−]?)\s*(\$?)\s*({NUM})\s*(XP)?\W*$", re.I)
 FEED_LABELS = ("Control Zone Presence", "Hot Zone Presence", "Control Zone Entered", "Hot Zone Entered",
                "Player Assist", "Deployed Player Assist", "Revived Player Assist", "Healed Teammate",
                "Supplies Deposited", "Waited To Be Revived", "Be Revived", "Vehicle Refuelling", "Bribe",
-               "Kill", "Headshot", "Revive", "Resupply", "Capture")
+               "Kill", "Headshot", "Revive", "Resupply", "Capture", "Target Spotted", "Target Spotted Refreshed",
+               "Spotted Target Destroyed", "Vehicle Destroyed Assist")
+# XP entries read as "TARGET SPOTTED 25XP O": the number runs into XP, an icon follows it, and
+# its digits can read as letters ("soxp" for 50XP); a lone "150XP" lost its label off the edge
+XP_TAIL = re.compile(r"(?<![A-Za-z])([0-9OoIlSsBZ]{1,4})\s?XP\s*[O0o+*]?\s*$", re.I)
+XP_LOOKALIKES = str.maketrans("OoIlSsBZ", "00115582")
+LONE_XP = re.compile(r"^\W*(\d{1,4})\s?XP\W*$", re.I)
 ZONE_REWARD = re.compile(r"zone|presence", re.I)  # paid every few seconds while you're in the zone
 
 
@@ -477,6 +483,10 @@ def reward_feed(lines):
     out = []
     for line in lines:
         text = _text(line)
+        text = XP_TAIL.sub(lambda x: x.group(1).translate(XP_LOOKALIKES) + "XP", text)
+        if (lone := LONE_XP.match(text)) and not CHAT_RE.search(text):
+            out.append({"label": "Other", "cash": None, "xp": int(lone.group(1))})
+            continue
         m = FEED_RE.match(text)
         if not m or CHAT_RE.search(text) or not (m.group(3) or m.group(5)):
             continue

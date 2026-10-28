@@ -1230,7 +1230,7 @@ function renderInsights(ms, rname) {
       ["Net cash, matches with 0-1 downs", avg(fought.filter((m) => m.details.combat.downs <= 1).map(net).filter((x) => x != null))],
       ["Net cash, matches with 2+ downs", avg(fought.filter((m) => m.details.combat.downs >= 2).map(net).filter((x) => x != null))]]
     .map(([k, v], i) => `<tr><td>${k}</td><td class="num">${v == null ? "–" : i < 3 ? v.toFixed(1) : money(v)}</td></tr>`).join("")}</tbody></table>
-    <p class="m">${fought.length} matches with fight data. The kill feed is read every 3 seconds, so a kill that scrolls past faster can be missed.</p>`
+    <p class="m">${fought.length} matches with fight data. The kill feed is read every 1.5 seconds, so a kill that scrolls past faster can be missed.</p>`
     : `<div class="empty">Kills, deaths and downs are tracked from matches played from now on.</div>`;
 
   const src = sourceRows(ms), withSrc = ms.filter((m) => m.details?.sources?.length).length;
@@ -1545,7 +1545,7 @@ async function renderMatchPage(id) {
     ${card("Fights", d.combat ? `${kl.length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${kl.slice(0, KILLS_SHOWN).map(killRow).join("")}</tbody></table>
         ${kl.length > KILLS_SHOWN ? `<details class="more"><summary>Show all ${kl.length} fights</summary><table><tbody>${kl.slice(KILLS_SHOWN).map(killRow).join("")}</tbody></table></details>` : ""}`
       : `<div class="empty" style="padding:10px">No kills or deaths with your name showed in the kill feed.</div>`}
-      <p class="m">${esc(lives(d.combat)).replace(/^d/, "D")}. The kill feed is read every 3 seconds, so fast ones can be missed.</p>`
+      <p class="m">${esc(lives(d.combat)).replace(/^d/, "D")}. The kill feed is read every 1.5 seconds, so fast ones can be missed.</p>`
       : `<div class="empty">Kills, deaths and downs are tracked for matches from now on.</div>`, "from the kill feed")}
   </div>
   <div class="grid two">

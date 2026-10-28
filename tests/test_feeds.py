@@ -22,6 +22,19 @@ class RewardFeedTests(unittest.TestCase):
                                {"label": "Vehicle Refuelling", "cash": -5, "xp": None},
                                {"label": "Bribe", "cash": -500, "xp": None}])
 
+    def test_xp_entries_as_the_game_shows_them(self):
+        # 2026-10-28 samples: the number runs into "XP" and an icon follows it
+        got = reward_feed([L("TARGET SPOTTED 25XP O"), L("TARGET SPOTTED REFRESHED 13XP O"),
+                           L("TARGET SPOTTED REFRESHED soxp O"), L("TARGET SPOTTED REFRESHED loxp O"),
+                           L("VEHI ,LECJESTRPYED ASSI T 7SXP"), L("150XP O"), L("50XP +"), L("TEAMMATE 250XP +")])
+        self.assertEqual([(g["label"], g["xp"]) for g in got],
+                         [("Target Spotted", 25), ("Target Spotted Refreshed", 13), ("Target Spotted Refreshed", 50),
+                          ("Target Spotted Refreshed", 10), ("Vehicle Destroyed Assist", 75), ("Other", 150),
+                          ("Other", 50), ("Teammate", 250)])
+
+    def test_lone_cash_amounts_stay_out(self):
+        self.assertEqual(reward_feed([L("+$25"), L("$63,900"), L("100%"), L("68")]), [])
+
     def test_ocr_noise_maps_to_known_labels(self):
         got = reward_feed([L("CJERYIYEPPLAYER ASSIST 38xp"), L("DEPLOYED PLAYER ASSIST 38XP")])
         self.assertEqual([g["label"] for g in got], ["Player Assist", "Deployed Player Assist"])
