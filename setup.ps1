@@ -174,6 +174,7 @@ if (-not $NoStartup -and (Confirm "Start the tracker automatically when you log 
     $lnk.Arguments = '"' + $vbs + '"'
     $lnk.WorkingDirectory = $Here
     $lnk.Description = "WARLOGS (runs in the background, no window)"
+    $lnk.IconLocation = (Join-Path $Here "wdt\warlogs.ico") + ",0"
     $lnk.Save()
     Say "Added to Startup." Green
 }
@@ -195,6 +196,7 @@ $lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
 $lnk.Arguments = '"' + $open + '"'
 $lnk.WorkingDirectory = $Here
 $lnk.Description = "WARLOGS dashboard"
+$lnk.IconLocation = (Join-Path $Here "wdt\warlogs.ico") + ",0"
 $lnk.Save()
 $oldUrl = Join-Path $Here "WARDOGS Dashboard.url"
 if (Test-Path $oldUrl) { Remove-Item $oldUrl }
