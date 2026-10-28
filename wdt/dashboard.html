@@ -1702,6 +1702,10 @@ async function renderMatchPage(id) {
 const MINI_PPU = 93;     // minimap pixels per 100 m in its saved 171 x 153 picture (measured)
 const RC = 12, RF = 36;  // coarse and fine search grids, pixels per 100 m
 const GAP_S = 30;        // pictures further apart than this aren't joined into one line
+const HP = 0.35;         // detail kept: changes over less than ~35 m (zone tints are wider)
+// a match counts near the last fix at OK_NEAR, anywhere else only as a clear winner
+// (tuned on real rounds, cross-checked against map pictures from other days)
+const OK_NEAR = 0.4, OK_ANY = 0.5, OK_GAP = 0.2;
 const replays = {};      // match id -> { status, route, refs, t, playing, progress }
 const RP_EVENTS = { kill: ["Kill", "var(--pos)"], death: ["Death", "var(--neg)"], down: ["Downed", "#e8913a"],
   revive: ["Revived", "var(--blue)"], respawn: ["Respawned", "#b9a4e8"], buy: ["Bought", "var(--gold)"] };
@@ -1716,7 +1720,38 @@ function canvasOf(w, h) {
   return c.getContext("2d", { willReadFrequently: true });
 }
 
-// big map pictures drawn into one grid at R pixels per 100 m: brightness, and which cells have map
+// running-sum box blur of a w x h grid, in place, along rows then columns
+function boxBlur(v, w, h, r) {
+  const t = new Float32Array(Math.max(w, h));
+  for (let pass = 0; pass < 2; pass++) {
+    const [n, m, step, line] = pass ? [h, w, w, 1] : [w, h, 1, w];
+    for (let k = 0; k < m; k++) {
+      const o = k * line;
+      let s = 0;
+      for (let i = -r; i <= r; i++) s += v[o + Math.min(n - 1, Math.max(0, i)) * step];
+      for (let i = 0; i < n; i++) {
+        t[i] = s / (2 * r + 1);
+        s += v[o + Math.min(n - 1, i + r + 1) * step] - v[o + Math.max(0, i - r) * step];
+      }
+      for (let i = 0; i < n; i++) v[o + i * step] = t[i];
+    }
+  }
+}
+
+// the darkest color channel with its slow changes taken away: zone tints (red, green,
+// the yellow circles) shift whole areas, but the streets and buildings under them stay.
+// keep: which cells count (icons and empty space don't); sigma in grid pixels.
+function detail(V, keep, w, h, sigma) {
+  const r = Math.max(1, Math.round(Math.sqrt(4 * sigma * sigma + 1) / 2));
+  const a = new Float32Array(w * h), b = new Float32Array(w * h);
+  for (let i = 0; i < a.length; i++) { a[i] = keep[i] ? V[i] : 0; b[i] = keep[i]; }
+  for (let k = 0; k < 3; k++) { boxBlur(a, w, h, r); boxBlur(b, w, h, r); }  // three boxes: about a gaussian
+  const out = new Float32Array(w * h);
+  for (let i = 0; i < out.length; i++) out[i] = keep[i] && b[i] > 0.05 ? V[i] - a[i] / b[i] : 0;
+  return out;
+}
+
+// big map pictures drawn into one grid at R pixels per 100 m: detail, and which cells have map
 function mapGrid(refs, R) {
   const X0 = Math.min(...refs.map((r) => r.x0)), X1 = Math.max(...refs.map((r) => r.x1));
   const Y0 = Math.max(...refs.map((r) => r.y0)), Y1 = Math.min(...refs.map((r) => r.y1));
@@ -1726,9 +1761,13 @@ function mapGrid(refs, R) {
   // wide views first, so closer zooms (more detail) end up on top
   for (const r of [...refs].sort((a, b) => (b.x1 - b.x0) - (a.x1 - a.x0)))
     x.drawImage(r.img, (r.x0 - X0) * R, (Y0 - r.y0) * R, (r.x1 - r.x0) * R, (r.y0 - r.y1) * R);
-  const d = x.getImageData(0, 0, w, h).data, L = new Float32Array(w * h), A = new Uint8Array(w * h);
-  for (let i = 0, j = 0; i < L.length; i++, j += 4) { L[i] = 0.299 * d[j] + 0.587 * d[j + 1] + 0.114 * d[j + 2]; A[i] = d[j + 3] > 200 ? 1 : 0; }
-  return { L, A, w, h, X0, Y0, R };
+  const d = x.getImageData(0, 0, w, h).data, V = new Float32Array(w * h), A = new Uint8Array(w * h), keep = new Uint8Array(w * h);
+  for (let i = 0, j = 0; i < V.length; i++, j += 4) {
+    const lo = Math.min(d[j], d[j + 1], d[j + 2]), hi = Math.max(d[j], d[j + 1], d[j + 2]);
+    V[i] = lo; A[i] = d[j + 3] > 200 ? 1 : 0;
+    keep[i] = A[i] && hi - lo <= 70 && hi <= 235 ? 1 : 0;  // markers and labels on the map left out
+  }
+  return { L: detail(V, keep, w, h, HP * R), A, w, h, X0, Y0, R };
 }
 
 // a minimap picture shrunk to a search grid, with the icons, your arrow and the NAV text left out
@@ -1736,18 +1775,20 @@ function miniTemplate(img, R) {
   const W = img.naturalWidth, H = img.naturalHeight, k = W / 171;
   const x = canvasOf(W, H);
   x.drawImage(img, 0, 0);
-  const d = x.getImageData(0, 0, W, H).data, L = new Float32Array(W * H), ok = new Uint8Array(W * H);
+  const d = x.getImageData(0, 0, W, H).data, V = new Float32Array(W * H), ok = new Uint8Array(W * H);
   let n = 0, s = 0, ss = 0;
   for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
     const i = py * W + px, j = i * 4, r = d[j], g = d[j + 1], b = d[j + 2], l = 0.299 * r + 0.587 * g + 0.114 * b;
-    L[i] = l;
-    const icon = Math.max(r, g, b) - Math.min(r, g, b) > 70 || l > 225;
+    const lo = Math.min(r, g, b);
+    V[i] = lo;
+    const icon = Math.max(r, g, b) - lo > 70 || l > 225;
     const nav = px > 0.55 * W && py > 0.82 * H;
     const me = (px - W / 2) ** 2 + (py - H / 2) ** 2 < (8 * k) ** 2;
-    if (!icon && !nav && !me) { ok[i] = 1; n++; s += l; ss += l * l; }
+    if (!icon && !nav && !me) { ok[i] = 1; n++; s += lo; ss += lo * lo; }
   }
   // hidden behind a menu or the big map, or nearly blank: nothing to match
   if (n < 0.5 * W * H || ss / n - (s / n) ** 2 < 100) return null;
+  const L = detail(V, ok, W, H, HP * MINI_PPU * k);
   const f = R / MINI_PPU / k, w = Math.max(4, Math.round(W * f)), h = Math.max(4, Math.round(H * f));
   const T = new Float32Array(w * h), M = new Uint8Array(w * h);
   let m = 0, cnt = 0;
@@ -1870,7 +1911,7 @@ async function routeFor(st, dir, list) {
         try {
           const tp = await snapTemplates(dir, snaps[Math.floor((i + 0.5) * snaps.length / 6)][1]);
           const f = tp?.[1] && locate(gc, gf, tp[0], tp[1], null);
-          if (f && f.s >= 0.6 && f.gap >= 0.1) hits++;
+          if (f && f.s >= OK_ANY && f.gap >= OK_GAP) hits++;
         } catch { /* a picture that was cleared away */ }
       }
     }
@@ -1887,11 +1928,11 @@ async function routeFor(st, dir, list) {
         let fix = null;
         if (last && t - last.t <= GAP_S) {  // you can't have gone far since the last picture
           fix = locate(gc, gf, tp[0], tp[1], { x: last.cx, y: last.cy, r: Math.ceil((0.6 + 0.25 * (t - last.t)) * RC) });
-          if (fix && fix.s < 0.45) fix = null;
+          if (fix && fix.s < OK_NEAR) fix = null;
         }
         if (!fix) {  // anywhere on the map (after a respawn, say): only a clear winner counts
           fix = locate(gc, gf, tp[0], tp[1], null);
-          if (fix && (fix.s < 0.6 || fix.gap < 0.1)) fix = null;
+          if (fix && (fix.s < OK_ANY || fix.gap < OK_GAP)) fix = null;
         }
         if (fix) { route.push([t, +fix.X.toFixed(2), +fix.Y.toFixed(2), +fix.s.toFixed(2)]); last = { t, cx: fix.cx, cy: fix.cy }; }
       }
