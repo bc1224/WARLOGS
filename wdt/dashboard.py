@@ -212,9 +212,10 @@ def make_handler(app):
         def do_POST(self):
             if not self._local_host():
                 return
-            # only accept requests from our own page
+            # only accept requests from our own page: other programs on this PC serve pages on other ports
             origin = self.headers.get("Origin", "")
-            if origin and not re.fullmatch(r"http://(127\.0\.0\.1|localhost):\d+", origin):
+            port = self.server.server_address[1]
+            if origin and origin not in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
                 return self._send(403, {"error": "forbidden"})
             try:
                 n = self._length()
