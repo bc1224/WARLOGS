@@ -37,6 +37,14 @@ def _get(url, timeout=20):
         return resp.read()
 
 
+def app_file(rel):
+    """Files the tracker runs or shows. Docs, tests and the report relay alone aren't
+    worth an update; they come along with the next one that is."""
+    if rel.endswith(".md") or rel == "LICENSE":
+        return False
+    return rel.split("/", 1)[0] not in ("docs", "tests", ".github", "relay")
+
+
 def _kept(rel):
     first = rel.split("/", 1)[0]
     return rel in KEEP or first in ("data", ".git")
@@ -106,7 +114,7 @@ class Updater:
         try:
             c, blobs = self._latest()
             changed = [p for p, s in blobs.items() if not self._same(p, s)]
-            st = {"available": bool(changed), "sha": c["sha"],
+            st = {"available": any(app_file(p) for p in changed), "sha": c["sha"],
                   "title": c["commit"]["message"].split("\n", 1)[0],
                   "date": c["commit"]["committer"]["date"], "files": len(changed),
                   "url": f"https://github.com/{REPO}/commits/main", "error": None}

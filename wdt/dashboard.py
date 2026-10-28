@@ -4,6 +4,7 @@ The page asks /api/version every couple of seconds (a few bytes) and only
 reloads the full data when the tracker has written something new.
 """
 import json
+import logging
 import os
 import re
 import secrets
@@ -24,6 +25,8 @@ REPORT_URL = "https://wardogs-report-relay.bcf1224.workers.dev/report"
 REPORT_MAX = 6 * 1024 * 1024  # a 4 MB screenshot, base64 encoded, plus the text
 ROUTE_MAX = 400 * 1024        # a worked-out replay route: a few thousand points
 BODY_MAX = 256 * 1024         # settings, match edits and the rest
+AUTO_EVERY = 15 * 60          # how often Install updates automatically looks
+log = logging.getLogger(__name__)
 LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
 # only our own inline scripts run; names read off the screen or the API can't become code
 CSP = ("default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; "
@@ -59,6 +62,33 @@ class App:
                 return 502, {"error": "The report didn't go through. Try again later."}
         except (OSError, ValueError):
             return 502, {"error": "Couldn't reach the report server. Check your connection."}
+
+    def auto_update(self):
+        """With Install updates automatically on, install a new version while no game is
+        running. Returns True when it installed one (the tracker then restarts)."""
+        with self.lock:
+            on = self.store.auto_update() and self.store.online()
+        s = self.status()
+        if not on or not self.cfg.get("check_updates", True) or not s["alive"] or s.get("session") is not None:
+            return False
+        st = self.updater.state()
+        if not st.get("available"):
+            return False
+        res = self.updater.apply(st["sha"])
+        if not res["ok"]:
+            log.warning("automatic update failed: %s", res.get("error"))
+            return False
+        log.info("installed an update automatically")
+        self.on_updated()
+        return True
+
+    def _auto_loop(self):
+        while True:
+            time.sleep(AUTO_EVERY)
+            try:
+                self.auto_update()
+            except Exception:
+                log.exception("automatic update check failed")
 
     def status(self):
         try:
@@ -133,6 +163,7 @@ def make_handler(app):
                 data["status"] = app.status()
                 data["steam_id"] = app.cfg["steam_id"]
                 data["online"] = app.store.online()
+                data["auto_update"] = app.store.auto_update()
                 return self._send(200, data)
             if path == "/api/update":
                 if not app.cfg.get("check_updates", True) or not app.store.online():
@@ -227,8 +258,14 @@ def make_handler(app):
                 with app.lock:
                     app.store.set_online(bool(self._json_body().get("on")))
                     return self._send(200, {"online": app.store.online()})
+            if self.path == "/api/auto_update":
+                if not origin:  # installs code later: only from the dashboard page itself
+                    return self._send(403, {"error": "forbidden"})
+                with app.lock:
+                    app.store.set_auto_update(bool(self._json_body().get("on")))
+                    return self._send(200, {"auto_update": app.store.auto_update()})
             if self.path in ("/api/update", "/api/report", "/api/refresh") and not app.store.online():
-                return self._send(409, {"ok": False, "error": "Online mode is off. Turn it on at the top of the page first."})
+                return self._send(409, {"ok": False, "error": "Online mode is off. Turn it on under More at the top of the page first."})
             if self.path == "/api/update":
                 if not origin:  # installs code: only from the dashboard page itself
                     return self._send(403, {"error": "forbidden"})
@@ -265,4 +302,5 @@ def start_server(cfg, ddir, on_templates_changed=None, on_updated=None):
         return None
     server.daemon_threads = True
     threading.Thread(target=server.serve_forever, daemon=True).start()
+    threading.Thread(target=app._auto_loop, daemon=True, name="auto-update").start()
     return server

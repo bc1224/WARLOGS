@@ -138,6 +138,54 @@ class DashboardSecurityTests(unittest.TestCase):
             self.get("/api/online", method="POST", headers=page, body=b'{"on": true}')
         self.assertTrue(json.loads(self.get("/api/data")[1])["online"])
 
+    def test_auto_update_switch_only_from_the_page(self):
+        page = {"Origin": f"http://127.0.0.1:{self.port}"}
+        self.assertEqual(self.get("/api/auto_update", method="POST", body=b'{"on": true}')[0].status, 403)
+        self.assertFalse(json.loads(self.get("/api/data")[1])["auto_update"])  # starts off
+        r, body = self.get("/api/auto_update", method="POST", headers=page, body=b'{"on": true}')
+        self.assertEqual((r.status, json.loads(body)), (200, {"auto_update": True}))
+        self.assertTrue(json.loads(self.get("/api/data")[1])["auto_update"])
+        self.get("/api/auto_update", method="POST", headers=page, body=b'{"on": false}')
+
+
+class AutoUpdateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.updater = mock.Mock()
+        self.updater.state.return_value = {"available": True, "sha": "abc"}
+        self.updater.apply.return_value = {"ok": True, "files": 3}
+        self.restarted = mock.Mock()
+        self.app = App({"steam_id": "", "dashboard_port": 0}, self.tmp.name,
+                       on_updated=self.restarted, updater=self.updater)
+        self.app.store.set_auto_update(True)
+
+    def tearDown(self):
+        self.app.store.db.close()
+        self.tmp.cleanup()
+
+    def run_with(self, status):
+        with mock.patch.object(self.app, "status", return_value=status):
+            return self.app.auto_update()
+
+    def test_installs_and_restarts_between_games(self):
+        self.assertTrue(self.run_with({"alive": True, "session": None}))
+        self.updater.apply.assert_called_once_with("abc")
+        self.restarted.assert_called_once()
+
+    def test_never_mid_game_offline_or_switched_off(self):
+        self.assertFalse(self.run_with({"alive": True, "session": 4}))
+        self.app.store.set_online(False)
+        self.assertFalse(self.run_with({"alive": True, "session": None}))
+        self.app.store.set_online(True)
+        self.app.store.set_auto_update(False)
+        self.assertFalse(self.run_with({"alive": True, "session": None}))
+        self.updater.apply.assert_not_called()
+
+    def test_nothing_new_installs_nothing(self):
+        self.updater.state.return_value = {"available": False}
+        self.assertFalse(self.run_with({"alive": True, "session": None}))
+        self.updater.apply.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -315,7 +315,26 @@ details.more > .tips { margin-top: 8px; }
 .notice { border-radius: 10px; }
 dialog { border-radius: 12px; }
 .hdr-r { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-label.online { display: flex; gap: 5px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
+/* More menu: settings as switches, each with what it does */
+details.menu { position: relative; }
+details.menu > summary { list-style: none; cursor: pointer; color: var(--muted); padding: 4px 10px; font-size: 13px; border-radius: 6px; user-select: none; }
+details.menu > summary::-webkit-details-marker { display: none; }
+details.menu > summary::after { content: " ▾"; color: var(--gold); }
+details.menu > summary:hover, details.menu[open] > summary { color: var(--text); }
+details.menu > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: min(340px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); }
+.menu-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; padding: 10px; border-radius: 8px; cursor: pointer; }
+.menu-row:hover { background: rgba(255,255,255,.03); }
+.menu-row b { font-size: 14px; font-weight: 600; color: var(--text); }
+.menu-row small { grid-column: 1; font-size: 12px; line-height: 1.45; color: var(--muted); }
+.switch { grid-column: 2; grid-row: 1 / span 2; align-self: center; appearance: none; -webkit-appearance: none; margin: 0; width: 40px; height: 22px; border-radius: 999px; background: #3a3f46; position: relative; cursor: pointer; transition: background .15s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text); transition: transform .15s; }
+.switch:checked { background: var(--gold); }
+.switch:checked::after { transform: translateX(18px); background: #1a1406; }
+.switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.switch:disabled { opacity: .4; cursor: default; }
+.menu-row:has(.switch:disabled) { cursor: default; }
+.pill.offline { color: var(--gold); border-color: rgba(227,169,43,.4); }
 button.ghost { background: none; color: var(--muted); padding: 4px 10px; font-size: 13px; }
 button.ghost:hover { color: var(--text); background: none; }
 button.primary { background: var(--gold); border-color: var(--gold); color: #1a1406; font-weight: 600; }
@@ -350,7 +369,15 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 <main>
   <header>
     <h1>WARDOGS <span>Match Log</span></h1>
-    <div class="hdr-r"><div class="pills" id="pills"></div><label class="online" title="Off: the tracker never contacts GitHub, WARDOGS Tracker or the report server. It keeps reading your screen and logging matches."><input type="checkbox" id="onlineToggle" checked> Online</label><button id="reportOpen" class="ghost" type="button">Report an issue</button></div>
+    <div class="hdr-r"><div class="pills" id="pills"></div><span class="pill offline" id="offlinePill" title="Nothing leaves this PC. Turn Online back on under More." hidden>Offline</span><button id="reportOpen" class="ghost" type="button">Report an issue</button>
+      <details class="menu" id="moreMenu"><summary>More</summary>
+        <div class="menu-pop">
+          <label class="menu-row"><b>Online</b><input type="checkbox" role="switch" class="switch" id="onlineToggle" checked>
+            <small>Off: nothing leaves this PC. No stats sync from wardogstracker.gg (career totals, unlocks, rank), no item prices or server status, no update checks, and Report an issue can't send. Matches still log from your screen.</small></label>
+          <label class="menu-row"><b>Install updates automatically</b><input type="checkbox" role="switch" class="switch" id="autoToggle">
+            <small>Installs new versions from GitHub while you're not in a game, then restarts the tracker in a few seconds. Off: an Update button shows here instead. Needs Online.</small></label>
+        </div>
+      </details></div>
   </header>
   <div id="update" class="update" role="status" hidden></div>
   <div id="notice"></div>
@@ -639,6 +666,9 @@ async function load() {
   if (editing) return;
   data = await (await fetch("/api/data")).json();
   $("onlineToggle").checked = data.online !== false;
+  $("autoToggle").checked = !!data.auto_update;
+  $("autoToggle").disabled = data.online === false;
+  $("offlinePill").hidden = data.online !== false;
   render();
 }
 
@@ -1063,7 +1093,7 @@ function openReport() {
   if (d.open) return;
   $("reportStatus").textContent = ""; $("reportStatus").className = "small";
   $("reportSend").disabled = data?.online === false;
-  if (data?.online === false) { $("reportStatus").textContent = "Online mode is off, so reports can't be sent. Turn it on at the top of the page."; $("reportStatus").className = "small err"; }
+  if (data?.online === false) { $("reportStatus").textContent = "Online is off, so reports can't be sent. Turn it on under More at the top of the page."; $("reportStatus").className = "small err"; }
   d.showModal(); $("reportText").focus();
 }
 function setReportImage(url) {
@@ -2738,7 +2768,11 @@ document.addEventListener("click", (e) => {
   if (e.target.closest?.("#reportClear")) setReportImage(null);
   if (e.target.closest?.("[data-all-matches]")) location.hash = "matches";
 });
+// the More menu closes on a click outside it or Escape
+document.addEventListener("click", (e) => { const m = $("moreMenu"); if (m.open && !m.contains(e.target)) m.open = false; });
+document.addEventListener("keydown", (e) => { const m = $("moreMenu"); if (e.key === "Escape" && m.open) { m.open = false; m.querySelector("summary").focus(); } });
 document.addEventListener("change", async (e) => {
+  if (e.target.id === "autoToggle") { await post("/api/auto_update", { on: e.target.checked }); return load(); }
   if (e.target.id !== "onlineToggle") return;
   await post("/api/online", { on: e.target.checked });
   if (e.target.checked) { post("/api/refresh"); checkUpdate(); } else { upd = null; renderUpdate(); }

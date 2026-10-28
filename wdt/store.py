@@ -218,6 +218,13 @@ class Store:
     def set_online(self, on):
         self.set_meta("offline", not on)
 
+    def auto_update(self):
+        """True once Install updates automatically is switched on (it starts off)."""
+        return bool(self.get_meta("auto_update"))
+
+    def set_auto_update(self, on):
+        self.set_meta("auto_update", bool(on))
+
     def save_settings(self, fields):
         cur = self.get_meta("settings") or {}
         for k in SETTINGS:

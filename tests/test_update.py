@@ -73,6 +73,11 @@ class UpdateTests(unittest.TestCase):
         self.assertTrue(st["available"])
         self.assertEqual((st["sha"], st["title"], st["files"]), ("abc", "Fix the round timer", 2))
 
+    def test_docs_only_changes_are_not_offered(self):
+        gh = FakeGitHub("abc", {"wdt/tracker.py": b"old\n", "README.md": b"new words\n",
+                                "docs/social/post.md": b"x", "tests/test_x.py": b"x"})
+        self.assertFalse(Updater(self.root, self.ddir, fetch=gh).check()["available"])
+
     def test_update_replaces_code_and_keeps_your_data(self):
         gh = FakeGitHub("abc", {"wdt/tracker.py": b"new\n", "README.md": b"same\n", "wdt/update.py": b"x\n"})
         up = Updater(self.root, self.ddir, fetch=gh)
