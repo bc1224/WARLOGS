@@ -512,6 +512,10 @@ const dur = (s) => s == null ? "–" : s >= 3600 ? `${Math.floor(s / 3600)}h ${M
 const when = (t) => new Date(t * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const clock = (t) => new Date(t * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const day = (t) => new Date(t * 1000).toLocaleDateString([], { month: "short", day: "numeric" });
+// "downed 2, revived 1, respawned 1" from a combat tally (saved round or live)
+const times = (n) => `${n} time${n === 1 ? "" : "s"}`;
+const lives = (c) => [`downed ${c.downs ? times(c.downs) : "0 times"}`, c.revives ? `revived ${times(c.revives)}` : "",
+  c.respawns ? `respawned ${times(c.respawns)}` : ""].filter(Boolean).join(", ");
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const mlen = (m) => m.details?.duration_s ?? (m.started_at ? m.ended_at - m.started_at : null);
 const usedText = (m) => { const u = m.details?.used || {}; return [...(u.roles || []), ...(u.items || [])].join(", "); };
@@ -854,7 +858,7 @@ function matchCard(m, base) {
     w ? `<span class="chip ${w.includes("Hot") ? "hot" : w.includes("FOB") ? "fob" : ""}">${esc(w)}</span>` : "",
     h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : "",
     d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : "",
-    d.combat ? `<span class="chip">K/D <b>${d.combat.kills}/${d.combat.deaths}</b>${d.combat.downs ? `, downed ${d.combat.downs}` : ""}</span>` : "",
+    d.combat ? `<span class="chip">K/D <b>${d.combat.kills}/${d.combat.deaths}</b>${d.combat.downs ? `, downed ${d.combat.downs}` : ""}${d.combat.respawns ? `, respawned ${d.combat.respawns}` : ""}</span>` : "",
     statText(m) ? `<span class="chip">${esc(statText(m))}</span>` : "",
     !m.reviewed && (m.xp != null || n != null) ? `<span class="chip" title="Numbers read from the screen, not checked yet">unchecked</span>` : "",
   ].filter(Boolean).join("");
@@ -1444,6 +1448,8 @@ async function renderMatchPage(id) {
   }
   for (const k of d.kill_log || []) story.push([k.t, k.kind === "kill" ? `Killed <b>${esc(k.other)}</b>${k.gun ? ` with the ${esc(k.gun)}` : ""}.` : `Killed by <b>${esc(k.other)}</b>.`, true]);
   for (const x of d.downs_log || []) story.push([x.t, `<span class="neg">Went down</span>${x.here ? ` in the ${placeName[x.here]}` : ""}.`, false]);
+  for (const x of d.revives_log || []) story.push([x.t, `<span class="pos">Revived</span> by a teammate${x.here ? ` in the ${placeName[x.here]}` : ""}.`, false]);
+  for (const x of d.respawns_log || []) story.push([x.t, `<span class="neg">Respawned</span>${x.here ? ` in the ${placeName[x.here]}` : ""}; the top bar's profit starts over.`, true]);
   for (const x of d.promos || []) story.push([x.t, `Promoted to <b>${esc(x.role)}${x.level ? " level " + x.level : ""}</b>.`, true]);
   const big = ev.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 6);
   for (const e of big) story.push([e.t, `${e.delta > 0 ? `Made <b class="pos">${money(e.delta)}</b>` : e.vendor ? `Bought <b>${esc(e.vendor)}</b> for <b class="neg">${money(-e.delta)}</b>` : `Spent or lost <b class="neg">${money(-e.delta)}</b>`}${e.here ? ` in the ${placeName[e.here]}` : ""}${e.gun ? ` with the ${esc(e.gun)}` : ""}${e.items?.length ? ` <span class="m">(${esc(e.items.slice(0, 3).join(", "))} on screen)</span>` : ""}.`, true]);
@@ -1507,7 +1513,7 @@ async function renderMatchPage(id) {
     ${tile("Cash / min", cashMin == null ? "–" : money(cashMin), vsAvg(cashMin, base.cashMin))}
     ${tile("Gun used most", esc(topGun || "–"), topGun && gunReads ? `${pct(gunTime[topGun] / gunReads)} of the match` : "")}
     ${tile("Best money spot", bestPlace ? placeName[bestPlace[0]] : "–", bestPlace ? `${money(bestPlace[1].gain - bestPlace[1].loss)} net there` : "")}
-    ${d.combat ? tile("Kills / deaths", `${d.combat.kills} / ${d.combat.deaths}`, `downed ${d.combat.downs} time${d.combat.downs === 1 ? "" : "s"}`) : ""}
+    ${d.combat ? tile("Kills / deaths", `${d.combat.kills} / ${d.combat.deaths}`, lives(d.combat)) : ""}
     ${d.live_cash?.end_balance != null ? tile("Balance after", money(d.live_cash.end_balance), d.live_cash.start_balance != null ? `from ${money(d.live_cash.start_balance)}` : "") : ""}
   </div>
 
@@ -1539,7 +1545,7 @@ async function renderMatchPage(id) {
     ${card("Fights", d.combat ? `${kl.length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${kl.slice(0, KILLS_SHOWN).map(killRow).join("")}</tbody></table>
         ${kl.length > KILLS_SHOWN ? `<details class="more"><summary>Show all ${kl.length} fights</summary><table><tbody>${kl.slice(KILLS_SHOWN).map(killRow).join("")}</tbody></table></details>` : ""}`
       : `<div class="empty" style="padding:10px">No kills or deaths with your name showed in the kill feed.</div>`}
-      <p class="m">Downed ${d.combat.downs} time${d.combat.downs === 1 ? "" : "s"}. The kill feed is read every 3 seconds, so fast ones can be missed.</p>`
+      <p class="m">${esc(lives(d.combat)).replace(/^d/, "D")}. The kill feed is read every 3 seconds, so fast ones can be missed.</p>`
       : `<div class="empty">Kills, deaths and downs are tracked for matches from now on.</div>`, "from the kill feed")}
   </div>
   <div class="grid two">
@@ -1624,7 +1630,7 @@ function renderLive(st) {
     tile("Balance", money(L.balance), L.start_balance != null ? `started the round with ${money(L.start_balance)}` : ""),
     tile("Spent this round", spent ? money(spent) : "$0", L.events.length ? `${L.events.filter((e) => e.delta < 0).length} purchases or losses seen` : ""),
     tile("Where now", here, L.reads ? `this round: Hot Zone ${pct(L.hot / L.reads)}, FOB ${pct(L.fob / L.reads)}` : ""),
-    tile("Kills / deaths", `${L.kills ?? 0} / ${L.deaths ?? 0}`, L.down ? `<span class="neg">${L.down === "reviving" ? "being revived" : "downed now"}</span>` : `downed ${L.downs ?? 0} time${L.downs === 1 ? "" : "s"}`),
+    tile("Kills / deaths", `${L.kills ?? 0} / ${L.deaths ?? 0}`, L.down ? `<span class="neg">${L.down === "reviving" ? "being revived" : "downed now"}</span>` : lives(L)),
     tile("Team", esc(L.team || "–"), ""),
   ].join("");
   renderFeed(L);

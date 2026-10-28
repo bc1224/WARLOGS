@@ -242,6 +242,8 @@ class Store:
                 m["details"].pop("feed", None)
                 m["details"].pop("kill_log", None)
                 m["details"].pop("downs_log", None)
+                m["details"].pop("revives_log", None)
+                m["details"].pop("respawns_log", None)
         return {
             "sessions": rows("SELECT * FROM sessions ORDER BY started_at"),
             "matches": matches,

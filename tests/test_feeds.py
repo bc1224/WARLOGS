@@ -168,6 +168,47 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertIsNone(self.t.store.last_match(self.t.session))
         self.assertEqual(self.t.live(311)["net"], 9036)
 
+    def test_a_redeploy_is_logged_as_a_respawn(self):
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27), L("FOB")])
+            self.t._note_hud(140, [L("-$12,709", 1695, 27), L("$40,524", 1814, 27)])  # same life
+            self.t._note_hud(150, [L("-$12,549", 1695, 27), L("$40,684", 1814, 27)])
+        live = self.t.live(151)
+        self.assertEqual(live["respawns"], 1)
+        self.t.record_end("hotkey", 200)
+        d = self.store.match_full(1)["details"]
+        self.assertEqual(d["respawns_log"], [{"t": 130, "here": "fob"}])
+        self.assertEqual(d["combat"]["respawns"], 1)
+
+    def test_one_misread_start_is_not_a_respawn(self):
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(130, [L("$10,536", 1695, 27), L("$58,233", 1814, 27)])  # 3 read as 8
+            self.t._note_hud(140, [L("$10,700", 1695, 27), L("$53,397", 1814, 27)])
+        self.assertEqual(self.t.live(141)["respawns"], 0)
+
+    def test_a_respawn_right_after_going_down_counts_on_one_read(self):
+        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+            self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
+            self.t._note_hud(125, [L("GIVE UP", 796, 967), L("$53,233", 1814, 27)])
+            self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27)])
+            self.t._note_hud(140, [L("$40,524", 1814, 27)])
+        self.assertEqual(self.t.hud["respawns_log"], [{"t": 130, "here": None}])
+
+    def test_being_revived_is_logged_once(self):
+        self.t.hud["here"] = "hotzone"
+        self.t._note_feeds(110, [L("WAITED TO BE REVIVED +$100"), L("BE REVIVED +50 XP")], [])
+        self.t._note_feeds(113, [L("WAITED TO BE REVIVED +$100"), L("BE REVIVED +50 XP")], [])
+        self.t._note_feeds(140, [L("REVIVED PLAYER ASSIST +50 XP")], [])  # you helped revive someone
+        self.t._note_feeds(200, [L("BE REVIVED +50 XP")], [])
+        live = self.t.live(201)
+        self.assertEqual(live["revives"], 2)
+        self.assertEqual(self.t.hud["revives_log"], [{"t": 110, "here": "hotzone"}, {"t": 200, "here": "hotzone"}])
+
     def test_waiting_for_the_world_to_load_starts_a_new_round(self):
         # 2026-10-26: shown in the safe zone at the start of every round, balance alone in the corner
         with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
@@ -245,7 +286,7 @@ class TrackerFeedTests(unittest.TestCase):
         self.t.record_end("hotkey", 200, lines=[L("BAKURANI 45'15.0\"N 122'25.08\"W"), L("VALKYRA"), L("WINS")])
         m = self.store.dump()["matches"][0]
         self.assertEqual(m["details"]["map"], "Bakurani")
-        self.assertEqual(m["details"]["combat"], {"kills": 1, "deaths": 0, "downs": 2})
+        self.assertEqual(m["details"]["combat"], {"kills": 1, "deaths": 0, "downs": 2, "revives": 0, "respawns": 0})
         self.assertEqual(m["details"]["vendor"], {"Individual First Aid Kit": 800})
         full = self.store.match_full(m["id"])["details"]
         self.assertEqual(full["kill_log"][0]["other"], "Wrenx")

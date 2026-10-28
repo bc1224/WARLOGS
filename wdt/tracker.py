@@ -302,10 +302,13 @@ class Tracker:
             info["cash_events"] = h["events"]
         h = self.hud
         if h["reads"] or h["feed"] or h["kills"] or h["deaths"]:
-            info["combat"] = {"kills": len(h["kills"]), "deaths": len(h["deaths"]), "downs": h["downs"]}
+            info["combat"] = {"kills": len(h["kills"]), "deaths": len(h["deaths"]), "downs": h["downs"],
+                              "revives": len(h["revives_log"]), "respawns": len(h["respawns_log"])}
             info["kill_log"] = sorted([dict(k, kind="kill") for k in h["kills"]] +
                                       [dict(d, kind="death") for d in h["deaths"]], key=lambda e: e["t"])
             info["downs_log"] = h["downs_log"]
+            info["revives_log"] = h["revives_log"]
+            info["respawns_log"] = h["respawns_log"]
         if h["board"]:
             info["board"] = h["board"]
         for key in ("rewards", "feed", "vendor", "promos"):
@@ -454,7 +457,8 @@ class Tracker:
                 "last": None, "net": None, "balance": None, "start_balance": None,
                 "starts": {}, "events": [], "timeline": [], "guns": {}, "gun": None,
                 "feed_prev": [], "kill_prev": [], "rewards": {}, "feed": [], "kills": [], "deaths": [],
-                "downs": 0, "downs_log": [], "down": None, "promos": [], "vendor": {},
+                "downs": 0, "downs_log": [], "down": None, "down_seen": None,
+                "respawns_log": [], "life_new": None, "revives_log": [], "promos": [], "vendor": {},
                 "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None, "life_start": None,
                 "cash_seen": None,
                 "playing": None, "board": None}
@@ -487,6 +491,7 @@ class Tracker:
             after_break = gap >= NEW_ROUND_GAP or (h["odd_start"] is not None and abs(s - h["odd_start"]) <= 100)
             if (known is not None and abs(s - known) > 100
                     and (not after_break or abs(s - (h["life_start"] or -1)) <= 100)):
+                self._note_life(now, s)
                 h["life_start"] = s
                 net, s = bal - known, known
             if known is not None and h["starts"][known] >= 2 and abs(s - known) > 100:
@@ -528,6 +533,21 @@ class Tracker:
         if bal is not None:
             h["balance"] = bal
 
+    def _note_life(self, now, start):
+        """A new life's start on the bar is a respawn. One read of it right after going
+        down or dying counts; otherwise it has to show twice, so a misread digit isn't one."""
+        h = self.hud
+        if h["life_start"] is None or abs(start - h["life_start"]) > 100:
+            last_death = max([d["t"] for d in h["deaths"]] + [h["down_seen"] or 0])
+            last_life = h["respawns_log"][-1]["t"] if h["respawns_log"] else 0
+            h["life_new"] = {"t": round(now), "here": h["here"]}
+            if now - last_death <= 300 and last_death > last_life:
+                h["respawns_log"].append(h["life_new"])
+                h["life_new"] = None
+        elif h["life_new"]:
+            h["respawns_log"].append(h["life_new"])
+            h["life_new"] = None
+
     def live(self, now):
         """What the dashboard's Live tab shows about the match in progress."""
         if self.session is None:
@@ -542,6 +562,7 @@ class Tracker:
                 "team": max(h["teams"], key=h["teams"].get) if h["teams"] else None,
                 "gun": h["gun"], "guns": h["guns"],
                 "kills": len(h["kills"]), "deaths": len(h["deaths"]), "downs": h["downs"], "down": h["down"],
+                "respawns": len(h["respawns_log"]), "revives": len(h["revives_log"]),
                 "rewards": h["rewards"], "feed": h["feed"][-12:], "vendor": h["vendor"],
                 "kill_log": sorted([dict(k, kind="kill") for k in h["kills"]] + [dict(d, kind="death") for d in h["deaths"]],
                                    key=lambda e: e["t"])[-8:],
@@ -586,6 +607,8 @@ class Tracker:
             h["downs"] += 1
             h["downs_log"].append({"t": round(now), "here": h["here"], "gun": h["gun"]})
         h["down"] = state
+        if state:
+            h["down_seen"] = now
         seen_promos = {(p["role"], p["level"]) for p in h["promos"]}
         for role, lvl in promotions(lines):  # chat keeps them up for a while
             if (role, lvl) not in seen_promos:
@@ -626,6 +649,9 @@ class Tracker:
             r["cash"] += e["cash"] or 0
             r["xp"] += e["xp"] or 0
             h["feed"] = (h["feed"] + [dict(e, t=round(now), here=h["here"], gun=h["gun"])])[-500:]
+            if e["label"] in ("Be Revived", "Waited To Be Revived"):  # both pay for one revive
+                if not h["revives_log"] or now - h["revives_log"][-1]["t"] > 20:
+                    h["revives_log"].append({"t": round(now), "here": h["here"]})
         h["feed_prev"] = cur
         cur = kill_feed(kill_lines, self.cfg["player_name"])
         for kind, other in _fresh(h["kill_prev"], cur, lambda a, b: a[0] == b[0] and _alike(a[1], b[1])):
