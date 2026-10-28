@@ -345,12 +345,16 @@ class Tracker:
         return True
 
     def _maybe_read(self, sig, now):
-        """Read the text of a screen that has stopped moving, once."""
+        """Read the text of a screen that has stopped moving, once. Right after a round the
+        results tabs (money, then XP) only show for a few seconds, so read each one as
+        soon as it settles."""
         moving = self.prev_sig is None or distance(sig, self.prev_sig) >= STILL
         self.prev_sig = sig
         self.still = 0 if moving else self.still + 1
-        if (self.still < self.cfg["still_scans"] or now < self.next_read or is_blank(sig)
-                or self.matcher.recently_ended(now)):
+        if self.matcher.recently_ended(now):
+            if self.still < 1 or is_blank(sig):
+                return
+        elif self.still < self.cfg["still_scans"] or now < self.next_read or is_blank(sig):
             return
         if self.last_read_sig is not None and distance(sig, self.last_read_sig) < NEW_SCREEN:
             return

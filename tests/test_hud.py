@@ -157,6 +157,17 @@ class TrackerHudTests(unittest.TestCase):
         self.assertEqual((second["started_at"], second["ended_at"]), (200, 6003))
         self.assertEqual((second["cash_earned"], second["cash_spent"]), (71410, 12823))
 
+    def test_a_short_xp_screen_after_the_money_screen_is_read(self):
+        # 2026-10-27: the XP tab shows for a few seconds after the money screen, and reading
+        # the screen only every 10 s during the break missed it in most rounds
+        self.t._start_session(100)
+        self.t.record_end("auto", 200, lines=[L("VICTORY"), L("CASH EARNED", 599, 918), L("$71,410", 1304, 918)])
+        self.t.next_read = 210  # the money screen read just now
+        with mock.patch.object(self.t, "_read_screen", return_value=(b"", 1, 1, PROGRESSION)):
+            self.t._maybe_read([10, 200, 10, 200], 202)
+            self.t._maybe_read([10, 200, 10, 200], 204)
+        self.assertEqual(self.store.dump()["matches"][0]["xp"], 2903 + 6615 + 3213)
+
     def test_live_cash_and_round_split(self):
         self.t._start_session(100)
         with mock.patch.object(self.t, "_save_sample"):
