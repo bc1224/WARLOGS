@@ -9,13 +9,18 @@ import re
 import secrets
 import threading
 import time
+import urllib.error
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .sources import pull_api, pull_status
 from .store import Store
-from .update import Updater
+from .update import Updater, installed_version
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# the Report an issue button posts here (relay/ in this repo), which files a GitHub issue
+REPORT_URL = "https://wardogs-report-relay.bcf1224.workers.dev/report"
+REPORT_MAX = 6 * 1024 * 1024  # a 4 MB screenshot, base64 encoded, plus the text
 LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
 # only our own inline scripts run; names read off the screen or the API can't become code
 CSP = ("default-src 'self'; script-src 'nonce-{nonce}'; style-src 'self' 'unsafe-inline'; "
@@ -31,6 +36,26 @@ class App:
         self.on_updated = on_updated or (lambda: None)
         self.updater = updater or Updater(os.path.dirname(HERE), ddir)
         self.lock = threading.Lock()
+
+    def report(self, body):
+        """Send a Report an issue form to the relay: (status, reply)."""
+        out = {"text": str(body.get("text") or ""), "page": str(body.get("page") or "")[:40],
+               "version": installed_version(os.path.dirname(HERE), self.ddir)}
+        if body.get("image"):
+            out["image"] = str(body["image"])
+        req = urllib.request.Request(self.cfg.get("report_url") or REPORT_URL, data=json.dumps(out).encode(),
+                                     headers={"Content-Type": "application/json",
+                                              "User-Agent": "wardogs-local-tracker/1.0 (report)"})
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return 200, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return e.code, {"error": json.loads(e.read()).get("error") or "The report didn't go through."}
+            except ValueError:
+                return 502, {"error": "The report didn't go through. Try again later."}
+        except (OSError, ValueError):
+            return 502, {"error": "Couldn't reach the report server. Check your connection."}
 
     def status(self):
         try:
@@ -153,6 +178,12 @@ def make_handler(app):
                 if res["ok"]:
                     threading.Timer(1.0, app.on_updated).start()  # after this reply is sent
                 return self._send(200 if res["ok"] else 409, res)
+            if self.path == "/api/report":
+                if not origin:  # sends data off this PC: only from the dashboard page itself
+                    return self._send(403, {"error": "forbidden"})
+                if int(self.headers.get("Content-Length") or 0) > REPORT_MAX:
+                    return self._send(413, {"error": "That screenshot is too big (4 MB max)."})
+                return self._send(*app.report(self._json_body()))
             if self.path == "/api/refresh":
                 try:
                     with app.lock:

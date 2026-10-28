@@ -59,6 +59,9 @@ The game process is never opened, read, injected or hooked. The tracker only:
 - calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
 - asks GitHub every few hours whether a newer version is out (turn off with
   `"check_updates": false` in `config.json`)
+- sends a report only when you click **Report an issue** and press Send: your text, the
+  screenshot you added and the app version go to a small relay (`relay/`) that files them as a
+  public GitHub issue. Nothing else from your PC is sent
 
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.
@@ -72,6 +75,7 @@ It's light: about 150 MB of RAM, no GPU. Use at your own risk.
 | "capture was blank" | Switch WARDOGS to Borderless or Windowed fullscreen. |
 | A match wasn't logged | Press **Ctrl+Alt+E** on the results screen. Check `data/tracker.log`. |
 | A wrong match was logged | Click **not a match** on the dashboard. |
+| Something else is wrong | Click **Report an issue** at the top of the dashboard, add a screenshot, and send it. |
 | Stop the tracker | End `pythonw.exe` in Task Manager. Remove the Startup shortcut to stop autostart. |
 
 ## More

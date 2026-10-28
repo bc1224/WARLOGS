@@ -313,6 +313,25 @@ details.more > .tips { margin-top: 8px; }
 .feed li { padding: 6px 0; }
 .notice { border-radius: 10px; }
 dialog { border-radius: 12px; }
+.hdr-r { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button.ghost { background: none; color: var(--muted); padding: 4px 10px; font-size: 13px; }
+button.ghost:hover { color: var(--text); background: none; }
+button.primary { background: var(--gold); border-color: var(--gold); color: #1a1406; font-weight: 600; }
+button.primary:hover { background: var(--gold); filter: brightness(1.1); }
+button.primary:disabled { opacity: .6; cursor: default; filter: none; }
+#report { width: min(560px, calc(100vw - 32px)); padding: 18px; }
+#report h2 { margin: 0 0 12px; font-size: 18px; }
+#report label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+#report textarea { width: 100%; box-sizing: border-box; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; resize: vertical; }
+#report textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+#report .drop { margin-top: 10px; border: 1px dashed var(--line); border-radius: 8px; padding: 14px; text-align: center; color: var(--muted); font-size: 13px; cursor: pointer; }
+#report .drop:hover, #report .drop.over { border-color: var(--gold); color: var(--text); }
+#report .drop img { max-height: 220px; max-width: 100%; margin: 0 auto; border-radius: 4px; }
+#report .small { font-size: 12px; margin: 10px 0 0; }
+#report .row-end { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; align-items: center; }
+#report .row-end .link { margin-right: auto; }
+#reportStatus.err { color: var(--neg); }
+#reportStatus a { color: var(--gold); }
 footer { border-top: 1px solid var(--line); padding-top: 14px; }
 </style>
 </head>
@@ -320,7 +339,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 <main>
   <header>
     <h1>WARDOGS <span>Match Log</span></h1>
-    <div class="pills" id="pills"></div>
+    <div class="hdr-r"><div class="pills" id="pills"></div><button id="reportOpen" class="ghost" type="button">Report an issue</button></div>
   </header>
   <div id="update" class="update" role="status" hidden></div>
   <div id="notice"></div>
@@ -500,6 +519,25 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 
   <footer>Totals from <a href="https://wardogstracker.gg" target="_blank" rel="noopener">WARDOGS Tracker</a>. Per-match numbers are read from your end-of-match screen on this PC. Gold numbers are OCR guesses; click to correct.</footer>
 </main>
+<dialog id="report" aria-labelledby="reportTitle">
+  <form id="reportForm" method="dialog">
+    <h2 id="reportTitle">Report an issue</h2>
+    <label for="reportText">What happened? What did you expect?</label>
+    <textarea id="reportText" rows="5" maxlength="4000" required placeholder="e.g. The round I just played didn't show up in Matches. I quit to the menu right after the results screen."></textarea>
+    <div id="reportDrop" class="drop" tabindex="0" role="button" aria-label="Add a screenshot">
+      <span id="reportDropText">Paste a screenshot (Ctrl+V), drop one here, or click to pick a file</span>
+      <img id="reportPreview" alt="Screenshot to send" hidden>
+    </div>
+    <input id="reportFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+    <p class="m small">This becomes a public issue on GitHub, so check the screenshot for anything you don't want public. The app version is added so it can be fixed. Nothing else from your PC is sent.</p>
+    <p id="reportStatus" class="small" role="status"></p>
+    <div class="row-end">
+      <button type="button" id="reportClear" class="link" hidden>Remove screenshot</button>
+      <button type="button" data-close-dialog>Cancel</button>
+      <button type="submit" id="reportSend" class="primary">Send report</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="shot"><img alt="End of match screenshot"><p style="margin:8px 0 0;text-align:right"><button data-close-dialog>Close</button></p></dialog>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -994,6 +1032,65 @@ function candTitle(m, k) {
   const head = m.reviewed ? "Checked" : "OCR guess, click to correct";
   return seen.length ? `${head}. Text read on screen:\n${seen.join("\n")}` : head;
 }
+
+// Report an issue: text plus an optional screenshot, sent through /api/report to a GitHub issue
+let reportImage = null;
+function openReport() {
+  const d = $("report");
+  if (d.open) return;
+  $("reportStatus").textContent = ""; $("reportStatus").className = "small";
+  $("reportSend").disabled = false;
+  d.showModal(); $("reportText").focus();
+}
+function setReportImage(url) {
+  reportImage = url;
+  $("reportPreview").hidden = !url; $("reportDropText").hidden = !!url; $("reportClear").hidden = !url;
+  if (url) $("reportPreview").src = url; else $("reportPreview").removeAttribute("src");
+}
+// big screenshots are shrunk to 1920 wide JPEG so they stay under the 4 MB limit
+function readReportImage(file) {
+  if (!file || !/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    $("reportStatus").textContent = "That isn't a PNG, JPEG or WebP picture."; $("reportStatus").className = "small err"; return;
+  }
+  const img = new Image(), fr = new FileReader();  // a data: URL, since the page's CSP has no blob:
+  img.onload = () => {
+    const k = Math.min(1, 1920 / img.naturalWidth), c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    let out = c.toDataURL("image/png");
+    if (out.length > 3.5e6) out = c.toDataURL("image/jpeg", 0.85);
+    $("reportStatus").textContent = "";
+    setReportImage(out);
+  };
+  img.onerror = fr.onerror = () => { $("reportStatus").textContent = "Couldn't open that picture."; $("reportStatus").className = "small err"; };
+  fr.onload = () => { img.src = fr.result; };
+  fr.readAsDataURL(file);
+}
+$("reportFile").addEventListener("change", (e) => { readReportImage(e.target.files[0]); e.target.value = ""; });
+$("report").addEventListener("paste", (e) => {
+  const item = [...(e.clipboardData?.items || [])].find((i) => i.type.startsWith("image/"));
+  if (item) { e.preventDefault(); readReportImage(item.getAsFile()); }
+});
+const drop = $("reportDrop");
+drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("reportFile").click(); } });
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); readReportImage(e.dataTransfer.files[0]); });
+$("reportForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const st = $("reportStatus"), text = $("reportText").value.trim();
+  if (text.length < 10) { st.textContent = "Say a bit more about what happened."; st.className = "small err"; return; }
+  $("reportSend").disabled = true; st.className = "small"; st.textContent = "Sending...";
+  let r, j = {};
+  try { r = await post("/api/report", { text, image: reportImage, page: location.hash }); j = await r.json(); } catch {}
+  if (r?.ok && j.url) {
+    st.innerHTML = `Sent, thanks! It's <a href="${esc(j.url)}" target="_blank" rel="noopener">issue #${esc(j.number)}</a> on GitHub.`;
+    $("reportText").value = ""; setReportImage(null);
+  } else {
+    st.textContent = j.error || "The report didn't go through. Try again later."; st.className = "small err";
+    $("reportSend").disabled = false;
+  }
+});
 
 async function post(url, body) {
   return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
@@ -2183,6 +2280,9 @@ document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-pbclose]");
   if (b) { store.set("wdt-pb", b.dataset.pbclose); renderPB(); }
   if (e.target.closest?.("[data-close-dialog]")) e.target.closest("dialog").close();
+  if (e.target.closest?.("#reportOpen")) openReport();
+  if (e.target.closest?.("#reportDrop")) $("reportFile").click();
+  if (e.target.closest?.("#reportClear")) setReportImage(null);
   if (e.target.closest?.("[data-all-matches]")) location.hash = "matches";
 });
 document.addEventListener("input", (e) => { if (e.target.id === "q" && data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); });

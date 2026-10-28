@@ -38,3 +38,12 @@ app that reads the screen (like OBS) and serves a dashboard on http://127.0.0.1:
 - Try the dashboard with made-up data (no game needed): `py -3 demo.py` (port 8791).
 - Tests: `py -3 -m unittest discover -s tests -t .`
 - Uninstall: `powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall`, then delete the folder.
+
+## Issue reports
+
+- The dashboard's **Report an issue** button posts to `/api/report`, which forwards to the
+  Cloudflare Worker in `relay/` (`wardogs-report-relay.bcf1224.workers.dev`). The relay files a
+  GitHub issue labelled `from-app` and keeps screenshots in KV (served at `/img/<id>`).
+- Relay tests: `node --test relay/worker.test.mjs`. Deploy from `relay/` with `npx wrangler deploy`.
+- `.github/workflows/fix-from-app-report.yml` has Claude open a fix PR for each `from-app` issue.
+  It never merges; the owner reviews and merges, and the updater only offers what is on main.

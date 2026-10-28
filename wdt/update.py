@@ -42,6 +42,29 @@ def _kept(rel):
     return rel in KEEP or first in ("data", ".git")
 
 
+def installed_version(root, ddir):
+    """Short id of the version in this folder: the last update installed, or the git checkout."""
+    try:
+        with open(os.path.join(ddir, "installed.json"), encoding="utf-8") as f:
+            return json.load(f)["sha"][:7]
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    try:
+        with open(os.path.join(root, ".git", "HEAD"), encoding="utf-8") as f:
+            head = f.read().strip()
+        if not head.startswith("ref: "):
+            return head[:7]
+        ref = head[5:]
+        try:
+            with open(os.path.join(root, ".git", *ref.split("/")), encoding="utf-8") as f:
+                return f.read().strip()[:7]
+        except OSError:
+            with open(os.path.join(root, ".git", "packed-refs"), encoding="utf-8") as f:
+                return next(l.split()[0][:7] for l in f if l.rstrip().endswith(" " + ref))
+    except (OSError, StopIteration):
+        return "unknown"
+
+
 class Updater:
     def __init__(self, root, ddir, fetch=None, now=time.time, background=True):
         self.root, self.ddir = os.path.abspath(root), ddir

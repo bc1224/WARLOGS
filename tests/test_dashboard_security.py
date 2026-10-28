@@ -1,7 +1,10 @@
 import http.client
 import tempfile
 import threading
+import io
+import json
 import unittest
+from unittest import mock
 from http.server import ThreadingHTTPServer
 
 from wdt.dashboard import App, make_handler
@@ -23,10 +26,10 @@ class DashboardSecurityTests(unittest.TestCase):
         cls.app.store.db.close()
         cls.tmp.cleanup()
 
-    def get(self, path, host=None, method="GET", headers=None):
+    def get(self, path, host=None, method="GET", headers=None, body=b"{}"):
         c = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
         h = {"Host": host or f"127.0.0.1:{self.port}", **(headers or {})}
-        c.request(method, path, body=b"{}" if method == "POST" else None, headers=h)
+        c.request(method, path, body=body if method == "POST" else None, headers=h)
         r = c.getresponse()
         body = r.read()
         c.close()
@@ -56,6 +59,25 @@ class DashboardSecurityTests(unittest.TestCase):
         self.assertEqual(r.status, 403)
         r, _ = self.get("/api/update", method="POST")  # no Origin: not a page in a browser
         self.assertEqual(r.status, 403)
+
+    def test_reports_go_to_the_relay_only_from_the_dashboard_page(self):
+        self.assertEqual(self.get("/api/report", method="POST")[0].status, 403)  # no Origin
+        sent = []
+
+        def fake(req, timeout):
+            sent.append(json.loads(req.data))
+            return io.BytesIO(b'{"ok": true, "number": 7, "url": "https://github.com/x/7"}')
+        with mock.patch("wdt.dashboard.urllib.request.urlopen", fake):
+            r, body = self.get("/api/report", method="POST", headers={"Origin": f"http://127.0.0.1:{self.port}"},
+                               body=json.dumps({"text": "Round didn't log", "page": "#live", "image": "data:x"}).encode())
+        self.assertEqual((r.status, json.loads(body)["number"]), (200, 7))
+        self.assertEqual(set(sent[0]), {"text", "page", "version", "image"})
+
+    def test_huge_reports_are_refused_before_reading(self):
+        r, _ = self.get("/api/report", method="POST", headers={"Origin": f"http://127.0.0.1:{self.port}",
+                                                                 "Content-Length": str(7 * 1024 * 1024)}, body=b"")
+        self.assertEqual(r.status, 413)
+
 
 if __name__ == "__main__":
     unittest.main()
