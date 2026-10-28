@@ -98,6 +98,15 @@ class DashboardSecurityTests(unittest.TestCase):
         r, _ = self.get("/api/settings", method="POST", headers={"Origin": "https://evil.example"})
         self.assertEqual(r.status, 403)
 
+    def test_posts_from_other_local_apps_are_refused(self):
+        # a page from another program on this PC (a dev server, say) isn't the dashboard
+        for origin in (f"http://127.0.0.1:{self.port + 1}", "http://localhost:3000", "http://127.0.0.1"):
+            for path in ("/api/settings", "/api/update", "/api/online"):
+                r, _ = self.get(path, method="POST", headers={"Origin": origin}, body=b"{}")
+                self.assertEqual(r.status, 403, (origin, path))
+        r, _ = self.get("/api/settings", method="POST", headers={"Origin": f"http://localhost:{self.port}"}, body=b"{}")
+        self.assertNotEqual(r.status, 403)
+
     def test_updates_install_only_from_the_dashboard_page(self):
         r, _ = self.get("/api/update", method="POST", headers={"Origin": "https://evil.example"})
         self.assertEqual(r.status, 403)
