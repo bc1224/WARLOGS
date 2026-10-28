@@ -94,7 +94,7 @@ class TrackerHudTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(os.path.join(self.tmp.name, "t.db"))
-        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name, role_save=os.path.join(self.tmp.name, "none.sav"))
+        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name)
         self.t = Tracker(cfg, self.store, self.tmp.name)
 
     def tearDown(self):
@@ -114,6 +114,14 @@ class TrackerHudTests(unittest.TestCase):
         self.assertEqual([e["here"] for e in full["timeline"]], ["hotzone", "fob", None])
         self.assertNotIn("timeline", m["details"])  # kept out of the dashboard's live refresh
         self.assertEqual(self.t.hud["reads"], 0)  # reset for the next match
+
+    def test_level_ups_come_from_promotions_on_screen(self):
+        self.t._start_session(100)
+        with mock.patch.object(self.t, "_save_sample"):
+            self.t._note_hud(110, [L("PROMOTED TO ASSAULT LVL 9")])
+            self.t._note_hud(120, [L("PROMOTED TO ASSAULT LVL 10"), L("PROMOTED TO PILOT LVL")])
+        self.t.record_end("hotkey", 200)
+        self.assertEqual(self.store.dump()["matches"][0]["role_levels"], {"Assault": 10})
 
     def test_round_xp_is_after_minus_before_per_role(self):
         self.t._start_session(100)
@@ -243,7 +251,7 @@ class TrackerHudTests(unittest.TestCase):
         self.t._save_live(125)
         t2 = Tracker(self.t.cfg, self.store, self.tmp.name)
         t2._start_session(200)
-        with mock.patch.object(t2, "_save_sample"), mock.patch.object(t2, "_roles", return_value={}):
+        with mock.patch.object(t2, "_save_sample"):
             t2._note_hud(205, [L("WAITING FOR WORLD TO LOAD", 765, 118), L("$22,500", 1811, 27)])
             t2._note_hud(210, [L("-$3,000", 1709, 27), L("$19,500", 1821, 27)])  # next round, from $22,500 after the bonus
             t2._note_hud(220, [L("-$2,800", 1709, 27), L("$19,700", 1821, 27)])

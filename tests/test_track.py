@@ -117,7 +117,7 @@ class TrackerCaptureTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(os.path.join(self.tmp.name, "t.db"))
-        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name, role_save=os.path.join(self.tmp.name, "none.sav"))
+        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name)
         self.t = Tracker(cfg, self.store, self.tmp.name)
         self.t.rect = (0, 0, RW, RH)
         self.saved = []

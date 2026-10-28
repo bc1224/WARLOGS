@@ -77,7 +77,7 @@ class TrackerFeedTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.store = Store(os.path.join(self.tmp.name, "t.db"))
-        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name, role_save=os.path.join(self.tmp.name, "none.sav"),
+        cfg = dict(DEFAULTS, steam_userdata=self.tmp.name,
                    player_name="Dogtag")
         self.t = Tracker(cfg, self.store, self.tmp.name)
         self.t._start_session(100)
@@ -133,7 +133,7 @@ class TrackerFeedTests(unittest.TestCase):
 
     def test_redeploying_restarts_the_bar_but_not_the_round(self):
         # 2026-10-27: downed at $10,536 / $53,233, then redeployed; the bar's profit starts over
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$8,096", 1695, 27), L("$50,793", 1814, 27)])
             self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27)])
@@ -147,7 +147,7 @@ class TrackerFeedTests(unittest.TestCase):
 
     def test_money_changing_while_dead_is_still_a_redeploy(self):
         # 2026-10-27: died, the balance moved on the deploy screen, then the bar started over
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27)])
@@ -164,7 +164,7 @@ class TrackerFeedTests(unittest.TestCase):
 
     def test_a_lone_profit_that_disagrees_with_the_balance_is_skipped(self):
         # 2026-10-27 4:15 PM: "-$733" alone while the balance still said -$10,990
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
             self.t._note_hud(120, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
             self.t._note_hud(130, [L("-$733", 1695, 27)])
@@ -172,7 +172,7 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual([e["net"] for e in self.t.live(141)["events"]], [-12220, -12100])
 
     def test_a_long_wait_to_redeploy_is_still_the_same_round(self):
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             # three minutes dead, then the bar starts over from your balance
@@ -182,7 +182,7 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(self.t.live(311)["net"], 9036)
 
     def test_a_redeploy_is_logged_as_a_respawn(self):
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(130, [L("-$13,292", 1695, 27), L("$39,941", 1814, 27), L("FOB")])
@@ -196,7 +196,7 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(d["combat"]["respawns"], 1)
 
     def test_one_misread_start_is_not_a_respawn(self):
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(130, [L("$10,536", 1695, 27), L("$58,233", 1814, 27)])  # 3 read as 8
@@ -204,7 +204,7 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(self.t.live(141)["respawns"], 0)
 
     def test_a_respawn_right_after_going_down_counts_on_one_read(self):
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(120, [L("$10,536", 1695, 27), L("$53,233", 1814, 27)])
             self.t._note_hud(125, [L("GIVE UP", 796, 967), L("$53,233", 1814, 27)])
@@ -224,7 +224,7 @@ class TrackerFeedTests(unittest.TestCase):
 
     def test_waiting_for_the_world_to_load_starts_a_new_round(self):
         # 2026-10-26: shown in the safe zone at the start of every round, balance alone in the corner
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
             self.t._note_hud(120, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
             self.t._note_hud(130, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
@@ -241,20 +241,20 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(self.t.store.last_match(self.t.session), mid)  # once, not on every loading read
 
     def test_the_server_browser_means_you_left_the_round(self):
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
             self.t._note_hud(120, [L("// SERVER BROWSER", 222, 14), L("JOINING SERVER", 1393, 859)])
         self.assertIsNotNone(self.t.store.last_match(self.t.session))
 
     def test_chat_about_waiting_is_not_a_new_round(self):
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
             self.t._note_hud(120, [L("[TEAM] Bob: waiting for players to load lol", 55, 97)])
         self.assertIsNone(self.t.store.last_match(self.t.session))
 
     def test_a_new_starting_balance_means_a_missed_round_end(self):
         # 2026-10-27: the results screen went by unseen and the next round began
-        with mock.patch.object(self.t, "_save_sample"), mock.patch.object(self.t, "_roles", return_value={}):
+        with mock.patch.object(self.t, "_save_sample"):
             self.t._note_hud(110, [L("-$12,220", 1695, 27), L("$26,792", 1814, 27)])
             self.t._note_hud(120, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
             self.t._note_hud(130, [L("$9,765", 1695, 27), L("$48,777", 1814, 27)])
