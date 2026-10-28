@@ -32,6 +32,10 @@ class HudStateTests(unittest.TestCase):
     def test_generic_team_words_are_ignored(self):
         self.assertIsNone(hud_state([L("Enemy team"), L("your team")])["team"])
 
+    def test_teammate_is_not_a_team_name(self):
+        for text in ("Revived Team Mate", "REVIVED TEAM MATE", "team mates nearby"):
+            self.assertIsNone(hud_state([L(text)])["team"], text)
+
 
 PROGRESSION = [L("SCORE", 180, 30), L("PROGRESSION", 330, 30), L("$24,681", 1650, 34), L("$70,232", 1780, 34),
                L("[ALL] Marlow: green team can yall hurry up and win", 56, 124),

@@ -4,6 +4,8 @@ import re
 import sqlite3
 import time
 
+from .ocr import NOT_TEAM
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
   id INTEGER PRIMARY KEY, started_at REAL NOT NULL, ended_at REAL);
@@ -39,6 +41,11 @@ class Store:
             self.db.execute("ALTER TABLE templates ADD COLUMN match_id INTEGER")
         if "details" not in {r[1] for r in self.db.execute("PRAGMA table_info(matches)")}:
             self.db.execute("ALTER TABLE matches ADD COLUMN details TEXT")
+        # older versions logged "Revived Team Mate" as a team called "mate"
+        self.db.execute(
+            f"""UPDATE matches SET details = json_set(details, '$.hud.team', json('null'))
+                WHERE json_valid(details) AND lower(json_extract(details, '$.hud.team'))
+                IN ({",".join("?" * len(NOT_TEAM))})""", tuple(NOT_TEAM))
 
     def version(self):
         """Changes whenever another connection (the tracker) writes."""

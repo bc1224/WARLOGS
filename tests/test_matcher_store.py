@@ -57,6 +57,15 @@ class StoreTests(unittest.TestCase):
                          (650, 9000, 1, sid))
         self.assertEqual(self.s.last_match_end(sid), 900)
 
+    def test_misread_team_names_are_cleared_on_open(self):
+        sid = self.s.start_session(100)
+        for team in ("MATE", "mates", "Viper"):
+            self.s.add_match(sid, 100, 900, "auto", details={"hud": {"reads": 3, "team": team}})
+        self.s.db.close()
+        self.s = Store(os.path.join(self.dir.name, "t.db"))
+        teams = [m["details"]["hud"]["team"] for m in self.s.dump()["matches"]]
+        self.assertEqual(sorted(teams, key=str), sorted([None, None, "Viper"], key=str))
+
     def test_snapshot_dedupes_by_sync_time(self):
         self.assertTrue(self.s.add_snapshot({"syncedAt": "a", "careerXp": 1}))
         self.assertFalse(self.s.add_snapshot({"syncedAt": "a", "careerXp": 1}))
