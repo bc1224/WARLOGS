@@ -315,6 +315,7 @@ details.more > .tips { margin-top: 8px; }
 .notice { border-radius: 10px; }
 dialog { border-radius: 12px; }
 .hdr-r { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+label.online { display: flex; gap: 5px; align-items: center; font-size: 13px; color: var(--muted); cursor: pointer; }
 button.ghost { background: none; color: var(--muted); padding: 4px 10px; font-size: 13px; }
 button.ghost:hover { color: var(--text); background: none; }
 button.primary { background: var(--gold); border-color: var(--gold); color: #1a1406; font-weight: 600; }
@@ -340,7 +341,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 <main>
   <header>
     <h1>WARDOGS <span>Match Log</span></h1>
-    <div class="hdr-r"><div class="pills" id="pills"></div><button id="reportOpen" class="ghost" type="button">Report an issue</button></div>
+    <div class="hdr-r"><div class="pills" id="pills"></div><label class="online" title="Off: the tracker never contacts GitHub, WARDOGS Tracker or the report server. It keeps reading your screen and logging matches."><input type="checkbox" id="onlineToggle" checked> Online</label><button id="reportOpen" class="ghost" type="button">Report an issue</button></div>
   </header>
   <div id="update" class="update" role="status" hidden></div>
   <div id="notice"></div>
@@ -628,6 +629,7 @@ function renderRangeHint(ms) {
 async function load() {
   if (editing) return;
   data = await (await fetch("/api/data")).json();
+  $("onlineToggle").checked = data.online !== false;
   render();
 }
 
@@ -1003,7 +1005,7 @@ function unlockEvents() {
 }
 
 function unlockCard(u, sub, isNew) {
-  const img = u.image ? `<img src="${esc(u.image)}" alt="" loading="lazy">` : "";
+  const img = u.image && data?.online !== false ? `<img src="${esc(u.image)}" alt="" loading="lazy">` : "";
   const inner = `${img}<span>${esc(u.name)}<small>${esc(sub)}</small></span>`;
   return u.url ? `<a class="unlock${isNew ? " new" : ""}" href="${esc(u.url)}" target="_blank" rel="noopener">${inner}</a>`
     : `<div class="unlock${isNew ? " new" : ""}">${inner}</div>`;
@@ -1040,7 +1042,8 @@ function openReport() {
   const d = $("report");
   if (d.open) return;
   $("reportStatus").textContent = ""; $("reportStatus").className = "small";
-  $("reportSend").disabled = false;
+  $("reportSend").disabled = data?.online === false;
+  if (data?.online === false) { $("reportStatus").textContent = "Online mode is off, so reports can't be sent. Turn it on at the top of the page."; $("reportStatus").className = "small err"; }
   d.showModal(); $("reportText").focus();
 }
 function setReportImage(url) {
@@ -1126,7 +1129,7 @@ document.addEventListener("click", async (e) => {
   if (t.id === "refresh") {
     t.disabled = true; t.textContent = "Checking…";
     const r = await (await post("/api/refresh")).json();
-    t.textContent = !r.ok ? "Couldn't reach WARDOGS Tracker" : r.unlocked?.length ? `New: ${r.unlocked.join(", ")}` : r.new ? "New sync stored" : "No new sync yet";
+    t.textContent = !r.ok ? (data?.online === false ? "Online mode is off" : "Couldn't reach WARDOGS Tracker") : r.unlocked?.length ? `New: ${r.unlocked.join(", ")}` : r.new ? "New sync stored" : "No new sync yet";
     setTimeout(() => { t.disabled = false; t.textContent = "Check for new sync"; }, 2500);
     load();
   }
@@ -2285,6 +2288,12 @@ document.addEventListener("click", (e) => {
   if (e.target.closest?.("#reportDrop")) $("reportFile").click();
   if (e.target.closest?.("#reportClear")) setReportImage(null);
   if (e.target.closest?.("[data-all-matches]")) location.hash = "matches";
+});
+document.addEventListener("change", async (e) => {
+  if (e.target.id !== "onlineToggle") return;
+  await post("/api/online", { on: e.target.checked });
+  if (e.target.checked) { post("/api/refresh"); checkUpdate(); } else { upd = null; renderUpdate(); }
+  load();
 });
 document.addEventListener("input", (e) => { if (e.target.id === "q" && data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); });
 </script>

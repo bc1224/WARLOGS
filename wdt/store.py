@@ -203,6 +203,14 @@ class Store:
         self.db.execute("INSERT OR REPLACE INTO meta(key, value, updated) VALUES (?,?,?)",
                         (key, json.dumps(value), time.time()))
 
+    def online(self):
+        """False once Online mode is switched off on the dashboard: then nothing talks to
+        GitHub, wardogstracker.gg or the report relay until it's switched back on."""
+        return not self.get_meta("offline")
+
+    def set_online(self, on):
+        self.set_meta("offline", not on)
+
     def save_settings(self, fields):
         cur = self.get_meta("settings") or {}
         for k in SETTINGS:

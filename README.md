@@ -63,6 +63,9 @@ The game process is never opened, read, injected or hooked. The tracker only:
   screenshot you added and the app version go to a small relay (`relay/`) that files them as a
   public GitHub issue. Nothing else from your PC is sent
 
+Untick **Online** at the top of the dashboard and it never contacts GitHub, wardogstracker.gg or
+the report relay; it keeps reading your screen and logging matches. Tick it again to reconnect.
+
 The dashboard only answers on your own PC (127.0.0.1), refuses requests from other websites,
 and only runs its own scripts.
 

@@ -116,9 +116,10 @@ def make_handler(app):
                     data["version"] = app.store.version()
                 data["status"] = app.status()
                 data["steam_id"] = app.cfg["steam_id"]
+                data["online"] = app.store.online()
                 return self._send(200, data)
             if path == "/api/update":
-                if not app.cfg.get("check_updates", True):
+                if not app.cfg.get("check_updates", True) or not app.store.online():
                     return self._send(200, {"available": False, "off": True})
                 return self._send(200, app.updater.state())
             m = re.fullmatch(r"/api/match/(\d+)", path)
@@ -171,6 +172,14 @@ def make_handler(app):
             if self.path == "/api/settings":
                 with app.lock:
                     return self._send(200, app.store.save_settings(self._json_body()))
+            if self.path == "/api/online":
+                if not origin:  # only from the dashboard page itself
+                    return self._send(403, {"error": "forbidden"})
+                with app.lock:
+                    app.store.set_online(bool(self._json_body().get("on")))
+                    return self._send(200, {"online": app.store.online()})
+            if self.path in ("/api/update", "/api/report", "/api/refresh") and not app.store.online():
+                return self._send(409, {"ok": False, "error": "Online mode is off. Turn it on at the top of the page first."})
             if self.path == "/api/update":
                 if not origin:  # installs code: only from the dashboard page itself
                     return self._send(403, {"error": "forbidden"})

@@ -31,6 +31,19 @@ class MetaTests(unittest.TestCase):
         self.store.save_settings({"daily_xp_goal": "12000", "weekly_xp_goal": -5, "evil": 1})
         self.assertEqual(self.store.get_meta("settings"), {"daily_xp_goal": 12000, "weekly_xp_goal": None})
 
+    def test_offline_mode_skips_the_api_status_and_catalog(self):
+        from types import SimpleNamespace
+        from wdt.tracker import Tracker
+        self.assertTrue(self.store.online())
+        self.store.set_online(False)
+        self.assertFalse(self.store.online())
+        t = SimpleNamespace(store=self.store, cfg={"steam_id": "7656", "api_minutes": 15})
+        with mock.patch("wdt.tracker.pull_api", side_effect=AssertionError("went online")),                 mock.patch("wdt.tracker.pull_status", side_effect=AssertionError("went online")),                 mock.patch("wdt.tracker.threading.Thread", side_effect=AssertionError("went online")):
+            Tracker._pull_api(t, 0)
+            Tracker._pull_status(t, 0)
+        self.store.set_online(True)
+        self.assertTrue(self.store.online())
+
     def test_pull_api_also_stores_leaderboard_neighbours_for_a_new_sync(self):
         stats = {"syncedAt": "s1", "careerXp": 5, "rank": 855}
         board = {"total": 1190, "players": [{"rank": 854, "name": "A"}, {"rank": 855, "name": "me"}]}

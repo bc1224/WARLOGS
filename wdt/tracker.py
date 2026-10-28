@@ -208,6 +208,8 @@ class Tracker:
 
     def _pull_status(self, now):
         self.next_status = now + 600
+        if not self.store.online():
+            return
         try:
             pull_status(self.store)
         except Exception as e:
@@ -215,7 +217,7 @@ class Tracker:
 
     def _pull_api(self, now):
         self.next_api = now + self.cfg["api_minutes"] * 60
-        if not self.cfg["steam_id"]:
+        if not self.cfg["steam_id"] or not self.store.online():
             return
         try:
             new, unlocked = pull_api(self.store, self.cfg["steam_id"], now)

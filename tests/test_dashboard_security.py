@@ -78,6 +78,22 @@ class DashboardSecurityTests(unittest.TestCase):
                                                                  "Content-Length": str(7 * 1024 * 1024)}, body=b"")
         self.assertEqual(r.status, 413)
 
+    def test_offline_mode_stops_every_outside_call(self):
+        page = {"Origin": f"http://127.0.0.1:{self.port}"}
+        self.assertEqual(self.get("/api/online", method="POST", body=b'{"on": false}')[0].status, 403)  # no Origin
+        r, body = self.get("/api/online", method="POST", headers=page, body=b'{"on": false}')
+        self.assertEqual((r.status, json.loads(body)), (200, {"online": False}))
+        try:
+            self.assertFalse(json.loads(self.get("/api/data")[1])["online"])
+            with mock.patch("wdt.dashboard.urllib.request.urlopen", side_effect=AssertionError("went online")),                     mock.patch("wdt.dashboard.pull_api", side_effect=AssertionError("went online")):
+                self.assertEqual(json.loads(self.get("/api/update")[1])["off"], True)
+                self.assertEqual(self.get("/api/report", method="POST", headers=page,
+                                          body=b'{"text": "Round did not log"}')[0].status, 409)
+                self.assertEqual(self.get("/api/refresh", method="POST", headers=page)[0].status, 409)
+        finally:
+            self.get("/api/online", method="POST", headers=page, body=b'{"on": true}')
+        self.assertTrue(json.loads(self.get("/api/data")[1])["online"])
+
 
 if __name__ == "__main__":
     unittest.main()
