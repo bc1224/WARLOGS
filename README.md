@@ -2,10 +2,12 @@
 
 Free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app/1867240/) on Windows.
 
-- **Logs every round automatically**: XP, cash, win/loss, role and gun
+- **Logs every round automatically**: XP, cash earned and spent, win/loss, map, role, gun, K/D
 - **Live view** for your second monitor: round profit, $/min vs your usual, scoreboard place
+- **Match pages**: where your money came from, what you spent it on, a timeline of the round
+  and each team's final score
 - **History** that shows which roles and guns actually pay off for you
-- **Replay map** on each match: scrub through the round and watch where you went
+- **Replay map** (experimental): scrub through a round and watch where you went
 
 It reads the screen like OBS does and never changes the game or its files. Everything stays on your PC.
 
@@ -20,7 +22,7 @@ It reads the screen like OBS does and never changes the game or its files. Every
 ## Setup
 
 1. [Download the ZIP](https://github.com/bc1224/wardogs-match-tracker/archive/refs/heads/main.zip) and unzip it anywhere.
-2. Double-click **`Setup.bat`**. It finds Python (or installs it), your Steam account and
+2. Double-click **`Setup.bat`**. It finds Python (or installs it), suggests your Steam ID and
    name, then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
 
@@ -56,12 +58,25 @@ The game process is never opened, read, injected or hooked, and none of its file
 
 - checks the process list to see if WARDOGS is running (like Task Manager)
 - copies pixels from the screen while WARDOGS is in front (like OBS)
+- looks for new pictures in your Steam screenshots folder, so pressing **F12** on the results
+  screen logs a match
 - calls the public [wardogstracker.gg](https://wardogstracker.gg) API for your totals
 - asks GitHub every few hours whether a newer version is out (turn off with
   `"check_updates": false` in `config.json`)
 - sends a report only when you click **Report an issue** and press Send: your text, the
   screenshot you added and the app version go to a small relay (`relay/`) that files them as a
   public GitHub issue. Nothing else from your PC is sent
+
+**Your Steam ID and name.** Setup reads Steam's list of accounts on this PC
+(`Steam\config\loginusers.vdf`) to suggest your Steam ID and name, and you confirm or change
+them. Both stay in `config.json` on your PC:
+
+- the **Steam ID** is how the tracker looks up your public profile on wardogstracker.gg for
+  career totals, unlocks and leaderboard rank
+- your **in-game name** is how it spots your own kills and deaths in the kill feed and your row
+  on the scoreboard
+
+No password or login is ever asked for or read.
 
 Untick **Online** at the top of the dashboard and it never contacts GitHub, wardogstracker.gg or
 the report relay; it keeps reading your screen and logging matches. Tick it again to reconnect.
