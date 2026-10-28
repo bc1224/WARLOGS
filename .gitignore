@@ -5,3 +5,6 @@ config.json
 WARDOGS Dashboard.url
 # real scoreboard captures (other players' names): kept local only
 tests/fixtures/
+
+# screenshot the fix workflow downloads for Claude
+/screenshot.*
