@@ -393,23 +393,44 @@ def top_bar(lines, w, h):
 # --- the gun in your hands: the nameplate "KH-2002 // 5.56MM // SN 2TMYJP5" ----
 PLATE_RE = re.compile(r"^\W*([A-Za-z0-9][\w\-. ]{1,24}?)\s*//\s*[^/]{2,16}//\s*S\W?[NM]\b", re.I)
 GUNS = ("AK74", "Galil", "M4", "FAL", "SKS", "Mosin Nagant", "AMR 50", "SV98", "KH-2002", "GGX 18",
-        "MP5", "M1911", "Judge", "RPG-7", "Glock 18", "PKM", "RPK", "Saiga", "Benelli M4", "UMP45")
+        "MP5", "M1911", "Judge", "RPG-7", "Glock 18", "PKM", "RPK", "Saiga", "Benelli M4", "UMP45",
+        "M500", "A-91", "T-21")
+# held items with a nameplate like a gun's; kept out of the gun stats
+GEAR = ("Range Finder", "Infrared Range Finder", "Monocular", "Binoculars", "Defibrillator",
+        "Field Resuscitator", "Medical Bag", "Individual First Aid Kit", "Adrenaline Pen",
+        "Large Hammer", "Repair Tool", "C4 Charge", "Remote Detonator")
+# letters and digits the nameplate font makes OCR swap: 5/S/E, 0/O, 1/I/L, 8/B, 2/Z, 6/G
+CONFUSED = str.maketrans("5e01l8z6", "ssoiibzg")
 
 
-def weapon(lines, known=()):
+def _squash(s):
+    return re.sub(r"[\s\-_.]", "", s).lower().translate(CONFUSED)
+
+
+def gun_name(raw, known=(), gear=()):
+    """A nameplate's name as a known gun, None for equipment, or as read if it's neither."""
+    guns = list(dict.fromkeys(list(GUNS) + list(known)))
+    keyed = {_squash(n): n for n in guns}
+    key = _squash(raw)
+    hit = difflib.get_close_matches(key, list(keyed), n=1, cutoff=0.75)
+    if not hit and 3 <= len(key) <= 5:
+        # short names: one wrong character ('MPE') is still that gun if no other is as close
+        near = [k for k in keyed if len(k) == len(key) and sum(a != b for a, b in zip(k, key)) == 1]
+        hit = near if len(near) == 1 else None
+    if hit:
+        return keyed[hit[0]]
+    if difflib.get_close_matches(key, [_squash(n) for n in list(GEAR) + list(gear)], n=1, cutoff=0.75):
+        return None
+    return raw.upper() if len(raw) <= 8 else raw.title()
+
+
+def weapon(lines, known=(), gear=()):
     """Name of the gun on the HUD nameplate, matched to a known name when OCR is
-    a letter or two off ('MOSIUNAGANT' -> 'Mosin Nagant')."""
+    a letter or two off ('MOSIUNAGANT' -> 'Mosin Nagant'). None for equipment."""
     for line in lines:
         m = PLATE_RE.search(_text(line))
-        if not m:
-            continue
-        raw = m.group(1).strip()
-        names = list(dict.fromkeys(list(GUNS) + list(known)))
-        squash = lambda s: re.sub(r"[\s\-_.]", "", s).lower()
-        hit = difflib.get_close_matches(squash(raw), [squash(n) for n in names], n=1, cutoff=0.75)
-        if hit:
-            return next(n for n in names if squash(n) == hit[0])
-        return raw.upper() if len(raw) <= 8 else raw.title()
+        if m:
+            return gun_name(m.group(1).strip(), known, gear)
     return None
 
 
@@ -449,7 +470,9 @@ FEED_LABELS = ("Control Zone Presence", "Hot Zone Presence", "Control Zone Enter
                "Player Assist", "Deployed Player Assist", "Revived Player Assist", "Healed Teammate",
                "Supplies Deposited", "Waited To Be Revived", "Be Revived", "Vehicle Refuelling", "Bribe",
                "Kill", "Headshot", "Revive", "Resupply", "Capture", "Target Spotted", "Target Spotted Refreshed",
-               "Spotted Target Destroyed", "Vehicle Destroyed Assist")
+               "Spotted Target Destroyed", "Vehicle Destroyed Assist", "Artillery Kill", "Kill Assist",
+               "Supplies Delivered", "Passenger Survived", "Tactical Deployment", "Defender", "Vehicle Repairing",
+               "Fob Door Closed", "Revived Teammate", "Applied Stim", "Spotted Vehicle Destroyed", "Target Destroyed")
 # XP entries read as "TARGET SPOTTED 25XP O": the number runs into XP, an icon follows it, and
 # its digits can read as letters ("soxp" for 50XP); a lone "150XP" lost its label off the edge
 XP_TAIL = re.compile(r"(?<![A-Za-z])([0-9OoIlSsBZ]{1,4})\s?XP\s*[O0o+*]?\s*$", re.I)
@@ -458,7 +481,7 @@ LONE_XP = re.compile(r"^\W*(\d{1,4})\s?XP\W*$", re.I)
 ZONE_REWARD = re.compile(r"zone|presence", re.I)  # paid every few seconds while you're in the zone
 
 
-def _feed_label(raw):
+def _feed_label(raw, cash=None):
     squash = lambda s: re.sub(r"[^A-Z]", "", s.upper())
     sq = squash(raw)
     known = {squash(k): k for k in FEED_LABELS}
@@ -470,14 +493,28 @@ def _feed_label(raw):
     for k in sorted(known, key=len, reverse=True):  # "CJERYIYEPPLAYER ASSIST" -> Player Assist
         if len(k) >= 5 and sq.endswith(k):
             return known[k]
-    if sq.endswith("PRESENCE") or sq.endswith("SENCE"):  # "L ZONE PRESENCE", "NEVESENCE"
-        return "Hot Zone Presence" if "HOT" in sq else "Control Zone Presence"
+    if (sq.endswith("PRESENCE") or sq.endswith("SENCE") or "PRESEN" in sq  # "L ZONE PRESENCE", "NEVESENCE", "GLZPNEPRESENC"
+            or "ZONE" in sq and difflib.SequenceMatcher(None, sq[-8:], "PRESENCE").ratio() >= .6):  # "IMOTZONE PQESENGE"
+        return "Hot Zone Presence" if "HOT" in sq or "OTZONE" in sq else "Control Zone Presence"
+    ends = [k for k in known if len(sq) >= 8 and k.endswith(sq)]  # the start was cut off
+    if ends:  # "DEPOSITED" is Supplies Deposited; "TEAMMATE" could be healed or revived
+        return known[ends[0]] if len(ends) == 1 else raw.strip().title()
     if sq.startswith("TIP"):  # "TIP - <player>": a tip from a teammate
         return "Tip"
     for k in known:  # "DEPLOY-I ASSIST": the middle got lost
         if len(k) > 10 and len(sq) >= 10 and sq[:5] == k[:5] and sq[-5:] == k[-5:]:
             return known[k]
-    return " ".join(raw.split()).title() if len(sq) > 6 else "Other"
+    if cash is not None and 0 < cash <= 50:  # a few dollars under a teammate's name: a tip that lost its "TIP -"
+        return "Tip"
+    # anything else is kept only if it reads as words; a smeared line
+    # ("Lennayyyy", "P A Imargencv", "E Ef Elling") is just Other
+    words = re.findall(r"[A-Za-z]+", raw)
+    if len(words) >= 2 and all(len(w) >= 3 for w in words) and all(re.search(r"[aeiouy]", w, re.I) for w in words):
+        return " ".join(w.capitalize() for w in words)
+    return "Other"
+
+
+reward_label = _feed_label
 
 
 def reward_feed(lines):
@@ -494,7 +531,8 @@ def reward_feed(lines):
             continue
         n = _num(m.group(4))
         if m.group(3):
-            out.append({"label": _feed_label(m.group(1)), "cash": -n if m.group(2) in "-−" and m.group(2) else n, "xp": None})
+            cash = -n if m.group(2) in "-−" and m.group(2) else n
+            out.append({"label": _feed_label(m.group(1), cash), "cash": cash, "xp": None})
         else:
             out.append({"label": _feed_label(m.group(1)), "cash": None, "xp": n})
     return out
@@ -507,6 +545,16 @@ TAG_RE = re.compile(r"[\[(][A-Za-z0-9]{1,6}[\])]")
 def _clean_name(text):
     words = [w.strip(".,'\"`•*|") for w in TAG_RE.sub(" ", text).split()]
     return " ".join(w for w in words if len(w) > 1 or w.isdigit()).strip()
+
+
+DISTANCE_RE = re.compile(r"^\W*\d{1,4}\s*m(?![a-z]{2})\W*", re.I)  # "1220m) Hydra", "(82mY"
+DISTANCE_TAIL = re.compile(r"[\s(\[]+\d{1,4}\s*m\W*$", re.I)  # "White Night 1598m]"
+
+
+def player_name(text):
+    """A name from the kill feed without the kill distance stuck to it; '' if nothing is left."""
+    text = DISTANCE_TAIL.sub("", DISTANCE_RE.sub("", text or "")).strip()
+    return text if len(re.sub(r"\W", "", text)) >= 2 and re.search(r"[A-Za-z]", text) else ""
 
 
 def kill_feed(lines, name):
@@ -522,9 +570,9 @@ def kill_feed(lines, name):
             continue
         before, after = _clean_name(text[:m.start()]), _clean_name(text[m.end():])
         if not before and after:
-            out.append(("kill", after))
+            out.append(("kill", player_name(after)))
         elif before:
-            out.append(("death", before))
+            out.append(("death", player_name(before)))
     return out
 
 

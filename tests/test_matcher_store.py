@@ -65,6 +65,36 @@ class StoreTests(unittest.TestCase):
         teams = [m["details"]["hud"]["team"] for m in self.s.dump()["matches"]]
         self.assertEqual(sorted(teams, key=str), sorted([None, None, "Viper"], key=str))
 
+    def test_misread_and_equipment_gun_names_are_fixed_on_open(self):
+        sid = self.s.start_session(100)
+        self.s.add_match(sid, 100, 900, "auto", details={"hud": {"reads": 9, "guns": {
+            "MPS": 9, "MP5": 2, "Infrared Range Finder": 16, "MSOO": 8, "Defibrillator": 1}},
+            "timeline": [{"t": 1, "gun": "MPS"}, {"t": 2, "gun": "Infrared Range Finder"}],
+            "rewards": {"Target Spotted": {"n": 2, "cash": 0, "xp": 50}, "Targetspotted": {"n": 1, "cash": 0, "xp": 25},
+                        "Lennayyyy": {"n": 1, "cash": 15, "xp": 0}},
+            "kill_log": [{"t": 3, "kind": "kill", "other": "1220m) Hydra"}]})
+        self.s.db.execute("DELETE FROM meta WHERE key='names_fixed'")  # a database from before the fix
+        self.s.db.close()
+        self.s = Store(os.path.join(self.dir.name, "t.db"))
+        self.assertEqual(self.s.dump()["matches"][0]["details"]["hud"]["guns"], {"MP5": 11, "M500": 8})
+        row = self.s.db.execute("SELECT details FROM matches").fetchone()[0]
+        self.assertEqual([e["gun"] for e in __import__("json").loads(row)["timeline"]], ["MP5", None])
+        det = __import__("json").loads(row)
+        self.assertEqual(det["rewards"], {"Target Spotted": {"n": 3, "cash": 0, "xp": 75}, "Tip": {"n": 1, "cash": 15, "xp": 0}})
+        self.assertEqual(det["kill_log"][0]["other"], "Hydra")
+
+    def test_result_and_role_can_be_set_by_hand(self):
+        sid = self.s.start_session(100)
+        mid = self.s.add_match(sid, 100, 900, "auto", details={"map": "Bakurani"})
+        self.s.update_match(mid, {"result": "victory", "role": "Medic"})
+        d = self.s.dump()["matches"][0]["details"]
+        self.assertEqual((d["result"], d["role"], d["map"]), ("victory", "Medic", "Bakurani"))
+        self.s.update_match(mid, {"result": None, "role": "Wizard"})  # cleared; unknown roles ignored
+        d = self.s.dump()["matches"][0]["details"]
+        self.assertEqual((d["result"], d["role"]), (None, "Medic"))
+        self.s.update_match(mid, {"result": "<script>"})
+        self.assertIsNone(self.s.dump()["matches"][0]["details"]["result"])
+
     def test_snapshot_dedupes_by_sync_time(self):
         self.assertTrue(self.s.add_snapshot({"syncedAt": "a", "careerXp": 1}))
         self.assertFalse(self.s.add_snapshot({"syncedAt": "a", "careerXp": 1}))

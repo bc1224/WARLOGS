@@ -328,7 +328,10 @@ h1 span { font-weight: 500; }
 .card h2 { color: #a3a9b1; }
 .tile .v { letter-spacing: -.01em; }
 .grid { gap: 14px; }
-#matchPage .grid.two { align-items: start; }
+#matchPage .tiles { grid-template-columns: repeat(var(--cols, 5), 1fr); }
+@media (max-width: 900px) { #matchPage .tiles { grid-template-columns: repeat(2, 1fr); } }
+table tbody[hidden] { display: none; }
+button.more { margin-top: 8px; color: var(--gold); font-size: 13px; padding: 4px 10px; }
 #matchPage .card { overflow-x: auto; }  /* wide tables scroll inside their card on a phone */
 button { border-radius: 8px; transition: border-color .15s, background .15s, color .15s; }
 button:hover { background: #262a30; }
@@ -1755,13 +1758,13 @@ async function renderMatchPage(id) {
       if (rs && rs !== lastRoles) { story.push([r.t, `Playing <b>${esc(rs)}</b>.`, false]); lastRoles = rs; }
     }
   }
-  for (const k of d.kill_log || []) story.push([k.t, k.kind === "kill" ? `Killed <b>${esc(k.other)}</b>${k.gun ? ` with the ${esc(k.gun)}` : ""}.` : `Killed by <b>${esc(k.other)}</b>.`, true]);
+  for (const k of d.kill_log || []) story.push([k.t, k.kind === "kill" ? `Killed ${k.other ? `<b>${esc(k.other)}</b>` : "an enemy"}${k.gun ? ` with the ${esc(k.gun)}` : ""}.` : `Killed by ${k.other ? `<b>${esc(k.other)}</b>` : "an enemy"}.`, true]);
   for (const x of d.downs_log || []) story.push([x.t, `<span class="neg">Went down</span>${x.here ? ` in the ${placeName[x.here]}` : ""}.`, false]);
   for (const x of d.revives_log || []) story.push([x.t, `<span class="pos">Revived</span> by a teammate${x.here ? ` in the ${placeName[x.here]}` : ""}.`, false]);
   for (const x of d.respawns_log || []) story.push([x.t, `<span class="neg">Respawned</span>${x.here ? ` in the ${placeName[x.here]}` : ""}; the top bar's profit starts over.`, true]);
   for (const x of d.promos || []) story.push([x.t, `Promoted to <b>${esc(x.role)}${x.level ? " level " + x.level : ""}</b>.`, true]);
   const big = ev.slice().sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 6);
-  for (const e of big) story.push([e.t, `${e.delta > 0 ? `Made <b class="pos">${money(e.delta)}</b>` : e.vendor ? `Bought <b>${esc(e.vendor)}</b> for <b class="neg">${money(-e.delta)}</b>` : `Spent or lost <b class="neg">${money(-e.delta)}</b>`}${e.here ? ` in the ${placeName[e.here]}` : ""}${e.gun ? ` with the ${esc(e.gun)}` : ""}${e.items?.length ? ` <span class="m">(${esc(e.items.slice(0, 3).join(", "))} on screen)</span>` : ""}.`, true]);
+  for (const e of big) story.push([e.t, `${e.delta > 0 ? `Round profit up <b class="pos">${money(e.delta)}</b>` : e.vendor ? `Bought <b>${esc(e.vendor)}</b> for <b class="neg">${money(-e.delta)}</b>` : `Round profit down <b class="neg">${money(-e.delta)}</b> <span class="m">(buying, a lost vehicle or a respawn)</span>`}${e.here ? ` in the ${placeName[e.here]}` : ""}${e.gun && e.delta > 0 ? ` holding the ${esc(e.gun)}` : ""}.`, true]);
   story.push([m.ended_at, `Match over${d.winner ? `: <b>${esc(d.winner)}</b> won` : ""}${n != null ? `, ${n >= 0 ? "up" : "down"} <b class="${n >= 0 ? "pos" : "neg"}">${money(Math.abs(n))}</b>` : ""}${m.xp != null ? ` and <b>${fmt(m.xp)} XP</b>` : ""}.`, true]);
   story.sort((a, b) => a[0] - b[0]);
   const keyMoments = story.filter((s) => s[2]);
@@ -1769,7 +1772,7 @@ async function renderMatchPage(id) {
   const storyBody = (keyMoments.length < story.length ? storyList(keyMoments.length > 12 ? [...keyMoments.slice(0, 11), keyMoments[keyMoments.length - 1]] : keyMoments)
       + `<details class="more"><summary>Show all ${story.length} moments</summary>${storyList(story)}</details>` : storyList(story));
   const KILLS_SHOWN = 6, kl = d.kill_log || [];
-  const killRow = (k) => `<tr><td class="m">${at(k.t)}</td><td class="${k.kind === "kill" ? "pos" : "neg"}">${k.kind === "kill" ? "Kill" : "Death"}</td><td>${esc(k.other)}</td><td>${esc(k.gun || "–")}</td><td>${k.here ? placeName[k.here] : "–"}</td></tr>`;
+  const killRow = (k) => `<tr><td class="m">${at(k.t)}</td><td class="${k.kind === "kill" ? "pos" : "neg"}">${k.kind === "kill" ? "Kill" : "Death"}</td><td>${k.other ? esc(k.other) : `<span class="m">name not read</span>`}</td><td>${esc(k.gun || "–")}</td><td>${k.here ? placeName[k.here] : "–"}</td></tr>`;
 
   const card = (title, body, sub = "") => `<div class="card"><h2>${title}${sub ? ` <small>${sub}</small>` : ""}</h2>${body}</div>`;
   const pctBar = (v) => `<div class="hbar"><span style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%"></span></div>`;
@@ -1787,19 +1790,19 @@ async function renderMatchPage(id) {
   const rewardRow = (r, top) => `<tr><td>${esc(r.label)}${r.n > 1 ? ` <span class="m">×${r.n}</span>` : ""}</td>
     <td>${r.cash > 0 ? pctBar(r.cash / top) : ""}</td>
     <td class="num ${r.cash < 0 ? "neg" : r.cash > 0 ? "pos" : ""}">${r.cash ? signed(r.cash, money) : "–"}</td><td class="num">${r.xp ? signed(r.xp) : "–"}</td></tr>`;
-  const rewardTable = (rows) => { const top = Math.max(1, ...rewardList.map((r) => r.cash));
-    return `<table class="rewards"><thead><tr><th>Reward</th><th></th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${rows.map((r) => rewardRow(r, top)).join("")}</tbody></table>`; };
+  const rewardTable = (rows, more = []) => { const top = Math.max(1, ...rewardList.map((r) => r.cash));
+    return `<table class="rewards"><thead><tr><th>Reward</th><th></th><th class="num">Cash</th><th class="num">XP</th></tr></thead><tbody>${rows.map((r) => rewardRow(r, top)).join("")}</tbody>${more.length ? `<tbody hidden>${more.map((r) => rewardRow(r, top)).join("")}</tbody>` : ""}</table>`
+      + (more.length ? `<button class="more" data-rows="Show all ${rows.length + more.length} rewards">Show all ${rows.length + more.length} rewards</button>` : ""); };
   const extraTables = [
     Object.keys(d.vendor || {}).length ? `<table><thead><tr><th>Bought at the vendor</th><th class="num">Spent</th></tr></thead><tbody>${Object.entries(d.vendor).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
       `<tr><td>${esc(k)}</td><td class="num neg">${money(v)}</td></tr>`).join("")}</tbody></table>` : "",
     Object.keys(byGun).length ? `<table><thead><tr><th>Holding</th><th class="num">Made</th><th class="num">Spent / lost</th></tr></thead><tbody>${Object.entries(byGun).sort((a, b) => b[1].gain - a[1].gain).map(([g, r]) => `<tr><td>${esc(g)}</td><td class="num pos">${money(r.gain)}</td><td class="num neg">${money(r.loss)}</td></tr>`).join("")}</tbody></table>` : ""].filter(Boolean);
-  const SHOW = 5, hidden = rewardList.length - SHOW;
+  const SHOW = 5;
   const moneyBody = `${Object.keys(sm).length ? `<div class="msum">${[["Earned", sm.gained, "pos", sm.bonus ? `incl. ${money(sm.bonus)} bonus` : ""], ["Spent", sm.spent == null ? null : -sm.spent, "neg", ""],
       ["Net", sm.gained != null && sm.spent != null ? sm.gained - sm.spent : null, null, ""]].filter((r) => r[1] != null).map(([k, v, c, s]) =>
       `<div><div class="k">${k}</div><div class="v ${c || (v < 0 ? "neg" : "pos")}">${signed(v, money)}</div>${s ? `<div class="m">${s}</div>` : ""}</div>`).join("")}</div>` : ""}
-    ${rewardList.length ? rewardTable(rewardList.slice(0, SHOW)) : ""}
-    ${hidden > 0 || extraTables.length ? `<details class="more"><summary>${hidden > 0 ? `Show all ${rewardList.length} rewards` : "Show more"}${extraTables.length ? ", vendor and gun breakdown" : ""}</summary>
-      ${hidden > 0 ? rewardTable(rewardList.slice(SHOW)).replace("<thead><tr><th>Reward</th><th></th><th class=\"num\">Cash</th><th class=\"num\">XP</th></tr></thead>", "") : ""}${extraTables.join("")}</details>` : ""}
+    ${rewardList.length ? rewardTable(rewardList.slice(0, SHOW), rewardList.slice(SHOW)) : ""}
+    ${extraTables.length ? `<details class="more"><summary>Vendor and gun breakdown</summary>${extraTables.join("")}</details>` : ""}
     ${!Object.keys(sm).length && !rewardList.length && !extraTables.length ? `<div class="empty">The money screen after the match (spent / gained / bonus) and in-match money changes show here.</div>` : ""}`;
   const noTimeline = `<div class="empty">No in-match reads were saved for this match. Matches from now on record where you were, your gun and every money change.</div>`;
   const field = (k) => `<input class="edit${!m.reviewed && m[k] != null ? " guess" : ""}" data-id="${m.id}" data-k="${k}" value="${m[k] ?? ""}" inputmode="numeric" style="width:110px">`;
@@ -1813,7 +1816,7 @@ async function renderMatchPage(id) {
     <div class="mp-nav"><button data-go="${prev?.id || ""}" ${prev ? "" : "disabled"}>← Older</button><button data-go="${next?.id || ""}" ${next ? "" : "disabled"}>Newer →</button></div>
   </div></div>
 
-  <div class="grid tiles">
+  <div class="grid tiles" style="--cols:${Math.min(5, Math.ceil((8 + !!d.combat + (d.live_cash?.end_balance != null)) / 2))}">
     ${tile("XP", fmt(m.xp), vsAvg(m.xp, base.xp) || (m.xp == null ? "not on the screens read" : ""))}
     ${tile("Net cash", `<span class="${n < 0 ? "neg" : n > 0 ? "pos" : ""}">${money(n)}</span>`, vsAvg(n, base.cash))}
     ${tile("Earned", money(m.cash_earned), sm.bonus != null ? `incl. ${money(sm.bonus)} bonus` : "")}
@@ -1853,8 +1856,8 @@ async function renderMatchPage(id) {
     ${card("Compared to your average", `<table><thead><tr><th></th><th class="num">This match</th><th class="num">Your average</th><th></th></tr></thead><tbody>
       ${[["XP", m.xp, base.xp, fmt], ["Net cash", n, base.cash, money], ["XP / min", xpMin, base.xpMin, (v) => v.toFixed(0)], ["Cash / min", cashMin, base.cashMin, money], ["Length", len, base.len, dur]].map(([k, v, a, f]) =>
         `<tr><td>${k}</td><td class="num">${v == null ? "–" : f(v)}</td><td class="num">${a == null ? "–" : f(a)}</td><td>${vsAvg(v, a)}</td></tr>`).join("")}</tbody></table>`)}
-    ${card("Fights", d.combat ? `${kl.length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${kl.slice(0, KILLS_SHOWN).map(killRow).join("")}</tbody></table>
-        ${kl.length > KILLS_SHOWN ? `<details class="more"><summary>Show all ${kl.length} fights</summary><table><tbody>${kl.slice(KILLS_SHOWN).map(killRow).join("")}</tbody></table></details>` : ""}`
+    ${card("Fights", d.combat ? `${kl.length ? `<table><thead><tr><th>When</th><th></th><th>Who</th><th>Your gun</th><th>Where</th></tr></thead><tbody>${kl.slice(0, KILLS_SHOWN).map(killRow).join("")}</tbody>${kl.length > KILLS_SHOWN ? `<tbody hidden>${kl.slice(KILLS_SHOWN).map(killRow).join("")}</tbody>` : ""}</table>
+        ${kl.length > KILLS_SHOWN ? `<button class="more" data-rows="Show all ${kl.length} fights">Show all ${kl.length} fights</button>` : ""}`
       : `<div class="empty" style="padding:10px">No kills or deaths with your name showed in the kill feed.</div>`}
       <p class="m">${esc(lives(d.combat)).replace(/^d/, "D")}. The kill feed is read every 1.5 seconds, so fast ones can be missed.</p>`
       : `<div class="empty">Kills, deaths and downs are tracked for matches from now on.</div>`, "from the kill feed")}
@@ -1870,6 +1873,8 @@ async function renderMatchPage(id) {
   <div class="card"><h2>Fix or note <small>edited numbers turn white and count as checked</small></h2>
     <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end">
       <label>XP<br>${field("xp")}</label><label>Cash earned<br>${field("cash_earned")}</label><label>Cash spent<br>${field("cash_spent")}</label>
+      <label>Result<br><select class="edit" data-setk="result" data-mid="${m.id}">${["", "victory", "defeat", "draw"].map((r) => `<option value="${r}" ${(m.details?.result || "") === r ? "selected" : ""}>${r ? cap(r) : "–"}</option>`).join("")}</select></label>
+      <label>Role<br><select class="edit" data-setk="role" data-mid="${m.id}">${["", "Assault", "Medic", "Recon", "Support", "Driver", "Pilot"].map((r) => `<option value="${r}" ${(m.details?.role || "") === r ? "selected" : ""}>${r || (mainRole(m) ? `${cap(mainRole(m))} (read)` : "–")}</option>`).join("")}</select></label>
       <label style="flex:1;min-width:220px">Note<br><input class="edit note" data-note="${m.id}" value="${esc(m.notes || "")}" placeholder="add note" style="width:100%"></label>
       <label><input type="checkbox" data-review="${m.id}" ${m.reviewed ? "checked" : ""}> numbers checked</label>
       ${m.source.startsWith("auto") ? `<button class="link" data-notend="${m.id}">not a match</button>` : ""}<button class="link" data-del="${m.id}">delete</button>
@@ -2824,6 +2829,7 @@ function buyNext(role, L, has) {
 // Progression screen, or the only role seen. Loadout screens list every role, so
 // "roles seen" alone can't say.
 function mainRole(m) {
+  if (m.details?.role) return m.details.role.toLowerCase();  // set by hand on the match page
   const rx = m.details?.role_xp;
   if (rx) {
     const best = Object.entries(rx).filter(([, v]) => v.gain > 0).sort((a, b) => b[1].gain - a[1].gain)[0];
@@ -2909,6 +2915,8 @@ document.addEventListener("change", async (e) => {
     const body = {};
     document.querySelectorAll("[data-goal]").forEach((i) => { const v = i.value.replace(/[^\d]/g, ""); body[i.dataset.goal] = v === "" ? null : Number(v); });
     await post("/api/settings", body); editing = false; load();
+  } else if (t.dataset.setk) {
+    await post(`/api/match/${t.dataset.mid}`, { [t.dataset.setk]: t.value || null }); editing = false; load();
   } else if (t.dataset.note) {
     await post(`/api/match/${t.dataset.note}`, { notes: t.value.trim() || null }); editing = false; load();
   }
@@ -2921,6 +2929,9 @@ document.addEventListener("click", (e) => {
   if (e.target.closest?.("#reportDrop")) $("reportFile").click();
   if (e.target.closest?.("#reportClear")) setReportImage(null);
   if (e.target.closest?.("[data-all-matches]")) location.hash = "matches";
+  const more = e.target.closest?.("button[data-rows]");
+  if (more) { const tb = more.previousElementSibling?.querySelector("tbody[hidden], tbody[data-shown]");
+    if (tb) { const open = tb.hidden; tb.hidden = !open; tb.toggleAttribute("data-shown", open); more.textContent = open ? "Show fewer" : more.dataset.rows; } }
 });
 // the More menu closes on a click outside it or Escape
 document.addEventListener("click", (e) => { const m = $("moreMenu"); if (m.open && !m.contains(e.target)) m.open = false; });
