@@ -260,6 +260,19 @@ class TrackerHudTests(unittest.TestCase):
         m = self.store.dump()["matches"][0]
         self.assertEqual((m["cash_earned"], m["cash_spent"]), (18942, 6555))
 
+    def test_looting_a_body_is_not_a_results_screen(self):
+        # 2026-10-29: an item tooltip ("REWARDS + MEDIC XP") and the reward feed's
+        # "25XP" on the looting screen were logged as a 9 minute round
+        loot = [L("$8,233", 1635, 33), L("$13,396", 1739, 33), L("75", 1845, 33),
+                L("REVIVED PLAYER ASSIST 25XP", 1790, 70), L("REVIVED PLAYER ASSIST 25XP", 1790, 90),
+                L("LOOTING...", 466, 150), L("FISH HEAD", 300, 182), L("DECEASED PLAYER", 279, 221),
+                L("VALUE", 619, 221), L("$7,600", 678, 221), L("HEALTH", 775, 148), L("WEIGHT", 870, 148),
+                L("EQUIPMENT", 784, 207), L("BANDAGE", 1214, 161), L("MEDICAL // QUICK SLOT", 1274, 182),
+                L("REWARDS + MEDIC XP", 1251, 310), L("Drop", 1200, 374), L("Drop One", 1243, 412),
+                L("Split Stack", 1248, 450), L("Swap / Move", 1221, 488), L("Close", 196, 1013),
+                L("Toggle Weight", 335, 1013), L("Quick Transfer", 512, 1013)]
+        self.assertFalse(looks_like_end_screen(loot))
+
     def test_winner_banner_ends_the_match_and_progression_fills_it_in(self):
         banner = [L("$13,000", 1588, 25), L("$48,285", 1704, 24), L("62", 1836, 26),
                   L("[ALL] Foul Brickhouse: GG", 44, 132), L("VALKYRA", 986, 453), L("WINS", 1091, 578)]
