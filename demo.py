@@ -179,6 +179,8 @@ def build(ddir, now, idle):
             hot = int(hud_reads * rng.uniform(0.2, 0.65))
             details = {
                 "result": "victory" if win else "defeat", "map": "Bakurani",
+                # you play red, whose score bar reads 100 on a win; green takes the rest
+                "side": "red", "winner": "VALKYRA" if win else "VIPER",
                 "used": {"roles": sorted({role, other}), "items": rng.sample(OWNED, 3)},
                 "live_cash": {"net": earned - spent, "start_balance": balance, "end_balance": balance + earned - spent},
                 "hud": {"reads": hud_reads, "hot": hot, "fob": int(hud_reads * rng.uniform(0.02, 0.15)),
@@ -272,7 +274,7 @@ def live_round(now, balance, idle):
         r["xp"] += e["xp"] or 0
     return {"started": start, "between": idle, "reads": 76, "hot": 41, "fob": 6, "here": "hotzone",
             "last_read": now - 2, "net": net, "balance": balance + net, "start_balance": balance,
-            "events": events[-15:], "team": "Viper", "gun": "Mosin Nagant", "guns": {"Mosin Nagant": 60},
+            "events": events[-15:], "team": "Viper", "side": "red", "gun": "Mosin Nagant", "guns": {"Mosin Nagant": 60},
             "kills": 3, "deaths": 1, "downs": 1, "down": None, "rewards": rewards, "feed": feed[-12:],
             "vendor": {"Medic": 5300}, "kill_log": kills,
             "used": {"roles": ["Recon"], "items": ["Mosin Nagant", "Large Hammer"]},

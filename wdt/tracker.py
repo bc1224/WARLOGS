@@ -315,6 +315,8 @@ class Tracker:
             info["respawns_log"] = h["respawns_log"]
         if h["board"]:
             info["board"] = h["board"]
+        if h["side"]:
+            info["side"] = h["side"]
         score = teams.summary(h["team_reads"])
         if score:
             info["teams"] = score
@@ -515,7 +517,7 @@ class Tracker:
                 "respawns_log": [], "life_new": None, "revives_log": [], "promos": [], "vendor": {},
                 "vendor_item": None, "vendor_prev": None, "zone_seen": None, "odd_net": None, "odd_start": None, "life_start": None,
                 "cash_seen": None,
-                "playing": None, "board": None, "team_reads": [], "track": None, "track_n": 0, "maps": []}
+                "playing": None, "board": None, "side": None, "team_reads": [], "track": None, "track_n": 0, "maps": []}
 
     def _note_cash(self, now, lines):
         """Round profit and balance from the top bar; each change is logged with
@@ -613,7 +615,7 @@ class Tracker:
                 "reads": h["reads"], "hot": h["hot"], "fob": h["fob"], "here": h["here"],
                 "last_read": h["last"], "net": h["net"], "balance": h["balance"],
                 "start_balance": h["start_balance"], "events": h["events"][-15:],
-                "team": max(h["teams"], key=h["teams"].get) if h["teams"] else None,
+                "team": max(h["teams"], key=h["teams"].get) if h["teams"] else None, "side": h["side"],
                 "gun": h["gun"], "guns": h["guns"],
                 "kills": len(h["kills"]), "deaths": len(h["deaths"]), "downs": h["downs"], "down": h["down"],
                 "respawns": len(h["respawns_log"]), "revives": len(h["revives_log"]),
@@ -896,9 +898,11 @@ class Tracker:
             self.matcher.mark_end(now)  # a break tab: the Score and Progression tabs still merge after it
             mid = self.store.last_match(self.session)
             if mid is not None and board["me"]:
-                self.store.fill_match(mid, {}, {"board_end": board})
+                self.store.fill_match(mid, {}, {"board_end": board, "side": board.get("team")})
             return
         self.hud["board"] = board
+        if board.get("team"):  # the faction icon on your row: the team you're playing for
+            self.hud["side"] = board["team"]
         if self.hud["playing"] is None:
             self.hud["playing"] = now
         self._save_sample(now, "scoreboard", lines) if "scoreboard" not in self.hud["saved"] else None
