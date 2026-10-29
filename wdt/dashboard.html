@@ -111,6 +111,15 @@ details.more { margin-top: 8px; }
 details.more > summary { cursor: pointer; color: var(--gold); font-size: 13px; padding: 6px 0; }
 details.more table { margin-top: 8px; }
 /* collapsible detail sections: a one-line header, the cards inside on demand */
+.subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 16px; border-bottom: 1px solid var(--line); }
+.subtabs button { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--muted);
+  font: inherit; font-size: 13px; font-weight: 600; padding: 8px 12px; cursor: pointer; }
+.subtabs button:hover { color: var(--text); }
+.subtabs button[aria-selected="true"] { color: var(--gold); border-bottom-color: var(--gold); }
+div.sec > .sh { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+th button.sorth { background: none; border: 0; padding: 0; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; cursor: pointer; }
+th button.sorth:hover, th button.sorth.on { color: var(--gold); }
+.sortbar { display: flex; width: max-content; margin: -6px 0 6px auto; }
 details.sec { margin-top: 12px; }
 details.sec > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap;
   background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
@@ -214,6 +223,24 @@ td.used { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: va
 .heat .d { align-self: center; }
 input.edit.note { width: 170px; text-align: left; }
 .search { background: #101214; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; width: min(340px, 100%); margin-bottom: 10px; }
+/* Overview: one strip of figures split by hairlines instead of boxes inside boxes */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; background: var(--line);
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.kpi { background: var(--panel); padding: 14px 18px; min-width: 0; text-align: left; border: 0; font: inherit; color: inherit; }
+.kpi .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.kpi .v { font: 700 26px/1.15 Bahnschrift, "Segoe UI", sans-serif; margin-top: 6px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.kpi .s { font-size: 12px; color: var(--muted); margin-top: 3px; }
+.kpi .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+button.kpi { cursor: pointer; transition: background .15s; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; }
+button.kpi:hover { background: var(--panel2); }
+button.kpi:hover .open { color: var(--gold); }
+.kpi .open { font-size: 12px; color: var(--muted); margin-top: auto; padding-top: 10px; }
+.recaptop { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; margin-bottom: 16px; }
+.recaptop .recaphead { margin: 0; }
+.herov { text-align: right; }
+.herov .k { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.herov .v { font: 700 40px/1 Bahnschrift, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; margin-top: 4px; }
+@media (max-width: 600px) { .herov { text-align: left; } .herov .v { font-size: 32px; } }
 .recaphead { margin: 2px 0 12px; font: 600 22px/1.3 Bahnschrift, "Segoe UI", sans-serif; text-wrap: balance; }
 .nexttime { margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--gold); background: #1b1e22; border-radius: 0 6px 6px 0; }
 .nexttime b { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin-bottom: 2px; }
@@ -465,13 +492,13 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
   </section>
 
   <section class="panel" data-panel="overview">
-    <div class="grid tiles" id="tiles"></div>
+    <div class="kpis" id="tiles" style="margin-top:16px"></div>
     <div class="grid"><div class="card" id="recap"></div></div>
     <div class="grid"><div class="card">
       <h2>Best rounds <small id="bestRange"></small></h2>
-      <div class="grid tiles" id="best" style="margin-top:0"></div>
+      <div id="best"></div>
     </div></div>
-    <details class="sec" data-sec="trend"><summary><span class="st">XP and cash per match</span><span class="sh">charts for this time range and totals by day or week</span></summary>
+    <div class="sec" data-sec="trend" data-title="XP and cash per match" role="tabpanel"><p class="sh">Charts for this time range and totals by day or week.</p>
       <div class="grid two">
         <div class="card"><h2>XP per match</h2><div class="chart" id="xpChart"></div></div>
         <div class="card"><h2>Net cash per match</h2><div class="chart" id="cashChart"></div></div>
@@ -479,14 +506,14 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
       <div class="grid"><div class="card">
         <h2>Totals <small id="bucketName"></small></h2><div class="chart" id="bucketChart"></div>
       </div></div>
-    </details>
-    <details class="sec" data-sec="goals"><summary><span class="st">Goals and streaks</span><span class="sh">daily and weekly XP goals, win and profit streaks</span></summary>
+    </div>
+    <div class="sec" data-sec="goals" data-title="Goals and streaks" role="tabpanel"><p class="sh">Daily and weekly XP goals, win and profit streaks.</p>
       <div class="grid two">
         <div class="card tz"><h2>XP goals</h2><div id="goals"></div></div>
         <div class="card"><h2>Streaks</h2><div class="grid tiles" id="streaks" style="margin-top:0"></div></div>
       </div>
-    </details>
-    <details class="sec" data-sec="sessions"><summary><span class="st">Sessions</span><span class="sh">XP per hour and every play session in this time range</span></summary>
+    </div>
+    <div class="sec" data-sec="sessions" data-title="Sessions" role="tabpanel"><p class="sh">XP per hour and every play session in this time range.</p>
       <div class="grid"><div class="card">
         <h2>XP per hour, by session</h2><div class="chart" id="sessionChart"></div>
       </div></div>
@@ -494,19 +521,19 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
         <h2>Sessions <small id="sessionCount"></small></h2>
         <div class="scroll"><table id="sessions"></table></div>
       </div></div>
-    </details>
+    </div>
   </section>
 
   <section class="panel" data-panel="insights">
     <div class="grid tiles" id="winTiles"></div>
     <div class="grid two">
       <div class="card"><h2>What pays you <small>by role</small></h2><div id="byRole"></div></div>
-      <div class="card"><h2>By item used</h2><div class="scroll" id="byItem"></div></div>
+      <div class="card"><h2>By gun <small>the one in your hands most</small></h2><div class="scroll" id="byItem"></div></div>
     </div>
-    <details class="sec" data-sec="winrate"><summary><span class="st">Win rate over time</span><span class="sh">rolling, last 10 matches with a result</span></summary>
+    <div class="sec" data-sec="winrate" data-title="Win rate over time" role="tabpanel"><p class="sh">Rolling, last 10 matches with a result.</p>
       <div class="grid"><div class="card"><div class="chart" id="winChart"></div></div></div>
-    </details>
-    <details class="sec" data-sec="sources"><summary><span class="st">Where your XP and cash came from</span><span class="sh">rewards, kills and objectives, plus the full cash breakdown</span></summary>
+    </div>
+    <div class="sec" data-sec="sources" data-title="Where your XP and cash came from" role="tabpanel"><p class="sh">Rewards, kills and objectives, plus the full cash breakdown.</p>
       <div class="grid two">
         <div class="card"><h2>Where your XP came from</h2><div class="chart" id="srcXpChart"></div></div>
         <div class="card"><h2>Where your cash came from</h2><div class="chart" id="srcCashChart"></div></div>
@@ -514,8 +541,8 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
       <div class="grid"><div class="card"><h2>XP and cash sources <small id="srcNote"></small></h2><div class="scroll" id="srcTable"></div></div></div>
       <div class="grid"><div class="card"><h2>Cash breakdown</h2><div class="grid tiles" id="cashTiles" style="margin-top:0"></div>
         <h2 style="margin-top:16px">Matches that lost money</h2><div class="scroll" id="lossTable"></div></div></div>
-    </details>
-    <details class="sec" data-sec="where"><summary><span class="st">Zone, team, map and fights</span><span class="sh">Hot Zone vs FOB, by team and map, kills and deaths</span></summary>
+    </div>
+    <div class="sec" data-sec="where" data-title="Zone, team, map and fights" role="tabpanel"><p class="sh">Hot Zone vs FOB, by team and map, kills and deaths.</p>
       <div class="grid two">
         <div class="card"><h2>Hot Zone vs FOB <small>where in-match reads found you</small></h2><div class="scroll" id="byWhere"></div></div>
         <div class="card"><h2>By team</h2><div class="scroll" id="byTeam"></div></div>
@@ -524,14 +551,14 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
         <div class="card"><h2>By map <small>from the results banner</small></h2><div class="scroll" id="byMap"></div></div>
         <div class="card"><h2>Fights <small>kills and deaths from the kill feed, downs from the screen</small></h2><div class="scroll" id="byFight"></div></div>
       </div>
-    </details>
-    <details class="sec" data-sec="timing"><summary><span class="st">When you play best</span><span class="sh">XP per hour by time of day and by time into a session</span></summary>
+    </div>
+    <div class="sec" data-sec="timing" data-title="When you play best" role="tabpanel"><p class="sh">XP per hour by time of day and by time into a session.</p>
       <div class="grid two">
         <div class="card"><h2>Best time to play <small>XP per hour played, by match start</small></h2><div class="tz"><div class="heat" id="heat"></div></div></div>
         <div class="card"><h2>Fatigue check <small>XP per hour by time into a session</small></h2><div class="chart" id="fatigueChart"></div><div class="s" id="fatigueNote" style="color:var(--muted);margin-top:6px"></div></div>
       </div>
-    </details>
-    <details class="sec" data-sec="strategy"><summary><span class="st">Role briefing</span><span class="sh">pick a role: how to level it, how to make cash, and your numbers</span></summary>
+    </div>
+    <div class="sec" data-sec="strategy" data-title="Role briefing" role="tabpanel"><p class="sh">Pick a role: how to level it, how to make cash, and your numbers.</p>
       <div class="strat" id="strat"></div>
       <div class="grid"><div class="card"><h2>For every role</h2><ul style="margin:0;padding-left:18px;line-height:1.6">
         <li>Early levels are cheap, so keeping all six roles moving raises your Wardog level fastest.</li>
@@ -546,7 +573,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
           <a href="https://mobalytics.gg/gamebase/guides/wardogs-class-leveling-guide" target="_blank" rel="noopener">Mobalytics class leveling</a>,
           <a href="https://allthings.how/wardogs-leveling-guide-fastest-xp-for-all-six-classes/" target="_blank" rel="noopener">All Things How</a>.</p>
       </div></div>
-    </details>
+    </div>
   </section>
 
   <section class="panel" data-panel="matches">
@@ -569,17 +596,17 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
       <div class="card"><h2>Level forecast <small>estimated</small></h2><div class="scroll" id="forecast"></div>
         <div id="forecastNote" style="color:var(--muted);font-size:12px;margin-top:8px;line-height:1.5"></div></div>
     </div>
-    <details class="sec" data-sec="careercharts"><summary><span class="st">Career over time</span><span class="sh">career XP, cash on hand and leaderboard rank</span></summary>
+    <div class="sec" data-sec="careercharts" data-title="Career over time" role="tabpanel"><p class="sh">Career XP, cash on hand and leaderboard rank.</p>
       <div class="grid two">
         <div class="card"><h2>Career XP <small>synced totals</small></h2><div class="chart" id="careerChart"></div></div>
         <div class="card"><h2>Cash on hand <small>synced totals</small></h2><div class="chart" id="walletChart"></div></div>
       </div>
       <div class="grid"><div class="card"><h2>Leaderboard rank <small>level leaderboard</small></h2><div class="chart" id="rankChart"></div></div></div>
-    </details>
-    <details class="sec" data-sec="unlocks"><summary><span class="st">Unlocks</span><span class="sh">what you unlocked recently and everything you own</span></summary>
+    </div>
+    <div class="sec" data-sec="unlocks" data-title="Unlocks" role="tabpanel"><p class="sh">What you unlocked recently and everything you own.</p>
       <div class="grid"><div class="card"><div id="unlocks"></div></div></div>
-    </details>
-    <details class="sec" data-sec="totals"><summary><span class="st">Synced totals</span><span class="sh">career totals from WARDOGS Tracker, and a manual sync</span></summary>
+    </div>
+    <div class="sec" data-sec="totals" data-title="Synced totals" role="tabpanel"><p class="sh">Career totals from WARDOGS Tracker, and a manual sync.</p>
       <div class="grid"><div class="card">
         <div id="totals"></div>
         <p style="margin:12px 0 0;display:flex;gap:8px;flex-wrap:wrap">
@@ -587,7 +614,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
           <a id="syncLink" target="_blank" rel="noopener"><button>Update my stats on WARDOGS Tracker</button></a>
         </p>
       </div></div>
-    </details>
+    </div>
   </section>
 
   <footer>Totals from <a href="https://wardogstracker.gg" target="_blank" rel="noopener">WARDOGS Tracker</a>. Per-match numbers are read from your end-of-match screen on this PC. Gold numbers are OCR guesses; click to correct.</footer>
@@ -650,11 +677,31 @@ const RANGES = { session: "in your last session", hour: "in the last hour", day:
 const NO_RANGE = ["live", "match"];
 function tabFor(h) {
   if (!MOVED[h]) return h;
-  const sec = document.querySelector(`details.sec[data-sec="${h}"]`);
-  if (sec) sec.open = true;
+  showSec(h);
   return MOVED[h];
 }
-// detail sections stay open or closed the way you left them
+// each tab's detail sections sit behind a row of sub-tabs, one shown at a time,
+// and each tab remembers which one you picked
+function showSec(name) {
+  const sec = document.querySelector(`div.sec[data-sec="${name}"]`);
+  if (!sec) return;
+  const panel = sec.closest(".panel");
+  panel.querySelectorAll("div.sec").forEach((s) => { s.hidden = s !== sec; });
+  panel.querySelectorAll("[data-subtab]").forEach((b) => b.setAttribute("aria-selected", b.dataset.subtab === name));
+  store.set("wdt-sub-" + panel.dataset.panel, name);
+}
+document.querySelectorAll(".panel").forEach((panel) => {
+  const secs = [...panel.querySelectorAll("div.sec")];
+  if (!secs.length) return;
+  const bar = document.createElement("div");
+  bar.className = "subtabs";
+  bar.setAttribute("role", "tablist");
+  bar.innerHTML = secs.map((s) => `<button role="tab" data-subtab="${s.dataset.sec}">${s.dataset.title}</button>`).join("");
+  secs[0].before(bar);
+  const saved = store.get("wdt-sub-" + panel.dataset.panel);
+  showSec(secs.some((s) => s.dataset.sec === saved) ? saved : secs[0].dataset.sec);
+});
+// the Round plan card stays open or closed the way you left it
 document.querySelectorAll("details.sec").forEach((d) => { if (store.get("wdt-sec-" + d.dataset.sec) === "1") d.open = true; });
 document.addEventListener("toggle", (e) => {
   const d = e.target;
@@ -890,7 +937,7 @@ function render() {
     ["XP", fmt(sum(ms, (m) => m.xp)), playSecs > 300 ? fmt(sum(ms, (m) => m.xp) / playSecs * 3600) + " XP / hour" : rname],
     ["Net cash", `<span class="${sum(ms, net) < 0 ? "neg" : "pos"}">${money(sum(ms, net))}</span>`, "earned minus spent"],
     ["Avg XP / match", xpN ? fmt(sum(ms, (m) => m.xp) / xpN) : "–", rname],
-  ].map(([k, v, s]) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  ].map(([k, v, s]) => kpi(k, v, s)).join("");
   // the session recap below already says all of this for "Last session"; level, cash and unlocks live on Career
   $("tiles").hidden = range === "session";
 
@@ -971,8 +1018,7 @@ const topKey = (o) => { const e = Object.entries(o || {}); return e.length ? e.s
 
 function matchCard(m, base) {
   const d = m.details || {}, n = net(m), h = d.hud, u = d.used || {};
-  const roleGain = Object.entries(d.role_xp || {}).filter(([, v]) => v.gain).sort((a, b) => b[1].gain - a[1].gain);
-  const role = roleGain[0]?.[0] || (u.roles || [])[0];
+  const role = mainRole(m) && cap(mainRole(m));
   const gun = topKey(h?.guns);
   const w = where(m);
   const chips = [
@@ -1016,15 +1062,16 @@ function renderRecap() {
   if (sessCash != null && base.cashMin != null && sessCash < base.cashMin * 0.8) tips.push(`Cash rate was ${money(sessCash)}/min against your usual ${money(base.cashMin)}/min. Check what you spent on in the match pages.`);
   if (sum(ms, (m) => m.cash_spent) > sum(ms, (m) => m.cash_earned) * 0.6) tips.push("Spending ate most of your earnings. Try a cheaper loadout until a round pays for it.");
   if (!tips.length) tips.push(best ? `Repeat what worked in your best round (${money(net(best))}): open it below to see where the money came from.` : "Solid session. Keep the same approach.");
-  const n = sum(nets, (x) => x), xp = sum(ms, (m) => m.xp), secs = sum(ms.filter((m) => m.xp != null), mlen);
+  const n = sum(nets, (x) => x), xp = sum(ms, (m) => m.xp), xpKnown = ms.some((m) => m.xp != null), secs = sum(ms.filter((m) => m.xp != null), mlen);
   const res = ms.map(won).filter((x) => x != null), w = res.filter((x) => x === 1).length;
   el.innerHTML = `<h2>${live ? "This session" : "Last session"} <small>${when(s.started_at)}${s.ended_at ? " to " + clock(s.ended_at) : ", still playing"} · ${dur(sum(ms, mlen))} played</small></h2>
-    <p class="recaphead">${fmt(ms.length)} match${ms.length === 1 ? "" : "es"}, <span class="${n < 0 ? "neg" : "pos"}">${n > 0 ? "+" : ""}${money(n)}</span> and ${fmt(xp)} XP${topRole ? `, mostly as ${esc(topRole)}` : ""}.</p>
-    <div class="grid tiles" style="margin-top:0">
-      ${tile("Cash rate", sessCash != null ? money(sessCash) + "/min" : "–", vsAvg(sessCash, base.cashMin) || "net cash per minute played")}
-      ${tile("XP rate", secs > 300 ? fmt(xp / secs * 3600) + "/h" : "–", vsAvg(secs > 300 ? xp / secs * 60 : null, base.xpMin) || "XP per hour played")}
-      ${tile("Record", res.length ? `${w}–${res.length - w}` : "–", res.length ? `won ${pct(w / res.length)}` : "no results read")}
-      ${tile("Kills / deaths", fought.length ? `${kills} / ${deaths}` : "–", fought.length ? `downed ${downs} times` : "tracked from your next match")}
+    <div class="recaptop"><p class="recaphead">${fmt(ms.length)} match${ms.length === 1 ? "" : "es"}${xpKnown ? `, ${fmt(xp)} XP` : ""}${topRole ? `, mostly as ${esc(topRole)}` : ""}.</p>
+      <div class="herov"><div class="k">Net cash</div><div class="v ${n < 0 ? "neg" : "pos"}">${n > 0 ? "+" : ""}${money(n)}</div></div></div>
+    <div class="kpis">
+      ${kpi("Cash rate", sessCash != null ? money(sessCash) + "/min" : "–", vsAvg(sessCash, base.cashMin) || "net cash per minute played")}
+      ${kpi("XP rate", secs > 300 ? fmt(xp / secs * 3600) + "/h" : "–", vsAvg(secs > 300 ? xp / secs * 60 : null, base.xpMin) || "XP per hour played")}
+      ${kpi("Record", res.length ? `${w}–${res.length - w}` : "–", res.length ? `won ${pct(w / res.length)}` : "no results read")}
+      ${kpi("Kills / deaths", fought.length ? `${kills} / ${deaths}` : "–", fought.length ? `downed ${downs} times` : "tracked from your next match")}
     </div>
     <p class="nexttime"><b>Next time</b>${tips[0]}</p>`;
 }
@@ -1070,12 +1117,13 @@ function renderBest(ms) {
     ["Most kills", top(kills), (m) => fmt(kills(m)) + " kills"],
     ["Longest match", top(mlen), (m) => dur(mlen(m))],
   ].filter(([, m]) => m);
-  $("best").innerHTML = cards.length ? cards.map(([k, m, v]) => {
-    const extra = [m.details?.result, usedText(m)].filter(Boolean).join(" · ");
-    return `<div class="card tile best"><div class="k">${k}</div><div class="v">${v(m)}</div>
-      <div class="s">${when(m.ended_at)}${m.screenshot ? `<button class="link" data-shot="${m.id}">view</button>` : ""}</div>
-      ${extra ? `<div class="s" style="text-transform:capitalize">${esc(extra)}</div>` : ""}</div>`;
-  }).join("") : `<div class="empty">No matches ${RANGES[range]}. Pick a longer range above.</div>`;
+  $("best").innerHTML = cards.length ? `<div class="kpis">${cards.map(([k, m, v]) => {
+    const d = m.details || {}, role = mainRole(m), gun = topKey(d.hud?.guns);
+    const tags = [d.result ? `<span class="res ${d.result}">${d.result}</span>` : "", role ? `<span class="chip">${esc(cap(role))}</span>` : "",
+      gun ? `<span class="chip">${esc(gun)}</span>` : ""].join("");
+    return `<button class="kpi" data-go="${m.id}" title="Open this match"><div class="k">${k}</div><div class="v">${v(m)}</div>
+      <div class="s">${when(m.ended_at)}</div>${tags ? `<div class="tags">${tags}</div>` : ""}<div class="open">Open match →</div></button>`;
+  }).join("")}</div>` : `<div class="empty">No matches ${RANGES[range]}. Pick a longer range above.</div>`;
 }
 
 // New items and level-ups seen since tracking began, newest first.
@@ -1223,6 +1271,8 @@ document.addEventListener("click", async (e) => {
   if (!t) return;
   if (t.dataset.go) { openMatch(+t.dataset.go); return; }
   if (t.dataset.tab) { tab = t.dataset.tab; store.set("wdt-tab", tab); history.replaceState(null, "", "#" + tab); if (data) render(); else applyNav(); return; }
+  if (t.dataset.subtab) { showSec(t.dataset.subtab); if (data) render(); return; }  // charts size themselves to the shown box
+  if (t.dataset.sort) { setSort(t.dataset.sort); if (data) render(); return; }
   if (t.dataset.srole) { stratRole = t.dataset.srole; store.set("wdt-srole", stratRole); if (data) renderStrategy(stratLatest); return; }
   if (t.dataset.mf != null) { mfilter = t.dataset.mf; if (data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); return; }
   if (t.dataset.range) { range = t.dataset.range; store.set("wdt-range", range); if (data) render(); else applyNav(); return; }
@@ -1325,6 +1375,7 @@ const pct = (v) => v == null ? "–" : Math.round(v * 100) + "%";
 const perMinute = (m) => m.xp != null && mlen(m) > 120 ? m.xp / mlen(m) * 60 : null;
 const dayStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d / 1000; };
 const weekStart = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return d / 1000; };
+const kpi = (k, v, s) => `<div class="kpi"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`;
 const tile = (k, v, s) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`;
 const snapList = () => data.snapshots.map((s) => ({ t: Date.parse(s.synced_at) / 1000, d: s.data }));
 const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
@@ -1409,21 +1460,45 @@ function groupStats(ms, keysOf) {
   }).sort((a, b) => b.n - a.n || a.k.localeCompare(b.k));
 }
 
+// tables sort by the column you click (again for the other way); blanks always go last
+let sorts = (() => { try { return JSON.parse(store.get("wdt-sorts")) || {}; } catch { return {}; } })();
+function setSort(spec) {
+  const [id, col, want] = spec.split(":"), cur = sorts[id];
+  sorts[id] = { col, dir: want ? +want : cur?.col === col ? -cur.dir : col === "k" ? 1 : -1 };
+  store.set("wdt-sorts", JSON.stringify(sorts));
+}
+function sortRows(rows, id, fallback) {
+  const s = sorts[id] || fallback;
+  if (!s) return rows;
+  return [...rows].sort((a, b) => {
+    const x = a[s.col], y = b[s.col];
+    if (x == null || y == null) return (x == null) - (y == null);
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * s.dir;
+  });
+}
+const sortHead = (id, col, label, num = true) => {
+  const s = sorts[id], on = s?.col === col;
+  return `<th class="${num ? "num" : ""}" aria-sort="${on ? (s.dir > 0 ? "ascending" : "descending") : "none"}"><button class="sorth${on ? " on" : ""}" data-sort="${id}:${col}" title="Sort by ${label.toLowerCase()}">${label}${on ? (s.dir > 0 ? " ▲" : " ▼") : ""}</button></th>`;
+};
+
 // roles ranked by average net cash, one bar each, with XP rate and win rate beside it
-function payBars(rows, empty) {
-  rows = rows.filter((r) => r.cash != null).sort((a, b) => b.cash - a.cash);
+function payBars(rows, empty, id) {
+  const dir = sorts[id]?.dir ?? -1;
+  rows = sortRows(rows.filter((r) => r.cash != null), id, { col: "cash", dir });
   if (!rows.length) return `<div class="empty">${empty}</div>`;
+  const toggle = `<div class="sortbar seg"><button class="${dir < 0 ? "on" : ""}" data-sort="${id}:cash:-1" aria-pressed="${dir < 0}">Highest first</button><button class="${dir > 0 ? "on" : ""}" data-sort="${id}:cash:1" aria-pressed="${dir > 0}">Lowest first</button></div>`;
   const top = Math.max(...rows.map((r) => Math.abs(r.cash))) || 1;
-  return `<div class="paybars">${rows.map((r) => `<div class="payrow"><b>${esc(r.k)}</b>
+  return `${toggle}<div class="paybars">${rows.map((r) => `<div class="payrow"><b>${esc(r.k)}</b>
     <span class="pbar"><i class="${r.cash < 0 ? "neg" : ""}" style="width:${Math.max(2, Math.abs(r.cash) / top * 100).toFixed(1)}%"></i></span>
     <span class="num ${r.cash < 0 ? "neg" : ""}">${money(r.cash)}</span>
     <span class="m">${r.rate != null ? r.rate.toFixed(0) + " XP/min" : "–"} · ${r.dec ? "won " + pct(r.win) : "no results"} · ${r.n} match${r.n === 1 ? "" : "es"}</span></div>`).join("")}</div>
     <p class="m" style="margin:8px 0 0;font-size:12px">Average net cash per match.</p>`;
 }
 
-function statTable(rows, head, empty) {
+function statTable(rows, head, empty, id) {
   if (!rows.length) return `<div class="empty">${empty}</div>`;
-  return `<table><thead><tr><th>${head}</th><th class="num">Matches</th><th class="num">Win rate</th><th class="num">Avg XP</th><th class="num">Avg net cash</th><th class="num">XP / min</th></tr></thead><tbody>${rows.map((r) =>
+  rows = sortRows(rows, id);
+  return `<table><thead><tr>${sortHead(id, "k", head, false)}${sortHead(id, "n", "Matches")}${sortHead(id, "win", "Win rate")}${sortHead(id, "xp", "Avg XP")}${sortHead(id, "cash", "Avg net cash")}${sortHead(id, "rate", "XP / min")}</tr></thead><tbody>${rows.map((r) =>
     `<tr><td>${esc(r.k)}</td><td class="num">${r.n}</td><td class="num" title="${r.dec} with a known result">${pct(r.win)}</td><td class="num">${fmt(r.xp)}</td><td class="num ${r.cash < 0 ? "neg" : ""}">${money(r.cash)}</td><td class="num">${r.rate == null ? "–" : r.rate.toFixed(1)}</td></tr>`).join("")}</tbody></table>`;
 }
 
@@ -1439,7 +1514,7 @@ function sourceRows(ms) {
 function renderInsights(ms, rname) {
   const xLabel = (m) => shortRange() ? clock(m.ended_at) : day(m.ended_at);
   const dec = ms.filter((m) => won(m) != null), wins = dec.filter((m) => won(m) === 1).length;
-  const roles = groupStats(ms, (m) => m.details?.used?.roles || []), items = groupStats(ms, (m) => m.details?.used?.items || []);
+  const roles = groupStats(ms, (m) => mainRole(m) ? [cap(mainRole(m))] : []), guns = groupStats(ms, (m) => topKey(m.details?.hud?.guns) ? [topKey(m.details.hud.guns)] : []);
   $("winTiles").innerHTML = [
     tile("Win rate", pct(dec.length ? wins / dec.length : null), dec.length ? `${wins} won, ${dec.length - wins} lost, ${rname}` : "no results read " + rname),
     tile("Avg XP / match", fmt(avg(ms.filter((m) => m.xp != null).map((m) => m.xp))), rname),
@@ -1451,12 +1526,12 @@ function renderInsights(ms, rname) {
     return { y: w / win.length * 100, label: xLabel(m), tip: `<b>${esc(when(m.ended_at))}</b><br>This match: ${esc(m.details.result)}<br>Last ${win.length}: ${w} won (${Math.round(w / win.length * 100)}%)` };
   });
   chart($("winChart"), { kind: "line", points: pts, xTitle: `Match (${rname})`, yTitle: "Win rate (%)", yRange: [0, 100], yFmt: (v) => Math.round(v) + "%", empty: `Needs two or more matches with a result ${rname}` });
-  $("byRole").innerHTML = payBars(roles, `No roles seen ${rname}. Roles are read from loadout and deploy screens.`);
-  $("byItem").innerHTML = statTable(items, "Item", `No items seen ${rname}. Items are read from loadout screens.`);
+  $("byRole").innerHTML = payBars(roles, `No role known ${rname}. A match counts toward the role that gained the most XP on its Progression screen.`, "byRole");
+  $("byItem").innerHTML = statTable(guns, "Gun", `No guns seen ${rname}. The gun in your hands is read during matches.`, "byItem");
   const hudEmpty = `Nothing yet ${rname}. During matches the screen is read every 20 seconds for Hot Zone, FOB and team names.`;
-  $("byWhere").innerHTML = statTable(groupStats(ms, (m) => where(m) ? [where(m)] : []), "Where", hudEmpty);
-  $("byTeam").innerHTML = statTable(groupStats(ms, (m) => m.details?.hud?.team ? [m.details.hud.team] : []), "Team", hudEmpty);
-  $("byMap").innerHTML = statTable(groupStats(ms, (m) => m.details?.map ? [m.details.map] : []), "Map", "The map is read from the results banner of matches from now on.");
+  $("byWhere").innerHTML = statTable(groupStats(ms, (m) => where(m) ? [where(m)] : []), "Where", hudEmpty, "byWhere");
+  $("byTeam").innerHTML = statTable(groupStats(ms, (m) => m.details?.hud?.team ? [m.details.hud.team] : []), "Team", hudEmpty, "byTeam");
+  $("byMap").innerHTML = statTable(groupStats(ms, (m) => m.details?.map ? [m.details.map] : []), "Map", "The map is read from the results banner of matches from now on.", "byMap");
   const fought = ms.filter((m) => m.details?.combat);
   $("byFight").innerHTML = fought.length ? `<table><tbody>${[
       ["Kills / match", avg(fought.map((m) => m.details.combat.kills))], ["Deaths / match", avg(fought.map((m) => m.details.combat.deaths))],

@@ -146,6 +146,15 @@ class Updater:
         with self.lock:
             return dict(self.last, checking=self.checking)
 
+    def fresh(self, max_age):
+        """The last check if it's under max_age seconds old, otherwise check now and wait
+        for the answer. For the automatic installer, which runs in its own thread."""
+        with self.lock:
+            last = dict(self.last)
+        if last["checked"] is not None and self.now() - last["checked"] <= max_age:
+            return last
+        return self.check()
+
     # installing -----------------------------------------------------------------------
     def apply(self, sha):
         """Install the version the dashboard offered. Returns {"ok": ..., "error"/"files"}."""

@@ -16,7 +16,9 @@ The details behind the tracker. For setup, see the [README](../README.md).
 - Between rounds, the money screen (spent / gained / bonus) and the Progression tab
   ("NEXT ROUND IN ...") merge into the same match. A role card's "XP a b" is that
   role's XP before and after the round.
-- Roles and items named on loadout or deploy screens are listed as "used".
+- Roles and items named on loadout or deploy screens are listed as "used". Loadout screens
+  list every role, so role stats count a match only toward the role that gained the most XP
+  on its Progression tab, and gun stats use the gun seen in your hands most during the round.
 - Map comes from the coordinates line on the results banner. Game mode isn't read yet.
 
 ## Reads during a match
@@ -39,15 +41,16 @@ The details behind the tracker. For setup, see the [README](../README.md).
 
 ## Dashboard tabs
 
-Each tab opens with a short summary. Everything else sits in sections you click to expand,
-and they stay open or closed the way you left them.
+Each tab opens with a short summary. The rest sits under a row of sub-tabs below it, one
+section at a time, and each tab remembers the one you picked. Click a table's column
+heading to sort by it (again for the other way).
 
-| Tab | Up front | Expandable sections |
+| Tab | Up front | Sub-tabs |
 |---|---|---|
-| **Live** | In a round: profit and $/min vs your usual, pace, scoreboard place, one "do this now" tip, charts, reward/kill feed. Between rounds: last round and session so far. | **More detail** (balance, spending, Hot Zone/FOB time, K/D, best money maker, loadout, best unlock to buy) and the **Round plan**. |
-| **Overview** | Summary tiles, session recap, best rounds. | XP and cash per match, goals and streaks, sessions. |
+| **Live** | In a round: profit and $/min vs your usual, pace, scoreboard place, one "do this now" tip, charts, reward/kill feed. Between rounds: last round and session so far. | None; **More detail** (balance, spending, Hot Zone/FOB time, K/D, best money maker, loadout, best unlock to buy) and the **Round plan** expand in place. |
+| **Overview** | Summary figures, session recap led by net cash, best rounds (click one to open it). | XP and cash per match, goals and streaks, sessions. |
 | **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. **Where you went**: a map of your route with kills, deaths, downs and purchases on it; drag the slider or press play. | |
-| **Insights** | Win rate and averages, stats by role and by item. | Win rate over time, where XP and cash came from, zone/team/map/fights, when you play best, tips per role from community guides. |
+| **Insights** | Win rate and averages, what each role pays (highest or lowest first), stats by gun. | Win rate over time, where XP and cash came from, zone/team/map/fights, when you play best, tips per role from community guides. |
 | **Career** | Players around you on the leaderboard, level forecast per role. | Career XP, cash and rank over time, unlocks, synced totals. |
 
 - **Time range**: Last session (default, spans midnight), Hour, Today, Week, Month, All.

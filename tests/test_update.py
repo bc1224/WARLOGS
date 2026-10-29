@@ -150,6 +150,21 @@ class UpdateTests(unittest.TestCase):
         up.state(now=True)
         self.assertEqual(len(gh.hits), 4)
 
+    def test_fresh_waits_for_github_instead_of_returning_the_old_answer(self):
+        # background=True as in the app: state() would hand back "nothing yet" and check later
+        gh = FakeGitHub("abc", {"wdt/tracker.py": b"new\n"})
+        self.write("wdt/tracker.py", b"old\n")
+        clock = [1000.0]
+        up = Updater(self.root, self.ddir, fetch=gh, now=lambda: clock[0])
+        self.assertTrue(up.fresh(3600)["available"])
+        self.assertEqual(len(gh.hits), 2)
+        clock[0] += 1800
+        up.fresh(3600)
+        self.assertEqual(len(gh.hits), 2)  # still fresh enough
+        clock[0] += 1801
+        up.fresh(3600)
+        self.assertEqual(len(gh.hits), 4)
+
     def test_offline_is_reported_not_raised(self):
         def offline(url):
             raise OSError("no network")
