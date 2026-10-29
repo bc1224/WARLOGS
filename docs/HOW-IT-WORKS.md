@@ -72,7 +72,7 @@ from. The XP table isn't published, so "XP to next" is an estimate.
 ## Files
 
 - `data/wardogs.db`: your match log (SQLite). Back this up to keep your history.
-- `data/shots/`: end-of-match screenshots.
+- `data/shots/`: end-of-match screenshots for your last 50 matches (`shots_matches` in `config.json`); older ones are deleted after each match.
 - `data/track/`: minimap pictures for the last `track_rounds` rounds (15) and up to
   `track_maps` big map pictures (80). A worked-out route stays with its match.
 - `data/tracker.log`: what the tracker did.

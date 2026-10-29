@@ -54,6 +54,7 @@ DEFAULTS = {
     "player_name": "",         # your in-game name, to find your kills and deaths in the kill feed
     "sample_seconds": 180.0,   # keep one plain in-match screenshot this often
     "samples_max": 150,        # screenshots kept in data/samples for tuning
+    "shots_matches": 50,       # matches whose results-screen pictures stay in data/shots
     "check_updates": True,     # ask GitHub every few hours whether a newer version is out
     "track_seconds": 3.0,      # save a small minimap picture this often for the replay map (0 = off)
     "track_rounds": 15,        # rounds of minimap pictures kept (a replay already worked out stays)
@@ -326,6 +327,10 @@ class Tracker:
         started = self.match_start or self.store.last_match_end(self.session)
         mid = self.store.add_match(self.session, started, now, source, image, lines,
                                    parsed, level_ups, info)
+        try:
+            self.store.prune_shots(os.path.join(self.ddir, "shots"), int(self.cfg["shots_matches"]))
+        except Exception as e:
+            log.warning("results picture cleanup failed: %s", e)
         if source != "auto" and screen:
             self._learn(sig, mid)
         self.match_start = now
