@@ -25,7 +25,9 @@ REPORT_URL = "https://wardogs-report-relay.bcf1224.workers.dev/report"
 REPORT_MAX = 6 * 1024 * 1024  # a 4 MB screenshot, base64 encoded, plus the text
 ROUTE_MAX = 400 * 1024        # a worked-out replay route: a few thousand points
 BODY_MAX = 256 * 1024         # settings, match edits and the rest
-AUTO_EVERY = 15 * 60          # how often Install updates automatically looks
+AUTO_FIRST = 60               # Install updates automatically looks this soon after the tracker starts
+AUTO_EVERY = 15 * 60          # and this often after that
+AUTO_CHECK_AGE = 3600         # asking GitHub at most once an hour (it allows 60 calls)
 log = logging.getLogger(__name__)
 LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
 # only our own inline scripts run; names read off the screen or the API can't become code
@@ -71,7 +73,7 @@ class App:
         s = self.status()
         if not on or not self.cfg.get("check_updates", True) or not s["alive"] or s.get("session") is not None:
             return False
-        st = self.updater.state()
+        st = self.updater.fresh(AUTO_CHECK_AGE)
         if not st.get("available"):
             return False
         res = self.updater.apply(st["sha"])
@@ -82,9 +84,12 @@ class App:
         self.on_updated()
         return True
 
-    def _auto_loop(self):
+    def _auto_loop(self, sleep=time.sleep):
+        # the tracker restarts often, so the first look can't wait the full interval
+        wait = AUTO_FIRST
         while True:
-            time.sleep(AUTO_EVERY)
+            sleep(wait)
+            wait = AUTO_EVERY
             try:
                 self.auto_update()
             except Exception:

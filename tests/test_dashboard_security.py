@@ -191,7 +191,7 @@ class AutoUpdateTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.updater = mock.Mock()
-        self.updater.state.return_value = {"available": True, "sha": "abc"}
+        self.updater.fresh.return_value = {"available": True, "sha": "abc"}
         self.updater.apply.return_value = {"ok": True, "files": 3}
         self.restarted = mock.Mock()
         self.app = App({"steam_id": "", "dashboard_port": 0}, self.tmp.name,
@@ -221,9 +221,23 @@ class AutoUpdateTests(unittest.TestCase):
         self.updater.apply.assert_not_called()
 
     def test_nothing_new_installs_nothing(self):
-        self.updater.state.return_value = {"available": False}
+        self.updater.fresh.return_value = {"available": False}
         self.assertFalse(self.run_with({"alive": True, "session": None}))
         self.updater.apply.assert_not_called()
+
+    def test_first_look_comes_soon_after_start_then_every_few_minutes(self):
+        # a tracker that restarts often must still get a look before it restarts again
+        waits = []
+
+        def sleep(secs):
+            waits.append(secs)
+            if len(waits) == 3:
+                raise SystemExit
+        with mock.patch.object(self.app, "auto_update") as look, self.assertRaises(SystemExit):
+            self.app._auto_loop(sleep=sleep)
+        self.assertLessEqual(waits[0], 120)
+        self.assertEqual(look.call_count, 2)
+        self.assertEqual(waits[1], waits[2])
 
 
 if __name__ == "__main__":
