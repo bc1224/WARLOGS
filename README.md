@@ -65,8 +65,8 @@ Set up WARLOGS from https://github.com/bc1224/WARLOGS on this Windows PC: clone 
 Install Python 3.10+, copy `config.example.json` to `config.json`, fill in your SteamID64
 and in-game name, then run `Start Tracker.vbs`.
 
-To uninstall, run this in the folder, then delete the folder. It stops the tracker and removes the Start menu and
-Startup shortcuts. (`-ExecutionPolicy Bypass` only lets this one script run; it doesn't change
+To uninstall, run this in the folder, then delete the folder. It stops the tracker and removes the WARLOGS icons and
+the Startup shortcut. (`-ExecutionPolicy Bypass` only lets this one script run; it doesn't change
 any Windows setting.)
 
 ```powershell
@@ -123,8 +123,8 @@ Each match logs from your screen either way, with its XP and cash. With the firs
 nothing leaves your PC unless you send a report.
 
 **What it writes and where it connects.** It only writes inside its own folder: `config.json`
-and the `data` folder (match log, recent frames, `tracker.log`). Setup also adds the Start menu
-and Startup shortcuts, and if you say yes, installs Python with winget. The only places it
+and the `data` folder (match log, recent frames, `tracker.log`). Setup also adds a WARLOGS icon
+(Start menu, this folder, and the desktop if you say yes) and a Startup shortcut, and if you say yes, installs Python with winget. The only places it
 connects to:
 
 | Address | When |
