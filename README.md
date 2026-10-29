@@ -1,4 +1,4 @@
-# <img src="docs/logo.svg" width="40" height="40" alt="" align="top"> WARLOGS
+# <img src="docs/logo.png" width="40" height="40" alt="" align="top"> WARLOGS
 
 WARLOGS is a free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app/1867240/) on Windows.
 
