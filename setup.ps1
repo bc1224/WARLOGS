@@ -1,5 +1,5 @@
 <#
-WARDOGS Match Tracker setup wizard.
+WARLOGS setup wizard.
 
 Double-click Setup.bat, or run:
   powershell -ExecutionPolicy Bypass -File setup.ps1
@@ -24,8 +24,11 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$Shortcut = Join-Path ([Environment]::GetFolderPath("Startup")) "WARDOGS Match Tracker.lnk"
-$MenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "WARDOGS Dashboard.lnk"
+$Shortcut = Join-Path ([Environment]::GetFolderPath("Startup")) "WARLOGS.lnk"
+$MenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "WARLOGS.lnk"
+# shortcuts from before the WARLOGS rename
+$OldShortcuts = @((Join-Path ([Environment]::GetFolderPath("Startup")) "WARDOGS Match Tracker.lnk"),
+                  (Join-Path ([Environment]::GetFolderPath("Programs")) "WARDOGS Dashboard.lnk"))
 $Port = 8790
 
 function Say($text, $color = "Gray") { Write-Host $text -ForegroundColor $color }
@@ -51,12 +54,13 @@ if ($Uninstall) {
     Stop-Tracker
     if (Test-Path $Shortcut) { Remove-Item $Shortcut }
     if (Test-Path $MenuShortcut) { Remove-Item $MenuShortcut }
+    $OldShortcuts | Where-Object { Test-Path $_ } | Remove-Item
     Say "Tracker stopped and removed from Startup. Your match log is still in $Here\data." Green
     exit 0
 }
 
 Say ""
-Say "  WARDOGS Match Tracker setup" Yellow
+Say "  WARLOGS setup" Yellow
 Say "  Logs XP and cash per match from your screen. It never touches the game process."
 Say ""
 
@@ -169,7 +173,8 @@ if (-not $NoStartup -and (Confirm "Start the tracker automatically when you log 
     $lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
     $lnk.Arguments = '"' + $vbs + '"'
     $lnk.WorkingDirectory = $Here
-    $lnk.Description = "WARDOGS Match Tracker (runs in the background, no window)"
+    $lnk.Description = "WARLOGS (runs in the background, no window)"
+    $lnk.IconLocation = (Join-Path $Here "wdt\warlogs.ico") + ",0"
     $lnk.Save()
     Say "Added to Startup." Green
 }
@@ -190,11 +195,13 @@ $lnk = $sh.CreateShortcut($MenuShortcut)
 $lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
 $lnk.Arguments = '"' + $open + '"'
 $lnk.WorkingDirectory = $Here
-$lnk.Description = "WARDOGS Match Tracker dashboard"
+$lnk.Description = "WARLOGS dashboard"
+$lnk.IconLocation = (Join-Path $Here "wdt\warlogs.ico") + ",0"
 $lnk.Save()
 $oldUrl = Join-Path $Here "WARDOGS Dashboard.url"
 if (Test-Path $oldUrl) { Remove-Item $oldUrl }
-Say "Added WARDOGS Dashboard to the Start menu." Green
+$OldShortcuts | Where-Object { Test-Path $_ } | Remove-Item
+Say "Added WARLOGS to the Start menu." Green
 if ($ok -and -not $NoOpen) { Start-Process wscript.exe -ArgumentList ('"' + $open + '"') }
 
 Say ""

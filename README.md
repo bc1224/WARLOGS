@@ -1,6 +1,6 @@
-# WARDOGS Match Tracker
+# <img src="docs/logo.png" width="40" height="40" alt="" align="top"> WARLOGS
 
-Free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app/1867240/) on Windows.
+WARLOGS is a free, local XP and cash tracker for [WARDOGS](https://store.steampowered.com/app/1867240/) on Windows.
 
 - **Logs every round automatically**: XP, cash earned and spent, win/loss, map, role, gun, K/D
 - **Live view** for your second monitor: round profit, $/min vs your usual, scoreboard place
@@ -27,7 +27,7 @@ It reads the screen like OBS does and never changes the game or its files. Every
    name ([why it needs them](#is-it-safe)), then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
 
-The tracker starts with Windows. Open the dashboard from **WARDOGS Dashboard** in the Start
+The tracker starts with Windows. Open the dashboard from **WARLOGS** in the Start
 menu (or `Open Dashboard.vbs` in the folder): it opens in its own window with no tabs or address
 bar, using Edge or Chrome's app mode, and starts the tracker first if it isn't running. While the
 tracker is running, the dashboard is also at http://127.0.0.1:8790 in any browser (that address
@@ -52,7 +52,7 @@ while you're not in a game. A git clone updates with `git pull` instead.
 <summary>Using Claude Code, Codex or another AI agent? Paste this instead.</summary>
 
 ```text
-Set up the WARDOGS Match Tracker from https://github.com/bc1224/WARLOGS on this Windows PC: clone it into my Documents folder, follow its AGENTS.md, ask me for anything it can't detect, and tell me when the dashboard is open.
+Set up WARLOGS from https://github.com/bc1224/WARLOGS on this Windows PC: clone it into my Documents folder, follow its AGENTS.md, ask me for anything it can't detect, and tell me when the dashboard is open.
 ```
 
 </details>

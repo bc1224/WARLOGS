@@ -28,9 +28,9 @@ class FakeGitHub:
         if url == f"https://codeload.github.com/{REPO}/zip/{self.sha}":
             buf = io.BytesIO()
             with zipfile.ZipFile(buf, "w") as z:
-                z.writestr(f"wardogs-match-tracker-{self.sha}/", "")
+                z.writestr(f"WARLOGS-{self.sha}/", "")
                 for p, b in self.files.items():
-                    z.writestr(f"wardogs-match-tracker-{self.sha}/{p}", b)
+                    z.writestr(f"WARLOGS-{self.sha}/{p}", b)
             return buf.getvalue()
         raise OSError("404 " + url)
 
@@ -106,7 +106,7 @@ class UpdateTests(unittest.TestCase):
             if "codeload" in url:
                 buf = io.BytesIO()
                 with zipfile.ZipFile(buf, "w") as z:
-                    z.writestr("wardogs-match-tracker-abc/wdt/tracker.py", b"evil\n")
+                    z.writestr("WARLOGS-abc/wdt/tracker.py", b"evil\n")
                 return buf.getvalue()
             return body
         res = Updater(self.root, self.ddir, fetch=tampered).apply("abc")
