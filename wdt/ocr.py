@@ -103,7 +103,7 @@ def parse(lines):
 
 
 def role_progress(lines):
-    """{role: [XP before the round, XP after]} from the Progression tab. Each card's
+    """{role: [XP now, XP for the next level]} from the Progression tab. Each card's
     XP line is paired with the role name above it, left to right."""
     names = [l for l in lines if _text(l).strip().title() in ROLES]
     bars = [l for l in lines if PROGRESS_RE.search(_text(l))]

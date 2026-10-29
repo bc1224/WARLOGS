@@ -49,6 +49,26 @@ class Store:
                 WHERE json_valid(details) AND lower(json_extract(details, '$.hud.team'))
                 IN ({",".join("?" * len(NOT_TEAM))})""", tuple(NOT_TEAM))
         self._fix_names()
+        self._fix_role_xp()
+
+    def _fix_role_xp(self):
+        """Once: versions before 2026-10-29 read a Progression card's next-level target
+        as XP after the round, so their per-role gains (and a round XP added up from
+        them) were wrong. Forget those gains; the XP figure seen stays as "seen"."""
+        if self.get_meta("role_xp_fixed"):
+            return
+        rows = self.db.execute("SELECT id, xp, details FROM matches WHERE details LIKE '%role_xp%'").fetchall()
+        for mid, xp, det in rows:
+            det = json.loads(det)
+            rx = det.get("role_xp") or {}
+            old = {r: v for r, v in rx.items() if isinstance(v, dict) and "next" not in v}
+            if not old:
+                continue
+            if xp is not None and xp == sum(v.get("gain") or 0 for v in old.values()):
+                xp = None
+            det["role_xp"] = {r: {"seen": v.get("before"), "gain": None} if r in old else v for r, v in rx.items()}
+            self.db.execute("UPDATE matches SET xp=?, details=? WHERE id=?", (xp, json.dumps(det), mid))
+        self.set_meta("role_xp_fixed", 1)
 
     def _fix_names(self):
         """Names misread by older versions, once: guns ('MPS', 'MSOO') become the gun and
@@ -194,11 +214,14 @@ class Store:
             return
         xp, earned, spent, det = row
         det = json.loads(det) if det else {}
+        roles_xp = xp is None or (det.get("xp_roles") and info.get("xp_roles"))
         for k, v in info.items():
             if v not in (None, {}, []) and det.get(k) in (None, {}, []):
                 det[k] = v
-        if xp is None:
-            xp = parsed.get("xp")
+        if info.get("role_xp"):  # the Progression tab fills in card by card
+            det["role_xp"] = info["role_xp"]
+        if roles_xp and parsed.get("xp") is not None:
+            xp = parsed["xp"]
         if earned is None and spent is None:
             earned, spent = parsed.get("cash_earned"), parsed.get("cash_spent")
         elif info.get("cash_summary") and parsed.get("cash_earned") is not None and not det.get("summary_used"):
@@ -206,6 +229,16 @@ class Store:
             earned, spent, det["summary_used"] = parsed["cash_earned"], parsed.get("cash_spent"), True
         self.db.execute("UPDATE matches SET xp=?, cash_earned=?, cash_spent=?, details=? WHERE id=?",
                         (xp, earned, spent, json.dumps(det), mid))
+
+    def role_xp_known(self):
+        """{role: XP} as the newest Progression tab left each role. Matches from before
+        "next" was kept read the next-level target as XP, so they don't count."""
+        out = {}
+        for (det,) in self.db.execute("SELECT details FROM matches WHERE details LIKE '%\"next\"%' ORDER BY ended_at"):
+            for r, v in (json.loads(det).get("role_xp") or {}).items():
+                if isinstance(v, dict) and "next" in v and v.get("after") is not None:
+                    out[r] = v["after"]
+        return out
 
     def match_full(self, mid):
         """One match with everything kept for it: timeline, money changes, screen text."""

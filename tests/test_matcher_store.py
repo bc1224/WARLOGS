@@ -9,6 +9,28 @@ END = bytes([200] * 50 + [20] * 50)
 GAME = bytes([90] * 100)
 
 
+class RoleXpFixTests(unittest.TestCase):
+    def test_old_misread_role_gains_are_dropped_once(self):
+        # 2026-10-29: older versions took the next-level target (43,750) as XP after the round
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.db")
+            st = Store(path)
+            sid = st.start_session(0)
+            old = st.add_match(sid, 0, 100, "auto", parsed={"xp": 3869},
+                               details={"role_xp": {"Assault": {"before": 39881, "after": 43750, "gain": 3869}}})
+            new = st.add_match(sid, 200, 300, "auto", parsed={"xp": 1700},
+                               details={"role_xp": {"Assault": {"before": 39881, "after": 41581, "next": 43750, "gain": 1700}}})
+            st.set_meta("role_xp_fixed", 0)
+            st.db.close()
+            st = Store(path)
+            ms = {m["id"]: m for m in st.dump()["matches"]}
+            self.assertIsNone(ms[old]["xp"])
+            self.assertEqual(ms[old]["details"]["role_xp"], {"Assault": {"seen": 39881, "gain": None}})
+            self.assertEqual((ms[new]["xp"], ms[new]["details"]["role_xp"]["Assault"]["gain"]), (1700, 1700))
+            self.assertEqual(st.role_xp_known(), {"Assault": 41581})
+            st.db.close()
+
+
 class MatcherTests(unittest.TestCase):
     def test_needs_consecutive_hits_then_cools_down(self):
         m = EndScreenMatcher([END], threshold=10, confirm=2, cooldown=60)
