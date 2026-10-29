@@ -42,6 +42,10 @@ PROGRESSION = [L("SCORE", 180, 30), L("PROGRESSION", 330, 30), L("$24,681", 1650
                L("PROMOTED TO MEDIC LVL 15", 64, 190), L("ASSAULT", 665, 633), L("MEDIC", 965, 633),
                L("RECON", 1242, 633), L("XP 19,597 22,500", 657, 682), L("XP 57,885 64,500", 938, 682),
                L("XP 30,537 33,750", 1220, 682), L("NEXT ROUND IN 00:26", 880, 961)]
+# the same tab a few seconds later: each card's XP has counted up from before the round
+PROGRESSION_DONE = PROGRESSION[:9] + [L("XP 22,100 22,500", 657, 682), L("XP 63,000 64,500", 938, 682),
+                                      L("XP 31,800 33,750", 1220, 682), PROGRESSION[12]]
+GAINS = {"Assault": 22100 - 19597, "Medic": 63000 - 57885, "Recon": 31800 - 30537}
 
 
 class ProgressionTests(unittest.TestCase):
@@ -136,13 +140,27 @@ class TrackerHudTests(unittest.TestCase):
         self.t.record_end("hotkey", 200)
         self.assertEqual(self.store.dump()["matches"][0]["role_levels"], {"Assault": 10})
 
-    def test_round_xp_is_after_minus_before_per_role(self):
+    def test_round_xp_per_role_is_where_each_card_stops_minus_where_it_started(self):
+        # 2026-10-29: the second figure on a card is the next level's target, not XP after
+        # the round; the first figure counts up from the role's XP before the round
         self.t._start_session(100)
         self.t.record_end("auto", 200, lines=PROGRESSION)
         m = self.store.dump()["matches"][0]
-        self.assertEqual(m["xp"], 2903 + 6615 + 3213)
+        self.assertIsNone(m["xp"])  # one look at the start of the count: gains unknown, not zero
         self.assertEqual((m["cash_earned"], m["cash_spent"]), (24681, None))  # top bar profit
-        self.assertEqual(m["details"]["role_xp"]["Recon"], {"before": 30537, "after": 33750, "gain": 3213})
+        self.t._merge_end(203, PROGRESSION_DONE)
+        m = self.store.dump()["matches"][0]
+        self.assertEqual(m["xp"], sum(GAINS.values()))
+        self.assertEqual(m["details"]["role_xp"]["Recon"], {"before": 30537, "after": 31800, "next": 33750, "gain": 1263})
+
+    def test_a_card_only_seen_settled_starts_from_the_round_before(self):
+        self.t._start_session(100)
+        self.t.record_end("auto", 200, lines=PROGRESSION)
+        self.t._merge_end(203, PROGRESSION_DONE)
+        self.t.record_end("auto", 5000, lines=[L("ASSAULT", 665, 633), L("XP 22,900 26,000", 657, 682)])
+        m = self.store.dump()["matches"][1]
+        self.assertEqual(m["details"]["role_xp"]["Assault"]["gain"], 800)
+        self.assertEqual(m["xp"], 800)
 
     def test_money_screen_replaces_the_top_bar_estimate(self):
         # 2026-10-26: logged from the "wins" banner with cash guessed from the top bar,
@@ -159,6 +177,7 @@ class TrackerHudTests(unittest.TestCase):
             self.t._note_board(300, b"", 1, 1, [])  # sitting on the Scoreboard tab keeps the break going
         self.assertTrue(self.t.matcher.recently_ended(380))
         self.t._merge_end(380, [L("MEDIC"), L("XP 82,178 84,750"), L("RECON"), L("XP 43,183 43,750")])
+        self.t._merge_end(383, [L("MEDIC"), L("XP 84,750 87,000"), L("RECON"), L("XP 43,750 47,000")])
         m = self.store.dump()["matches"][0]
         self.assertEqual((m["cash_earned"], m["cash_spent"], m["xp"]), (71410, 12823, 2572 + 567))
         self.assertEqual(m["details"]["board_end"]["me"]["rank"], 15)
@@ -189,16 +208,22 @@ class TrackerHudTests(unittest.TestCase):
         self.t.record_end("auto", 200, lines=[L("VICTORY"), L("CASH EARNED", 599, 918), L("$71,410", 1304, 918)])
         self.t.next_read = 210  # the money screen read just now
         self.assertEqual(self.t._scan_wait(201), 1.0)  # every second until the XP tab is read
-        with mock.patch.object(self.t, "_read_screen", return_value=(b"", 1, 1, PROGRESSION)), \
+        reads = iter([PROGRESSION] + [PROGRESSION_DONE] * 3)
+        sig = [10, 200, 10, 200]
+        with mock.patch.object(self.t, "_read_screen", side_effect=lambda: (b"", 1, 1, next(reads))), \
+                mock.patch.object(self.t, "_shot_path", side_effect=lambda now: os.path.join(self.tmp.name, f"{now}.png")), \
                 mock.patch("wdt.tracker.winapi.write_png") as png:
-            self.t._maybe_read([10, 200, 10, 200], 202)  # read on the first frame, not once it settles
-            self.t._read_and_log(212, "auto-read", hud=True)  # the same tab read again: one picture
-        self.assertEqual(self.store.dump()["matches"][0]["xp"], 2903 + 6615 + 3213)
+            self.t._maybe_read(sig, 202)  # read on the first frame, not once it settles
+            self.assertEqual(self.t._scan_wait(202.5), 1.0)  # cards still counting: keep reading
+            self.t._maybe_read(sig, 202.5)  # too soon after the last read
+            for now in (203, 204, 205):  # the same picture each time, but the figures move
+                self.t._maybe_read(sig, now)
+        self.assertEqual(self.store.dump()["matches"][0]["xp"], sum(GAINS.values()))
         shots = self.store.match_full(1)["details"]["end_shots"]
-        self.assertEqual([os.path.basename(p) for p in shots], [os.path.basename(png.call_args[0][0])])
-        self.assertTrue(shots[0].endswith("-tab.png"))
-        self.assertEqual(png.call_count, 1)
-        self.assertEqual(self.t._scan_wait(203), DEFAULTS["scan_seconds"])  # back to the usual pace
+        # the first look, then the settled tab; the counting in between isn't a new tab
+        self.assertEqual([os.path.basename(p) for p in shots], ["202-tab.png", "205-tab.png"])
+        self.assertEqual(png.call_count, 2)
+        self.assertEqual(self.t._scan_wait(206), DEFAULTS["scan_seconds"])  # back to the usual pace
 
     def test_live_cash_and_round_split(self):
         self.t._start_session(100)
@@ -223,14 +248,15 @@ class TrackerHudTests(unittest.TestCase):
         self.assertFalse(looks_like_end_screen([L("$1,600"), L("Defibrillator cost")]))
         self.t._start_session(100)
         self.t.rect = (0, 0, 1920, 1080)
-        reads = iter([banner, PROGRESSION])
+        reads = iter([banner, PROGRESSION, PROGRESSION_DONE])
         with mock.patch.object(self.t, "_read_screen", side_effect=lambda: (b"", 1920, 1080, next(reads))), \
                 mock.patch("wdt.tracker.winapi.write_png"):
             self.assertTrue(self.t._read_and_log(200, "auto-read", hud=True))
             self.assertTrue(self.t._read_and_log(230, "auto-read", hud=True))
+            self.assertTrue(self.t._read_and_log(233, "auto-read", hud=True))
         ms = self.store.dump()["matches"]
         self.assertEqual(len(ms), 1)
-        self.assertEqual((ms[0]["xp"], ms[0]["cash_earned"]), (12731, 13000))
+        self.assertEqual((ms[0]["xp"], ms[0]["cash_earned"]), (sum(GAINS.values()), 13000))
         self.assertIn("role_xp", ms[0]["details"])
 
     def test_restart_resumes_the_open_session(self):

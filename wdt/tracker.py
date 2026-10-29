@@ -17,6 +17,7 @@ import logging
 import logging.handlers
 import os
 import queue
+import re
 import subprocess
 import sys
 import threading
@@ -64,6 +65,9 @@ SIG_W, SIG_H = 64, 36
 STILL = 3.0        # thumbnail change below this counts as "not moving"
 NEW_SCREEN = 6.0   # don't re-read a still screen we already read
 NEW_ROUND_GAP = 300  # with no between-rounds screen seen, this long without the top bar may be one missed
+PROG_SETTLED = 2       # repeats of the same Progression tab read before it counts as finished
+MAX_ROLE_GAIN = 100000
+DIGITS = re.compile(r"\d")
 XP_SCAN_SECONDS = 1.0  # the XP tab after the money screen only shows for a few seconds
 HK_END, HK_START = 1, 2
 # screen corners read every few seconds, as fractions of the window: x, y, w, h
@@ -113,6 +117,7 @@ class Tracker:
         self.last_read_sig = None
         self.need_xp = False  # a round was logged without XP; its XP tab may still be coming
         self.end_text = None  # text of the last results tab pictured, so re-reads aren't saved twice
+        self._reset_progress()
         self.next_read = 0.0
         self.reads = 0
         self.item_names = self.store.unlock_names()
@@ -275,6 +280,7 @@ class Tracker:
             return
         if screen:
             self.matcher.mark_end(now)
+        self._reset_progress()
         if image is None and self.rect and screen:
             image = self._capture(now)
         if lines is None and image:
@@ -367,6 +373,13 @@ class Tracker:
         self.prev_sig = sig
         self.still = 0 if moving else self.still + 1
         if self.matcher.recently_ended(now):
+            if self.progress_settling():
+                # role cards still counting up: the signature barely moves, so read on a clock
+                if now >= self.next_prog_read and not is_blank(sig):
+                    self.next_prog_read = now + XP_SCAN_SECONDS
+                    self.last_read_sig = sig
+                    self._read_and_log(now, "auto-read")
+                return
             # still waiting on the XP tab: read every new frame rather than miss it settling
             if is_blank(sig) or (self.still < 1 and not self.need_xp):
                 return
@@ -383,17 +396,50 @@ class Tracker:
         for k, names in mentions(lines, self.item_names).items():
             self.used.setdefault(k, set()).update(names)
 
+    def _reset_progress(self):
+        self.prog = {}          # {role: {"before", "after", "next"}} from this break's Progression tab
+        self.prog_last = None   # what the last read of it showed
+        self.prog_same = 0      # reads in a row that showed the same thing
+        self.next_prog_read = 0
+        self.prog_known = None  # each role's XP after the round before, looked up before this one is saved
+
+    def progress_settling(self):
+        """The Progression tab is on screen and its cards are still sliding in or counting."""
+        return self.prog_last is not None and self.prog_same < PROG_SETTLED
+
     def _note_progress(self, lines, parsed, info):
-        """Each role card on the Progression tab reads "XP <before> <after>", so the
-        round's XP per role is after minus before."""
+        """Each role card on the Progression tab reads "XP <your XP> <XP for the next
+        level>". The cards slide in one at a time and each XP figure counts up from where
+        it stood before the round, so the lowest figure seen is before and the highest after."""
         prog = role_progress(lines)
         if not prog:
             return
-        info["role_xp"] = {r: {"before": a, "after": b, "gain": b - a if 0 <= b - a < 100000 else None}
-                           for r, (a, b) in prog.items()}
-        gains = [v["gain"] for v in info["role_xp"].values() if v["gain"] is not None]
+        self.prog_same = self.prog_same + 1 if prog == self.prog_last else 0
+        self.prog_last = prog
+        for r, (xp, nxt) in prog.items():
+            p = self.prog.setdefault(r, {"before": xp, "after": xp, "next": nxt})
+            p["before"] = min(p["before"], xp)
+            if xp >= p["after"]:
+                p["after"], p["next"] = xp, nxt
+        if self.prog_known is None:
+            self.prog_known = self.store.role_xp_known()
+        known = self.prog_known
+        role_xp = {}
+        for r, p in self.prog.items():
+            before = p["before"]
+            if before == p["after"]:
+                # only the settled figure was seen: start from where the last round left this
+                # role, or leave the gain unknown rather than call it zero
+                prev = known.get(r)
+                before = prev if prev is not None and 0 <= p["after"] - prev < MAX_ROLE_GAIN else None
+            gain = p["after"] - before if before is not None else None
+            role_xp[r] = {"before": before, "after": p["after"], "next": p["next"],
+                          "gain": gain if gain is not None and 0 <= gain < MAX_ROLE_GAIN else None}
+        info["role_xp"] = role_xp
+        gains = [v["gain"] for v in role_xp.values() if v["gain"] is not None]
         if parsed.get("xp") is None and gains:
             parsed["xp"] = sum(gains)
+            info["xp_roles"] = True
         # its top bar is this round's profit and your balance, not money earned
         parsed["cash_earned"] = None
 
@@ -415,9 +461,10 @@ class Tracker:
 
     def _save_end_shot(self, now, frame, rw, rh, lines):
         """A picture of each results tab after the first, skipping re-reads of the same one."""
-        text = [_line_text(l) for l in lines]
+        text = [DIGITS.sub("", _line_text(l)) for l in lines]  # a figure counting up isn't a new tab
         mid = self.store.last_match(self.session)
-        if mid is None or text == self.end_text:
+        settled = self.prog_last is not None and self.prog_same == PROG_SETTLED
+        if mid is None or (text == self.end_text and not settled):
             return
         self.end_text = text
         path = self._shot_path(now)[:-4] + "-tab.png"
@@ -956,7 +1003,7 @@ class Tracker:
     def _scan_wait(self, now):
         """Seconds to the next scan: every second from the money screen until the XP tab
         that follows it has been read, the usual pace otherwise."""
-        if self.need_xp and self.matcher.recently_ended(now):
+        if (self.need_xp or self.progress_settling()) and self.matcher.recently_ended(now):
             return XP_SCAN_SECONDS
         return self.cfg["scan_seconds"]
 

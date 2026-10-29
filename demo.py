@@ -165,7 +165,7 @@ def build(ddir, now, idle):
             for r, g in split.items():
                 before = levels[r][1]
                 levels[r][1] += g
-                role_xp[r] = {"before": before, "after": levels[r][1], "gain": g}
+                role_xp[r] = {"before": before, "after": levels[r][1], "next": (levels[r][1] // 3750 + 1) * 3750, "gain": g}
             kills, deaths = rng.randint(0, 9), rng.randint(0, 6)
             players = rng.randint(70, 100)
             rank = max(1, int(players * rng.uniform(0.08, 0.6) / skill))

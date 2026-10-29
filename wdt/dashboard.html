@@ -79,6 +79,7 @@ tr[data-open] { cursor: pointer; }
 .mcard .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
 .chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #23272c; color: var(--muted); white-space: nowrap; }
 .chip b { color: var(--text); font-weight: 600; }
+.chip.xpchip b { color: var(--gold); }
 .chip.hot { background: #3a2c10; color: var(--gold); } .chip.fob { background: #142638; color: var(--blue); }
 .mcard .nums { display: flex; gap: 18px; padding: 12px 14px 12px 0; align-items: center; }
 .mcard .num-k { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
@@ -286,7 +287,7 @@ tr.me td { background: #1d1a12; color: var(--gold); }
 .three { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .livecharts { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
 @media (max-width: 800px) { .livecharts { grid-template-columns: 1fr; } }
-#liveHero { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+#liveHero { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 @media (max-width: 800px) { #liveHero { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .feed { list-style: none; margin: 0; padding: 0; font-size: 13px; }
 .feed li { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
@@ -1024,7 +1025,8 @@ function matchCard(m, base) {
   const w = where(m);
   const chips = [
     !d.result && d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : "",
-    role ? `<span class="chip">Role <b>${esc(role)}</b></span>` : "",
+    ...(roleGains(m).length ? roleGains(m).map(([r, g]) => `<span class="chip xpchip">${esc(r)} <b>+${fmt(g)}</b> XP</span>`)
+      : [role ? `<span class="chip">Role <b>${esc(role)}</b></span>` : ""]),
     gun ? `<span class="chip">Gun <b>${esc(gun)}</b></span>` : "",
     w ? `<span class="chip ${w.includes("Hot") ? "hot" : w.includes("FOB") ? "fob" : ""}">${esc(w)}</span>` : "",
     h?.team ? `<span class="chip">Team <b>${esc(h.team)}</b></span>` : "",
@@ -1843,9 +1845,11 @@ async function renderMatchPage(id) {
   </div>
 
   <div class="grid two">
-    ${card("XP gains", roleRows.length ? `<table><thead><tr><th>Role</th><th class="num">Before</th><th class="num">After</th><th class="num">Gained</th><th></th></tr></thead><tbody>${roleRows.map(([r, v]) =>
-      `<tr><td>${esc(r)}</td><td class="num">${fmt(v.before ?? v.total)}</td><td class="num">${fmt(v.after ?? v.next)}</td><td class="num pos">${signed(v.gain)}</td><td style="width:30%">${pctBar(m.xp ? (v.gain || 0) / m.xp : 0)}</td></tr>`).join("")}</tbody></table>
-      ${topRole ? `<p class="m">Most XP went to <b>${esc(topRole[0])}</b> (${pct(topRole[1].gain / m.xp)}).</p>` : ""}` : `<div class="empty">Per-role XP comes from the Progression screen after the match.</div>`)}
+    ${card("XP by role", roleRows.some(([, v]) => "next" in v) ? `<table><thead><tr><th>Role</th><th class="num">Gained</th><th class="num">Now</th><th class="num">To next level</th><th></th></tr></thead><tbody>${roleRows.map(([r, v]) =>
+      `<tr><td>${esc(r)}</td><td class="num ${v.gain ? "pos" : ""}">${v.gain == null ? "?" : signed(v.gain)}</td><td class="num">${fmt(v.after)}</td><td class="num">${v.next > v.after ? fmt(v.next - v.after) : v.next != null ? "level up" : "–"}</td><td style="width:26%">${pctBar(m.xp ? (v.gain || 0) / m.xp : 0)}</td></tr>`).join("")}
+      <tr><td><b>Total</b></td><td class="num pos"><b>${m.xp == null ? "?" : signed(m.xp)}</b></td><td colspan="3"></td></tr></tbody></table>
+      ${topRole && m.xp ? `<p class="m">Most XP went to <b>${esc(topRole[0])}</b> (${pct(topRole[1].gain / m.xp)}).${roleRows.some(([, v]) => v.gain == null) ? " A ? is a card that was only seen after it finished counting." : ""}</p>` : ""}`
+      : `<div class="empty">${roleRows.length ? "This round's Progression screen was read by an older version that mixed up XP and the next level's target, so its per-role XP isn't known." : "Per-role XP comes from the Progression screen after the match."}</div>`, d.rewards ? `feed XP this round: ${fmt(sum(Object.values(d.rewards), (v) => v?.xp || 0))}` : "")}
     ${card("Guns", Object.keys(guns).length ? `<table><thead><tr><th>Gun</th><th>Time held</th></tr></thead><tbody>${Object.entries(guns).sort((a, b) => b[1] - a[1]).map(([g, c]) => { const tot = Object.values(guns).reduce((a, b) => a + b, 0);
       return `<tr><td>${esc(g)}</td><td>${pctBar(c / tot)} <span class="m">${pct(c / tot)}</span></td></tr>`; }).join("")}</tbody></table>` : `<div class="empty">Your gun is read from the nameplate in the bottom right during the match.</div>`, "from the HUD nameplate")}
   </div>
@@ -2357,11 +2361,15 @@ function renderLive(st) {
   const earnRate = mins > 1 ? (mins < 5 && cashRate != null ? cashRate : earned / mins) : null;
   const proj = L.net != null && earnRate != null && left != null && left > 0 ? L.net + earnRate * left / 60 : null;
   const sess = sessionSoFar();
+  const xpPts = L.series?.xp || [], roundXp = xpPts.length ? xpPts[xpPts.length - 1][1] : 0;
+  const xpMin = mins > 1 && roundXp ? Math.round(roundXp / mins) : null;
   $("liveHero").innerHTML = [
     tile("Round profit", `<span class="${L.net < 0 ? "neg" : "pos"}">${money(L.net)}</span>`,
       myRate == null ? "shows once the top bar changes" : `${money(myRate)}/min · you usually make ${cashRate == null ? "–" : money(cashRate) + "/min"}`),
     tile("On pace for", proj == null ? "–" : `<span class="${proj < 0 ? "neg" : ""}">${money(proj)}</span>`,
       proj != null ? `by the end, if the round runs your usual ${dur(avgLen)} (~${Math.max(1, Math.round(left / 60))} min left)` : left != null && left <= 0 ? `past your usual ${dur(avgLen)} round` : "needs a minute of play"),
+    tile("Round XP", fmt(roundXp), xpMin == null ? "from the reward feed; role bonuses land at round end"
+      : `${fmt(xpMin)}/min · you usually get ${xpRate == null ? "–" : fmt(xpRate) + "/min"}`),
     boardTile(L.board, now),
     tile("This session", `<span class="${sess.net + (L.net || 0) < 0 ? "neg" : ""}">${money(sess.net + (L.net || 0))}</span>`,
       `${sess.n ? `${sess.n} round${sess.n === 1 ? "" : "s"} before this one, ${fmt(sess.xp)} XP` : "first round of the session"}${sess.wins + sess.losses ? `, ${sess.wins}W ${sess.losses}L` : ""}`),
@@ -2824,6 +2832,10 @@ function buyNext(role, L, has) {
     ${open.length ? open.slice(0, 5).map(row).join("") : `<p class="m">Nothing left to buy at your current role levels.</p>`}
     <p class="m" style="margin:8px 0 0;font-size:12px">${open.length > 5 ? `${open.length - 5} more available. ` : ""}Balance ${money(cash)}.${ahead ? ` Next ${cap(role)} unlock: ${esc(ahead.name)} at level ${ahead.level} (${money(ahead.cost)}).` : ""} Prices from wardogstracker.gg.</p>`;
 }
+
+// XP each role gained in a match, biggest first: [[role, gain], ...]
+const roleGains = (m) => Object.entries(m.details?.role_xp || {}).filter(([, v]) => v?.gain > 0)
+  .map(([r, v]) => [r, v.gain]).sort((a, b) => b[1] - a[1]);
 
 // The role a match was really played as: the one that gained the most XP on the
 // Progression screen, or the only role seen. Loadout screens list every role, so
