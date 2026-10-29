@@ -5,7 +5,7 @@ import re
 import sqlite3
 import time
 
-from .ocr import NOT_TEAM
+from .ocr import NOT_TEAM, ROLES, gun_name, player_name, reward_label
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT, updated REAL)
 HINT_RE = re.compile(r"xp|\$", re.I)
 
 EDITABLE = ("xp", "cash_earned", "cash_spent", "reviewed", "notes")
+RESULTS = ("victory", "defeat", "draw")  # what you can set a match's result to by hand
 SETTINGS = ("daily_xp_goal", "weekly_xp_goal")
 
 
@@ -47,6 +48,51 @@ class Store:
             f"""UPDATE matches SET details = json_set(details, '$.hud.team', json('null'))
                 WHERE json_valid(details) AND lower(json_extract(details, '$.hud.team'))
                 IN ({",".join("?" * len(NOT_TEAM))})""", tuple(NOT_TEAM))
+        self._fix_names()
+
+    def _fix_names(self):
+        """Names misread by older versions, once: guns ('MPS', 'MSOO') become the gun and
+        equipment (range finders) stops counting as one; rewards ('Targetspotted', a
+        teammate's name) merge into the real reward or Other; kill feed names lose the
+        kill distance ('1220m) Hydra')."""
+        if self.get_meta("names_fixed"):
+            return
+        known, gear = self.unlock_names("weapons"), self.gear_names()
+
+        def fix(v):
+            if isinstance(v, list):
+                return [fix(x) for x in v]
+            if not isinstance(v, dict):
+                return v
+            out = {k: gun_name(x, known, gear) if k == "gun" and isinstance(x, str) else fix(x) for k, x in v.items()}
+            if isinstance(v.get("guns"), dict):
+                out["guns"] = {}
+                for name, n in v["guns"].items():
+                    g = gun_name(name, known, gear)
+                    if g:
+                        out["guns"][g] = out["guns"].get(g, 0) + n
+            if isinstance(v.get("rewards"), dict):
+                out["rewards"] = {}
+                for name, r in v["rewards"].items():
+                    each = (r.get("cash") or 0) / max(1, r.get("n") or 1) if not r.get("xp") else None
+                    t = out["rewards"].setdefault(reward_label(name, each), {"n": 0, "cash": 0, "xp": 0})
+                    for k in t:
+                        t[k] += r.get(k) or 0
+            for key in ("sources", "feed"):
+                if isinstance(v.get(key), list):
+                    out[key] = [dict(e, label=reward_label(e["label"], None if e.get("xp") else e.get("cash"))) if isinstance(e, dict) and isinstance(e.get("label"), str) else e
+                                for e in out[key]]
+            for key in ("kill_log", "kills", "deaths"):
+                if isinstance(v.get(key), list):
+                    out[key] = [dict(e, other=player_name(e["other"])) if isinstance(e, dict) and isinstance(e.get("other"), str) else e
+                                for e in out[key]]
+            return out
+        for mid, raw in self.db.execute("SELECT id, details FROM matches WHERE json_valid(details)").fetchall():
+            det = json.loads(raw)
+            new = fix(det)
+            if new != det:
+                self.db.execute("UPDATE matches SET details=? WHERE id=?", (json.dumps(new), mid))
+        self.set_meta("names_fixed", True)
 
     def version(self):
         """Changes whenever another connection (the tracker) writes."""
@@ -86,6 +132,13 @@ class Store:
              json.dumps(details) if details else None)).lastrowid
 
     def update_match(self, mid, fields):
+        # the result and the role you played, when the screen didn't say: set by hand
+        if "result" in fields and (fields["result"] is None or fields["result"] in RESULTS):
+            self.db.execute("UPDATE matches SET details = json_set(COALESCE(details, '{}'), '$.result', ?) WHERE id=?",
+                            (fields["result"], mid))
+        if "role" in fields and (fields["role"] is None or fields["role"] in ROLES):
+            self.db.execute("UPDATE matches SET details = json_set(COALESCE(details, '{}'), '$.role', ?) WHERE id=?",
+                            (fields["role"], mid))
         cols = {k: v for k, v in fields.items() if k in EDITABLE}
         if not cols:
             return
@@ -230,8 +283,14 @@ class Store:
                     changes.append(f"{u['name']} (level {u['level']})")
         return changes
 
-    def unlock_names(self):
+    def unlock_names(self, grp=None):
+        if grp:
+            return [r[0] for r in self.db.execute("SELECT name FROM unlocks WHERE grp=?", (grp,))]
         return [r[0] for r in self.db.execute("SELECT name FROM unlocks")]
+
+    def gear_names(self):
+        """Owned items you can hold that aren't guns (range finders, medical bags)."""
+        return [r[0] for r in self.db.execute("SELECT name FROM unlocks WHERE grp='gear'")]
 
     # small JSON values: settings, server status, leaderboard neighbours
     def get_meta(self, key):

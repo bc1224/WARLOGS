@@ -58,6 +58,19 @@ class GunAndMoneyScreenTests(unittest.TestCase):
         self.assertEqual(weapon([L("KH-2002 // E.E6MM // SN 2TMYJP5")]), "KH-2002")
         self.assertIsNone(weapon([L("MEDICAL // OUICK SLOT")]))
 
+    def test_common_nameplate_misreads_snap_to_the_gun(self):
+        # 5 read as S or E, 0 as O, l as I or 1, G as 6
+        for raw, gun in [("MPS", "MP5"), ("MPE", "MP5"), ("MSOO", "M500"), ("GALII", "Galil"),
+                         ("6ALIL", "Galil"), ("GAL1L", "Galil"), ("A-91", "A-91"), ("T-2I", "T-21")]:
+            with self.subTest(raw=raw):
+                self.assertEqual(weapon([L(f"{raw} // 9MM // SN 2TMYJP5")]), gun)
+
+    def test_equipment_in_your_hands_is_not_a_gun(self):
+        for raw in ("INFRARED RANGE FINDER", "RANGE FINDER", "DEFIBRILLATOR", "MONOCULAR"):
+            with self.subTest(raw=raw):
+                self.assertIsNone(weapon([L(f"{raw} // OPTICS // SN 2TMYJP5")]))
+        self.assertIsNone(weapon([L("MEDICAL BAG // KIT // SN 2TMYJP5")], gear=["Medical Bag"]))
+
     def test_money_screen_columns(self):
         lines = [L("SPENT", 100, 100), L("-$12,400", 300, 100), L("GAINED", 100, 140), L("$30,100", 300, 140),
                  L("BONUS", 100, 180), L("$6,981", 300, 180)]

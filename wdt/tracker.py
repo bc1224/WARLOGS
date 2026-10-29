@@ -605,7 +605,7 @@ class Tracker:
         in_zone = st["hot"] or (h["zone_seen"] is not None and now - h["zone_seen"] <= 20)
         st = dict(st, hot=bool(in_zone))
         h["here"] = "hotzone" if in_zone else "fob" if st["fob"] else None
-        h["gun"] = weapon(lines, self.item_names)
+        h["gun"] = weapon(lines, self.store.unlock_names("weapons"), self.store.gear_names())
         if h["gun"]:
             h["guns"][h["gun"]] = h["guns"].get(h["gun"], 0) + 1
         h["vendor_prev"], h["vendor_item"] = h["vendor_item"], vendor_item(lines)

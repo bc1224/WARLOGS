@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from wdt.ocr import details, downed, kill_feed, promotions, reward_feed, vendor_item
+from wdt.ocr import details, downed, kill_feed, player_name, promotions, reward_feed, reward_label, vendor_item
 from wdt.store import Store
 from wdt.tracker import DEFAULTS, Tracker
 
@@ -38,6 +38,25 @@ class RewardFeedTests(unittest.TestCase):
     def test_ocr_noise_maps_to_known_labels(self):
         got = reward_feed([L("CJERYIYEPPLAYER ASSIST 38xp"), L("DEPLOYED PLAYER ASSIST 38XP")])
         self.assertEqual([g["label"] for g in got], ["Player Assist", "Deployed Player Assist"])
+
+
+class MisreadNameTests(unittest.TestCase):
+    # 2026-10-28: a match listed "Lennayyyy", "Glzpnepresenc" and "Targetspotted" as rewards
+    # and "1220m) Hydra" and "(82mY" as players
+    def test_smeared_rewards_become_the_reward_or_other(self):
+        self.assertEqual([reward_label(x) for x in ("Targetspotted", "Spottebtarget Destroyed", "Glzpnepresenc",
+                                                    "Deposited", "Artillery Kill")],
+                         ["Target Spotted", "Spotted Target Destroyed", "Control Zone Presence",
+                          "Supplies Deposited", "Artillery Kill"])
+        self.assertEqual(reward_label("Henry Tomasino", 20), "Tip")
+        self.assertEqual(reward_label("Imotzone Pqesenge", 420), "Hot Zone Presence")
+        for junk in ("Lennayyyy", "T -Xennayyyy", "P A Imargencv", "E Ef Elling"):
+            self.assertEqual(reward_label(junk), "Other", junk)
+
+    def test_the_kill_distance_is_not_part_of_the_name(self):
+        self.assertEqual([player_name(x) for x in ("1220m) Hydra", "1234 m) Johnnycake", "(82mY", "1244m)", "(89",
+                                                   "SPC DADDY", "12mike", "White Night 1598m]", "Tom 12")],
+                         ["Hydra", "Johnnycake", "", "", "", "SPC DADDY", "12mike", "White Night", "Tom 12"])
 
 
 class KillFeedTests(unittest.TestCase):

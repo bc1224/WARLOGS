@@ -30,8 +30,13 @@ The details behind the tracker. For setup, see the [README](../README.md).
   (newest 150).
 - **Every 3 seconds** (`feed_seconds`): only two small corners, the reward feed under
   the cash ("CONTROL ZONE PRESENCE +$200") and the kill feed. Lines naming your
-  `player_name` count as your kills or deaths. An entry that scrolls past between reads
-  can be missed.
+  `player_name` count as your kills or deaths, without the kill distance ("1220m").
+  Smeared reward names snap to the reward they look like; a teammate's name with a few
+  dollars is a tip, and anything else unreadable counts as Other. An entry that scrolls
+  past between reads can be missed.
+- **Your gun** comes from the nameplate bottom right. Common misreads ("MPS", "MSOO",
+  "GAL1L") snap to the gun, and gear in your hands (range finder, defibrillator, medical
+  bag) isn't counted as a gun. Older matches are cleaned up the same way once.
 - **Every 3 seconds** (`track_seconds`, 0 turns it off): a small minimap picture
   (171 x 153, about 6 KB) for the replay map. Nothing is worked out while you play.
 - **While the big map is open** (on a screen read anyway): its picture, plus where its
@@ -49,7 +54,7 @@ heading to sort by it (again for the other way).
 |---|---|---|
 | **Live** | In a round: profit and $/min vs your usual, pace, scoreboard place, one "do this now" tip, charts, reward/kill feed. Between rounds: last round and session so far. | None; **More detail** (balance, spending, Hot Zone/FOB time, K/D, best money maker, loadout, best unlock to buy) and the **Round plan** expand in place. |
 | **Overview** | Summary figures, session recap led by net cash, best rounds (click one to open it). | XP and cash per match, goals and streaks, sessions. |
-| **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. **Where you went**: a map of your route with kills, deaths, downs and purchases on it; drag the slider or press play. | |
+| **Matches** | Searchable, filterable match list with notes. Click a match for its own page: earned vs spent, timeline, profit over time, money by place and gun, XP per role, and the results screen. Set the result and your role by hand when the screens weren't read. **Where you went**: a map of your route with kills, deaths, downs and purchases on it; drag the slider or press play. | |
 | **Insights** | Win rate and averages, what each role pays (highest or lowest first), stats by gun. | Win rate over time, where XP and cash came from, zone/team/map/fights, when you play best, tips per role from community guides. |
 | **Career** | Players around you on the leaderboard, level forecast per role. | Career XP, cash and rank over time, unlocks, synced totals. |
 
