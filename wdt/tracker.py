@@ -892,6 +892,7 @@ class Tracker:
                 "game_focused": bool(self.rect), "session": self.session,
                 "templates": len(self.matcher.templates), "last_event": self.last_event,
                 "auto_read": self.cfg["auto_read"], "live": self.live(now),
+                "results_screen": self.session is not None and self.matcher.recently_ended(now),
                 "hotkey_end": self.cfg["hotkey_end"], "hotkey_start": self.cfg["hotkey_start"]}
 
     def _write_status(self, now):
@@ -989,7 +990,7 @@ class Tracker:
                 self._save_live(time.time())
         finally:
             vbs = os.path.join(ROOT, "Start Tracker.vbs")
-            subprocess.Popen([sys.executable, "-c", "import subprocess, sys, time; time.sleep(3); "
+            subprocess.Popen([sys.executable, "-c", "import subprocess, sys, time; time.sleep(1); "
                               "subprocess.Popen(['wscript.exe', sys.argv[1]])", vbs],
                              creationflags=0x08000008, close_fds=True)  # no window, detached
             log.info("restarting for the update")

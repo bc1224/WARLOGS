@@ -14,6 +14,11 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
 main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+/* big windows: use more of the width, then scale everything up so text stays readable */
+@media (min-width: 1600px) { main { max-width: 1480px; } }
+@media (min-width: 2000px) { main { max-width: 1560px; zoom: 1.15; } }
+@media (min-width: 2500px) { main { max-width: 1600px; zoom: 1.35; } }
+@media (min-width: 3200px) { main { max-width: 1640px; zoom: 1.6; } }
 header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 h1 { font-size: 22px; letter-spacing: .04em; margin: 0; text-transform: uppercase; }
 h1 span { color: var(--gold); }
@@ -378,19 +383,23 @@ details.menu > summary::-webkit-details-marker { display: none; }
 details.menu > summary::after { content: " ▾"; color: var(--gold); }
 details.menu > summary:hover, details.menu[open] > summary { color: var(--text); }
 details.menu > summary:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-.menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: min(340px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); }
-.menu-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; padding: 10px; border-radius: 8px; cursor: pointer; }
+.menu-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: min(320px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px; box-shadow: 0 14px 34px rgba(0,0,0,.5); }
+.menu-h { margin: 6px 10px 4px; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.menu-row { display: flex; gap: 14px; align-items: center; justify-content: space-between; padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.menu-row + .menu-row { border-top: 1px solid var(--line); }
 .menu-row:hover { background: rgba(255,255,255,.03); }
-.menu-row b { font-size: 14px; font-weight: 600; color: var(--text); }
-.menu-row small { grid-column: 1; font-size: 12px; line-height: 1.45; color: var(--muted); }
-.switch { grid-column: 2; grid-row: 1 / span 2; align-self: center; appearance: none; -webkit-appearance: none; margin: 0; width: 40px; height: 22px; border-radius: 999px; background: #3a3f46; position: relative; cursor: pointer; transition: background .15s; }
+.menu-row > span { display: grid; gap: 2px; min-width: 0; }
+.menu-row b { font-size: 13px; font-weight: 600; color: var(--text); }
+.menu-row small { font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+.menu-row.sub { padding-left: 22px; }
+.switch { flex: none; appearance: none; -webkit-appearance: none; margin: 0; width: 40px; height: 22px; border-radius: 999px; background: #3a3f46; position: relative; cursor: pointer; transition: background .15s; }
 .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--text); transition: transform .15s; }
 .switch:checked { background: var(--gold); }
 .switch:checked::after { transform: translateX(18px); background: #1a1406; }
 .switch:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .switch:disabled { opacity: .4; cursor: default; }
 .menu-row:has(.switch:disabled) { cursor: default; }
-.menu-note { margin: 4px 10px 8px; font-size: 12px; color: var(--muted); }
+.menu-note { margin: 6px 10px 6px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 .pill.offline { color: var(--gold); border-color: rgba(227,169,43,.4); }
 button.ghost { background: none; color: var(--muted); padding: 4px 10px; font-size: 13px; }
 button.ghost:hover { color: var(--text); background: none; }
@@ -434,12 +443,10 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
     <div class="hdr-r"><div class="pills" id="pills"></div><span class="pill offline" id="offlinePill" title="Stats and update checks are both off, so nothing leaves this PC unless you send a report. Turn them on under More." hidden>Offline</span><button id="refreshAll" class="ghost" type="button" title="Refresh: reloads the page, checks for a new version and, if Stats from wardogstracker.gg is on, gets your latest stats" aria-label="Refresh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg></button><button id="reportOpen" class="ghost" type="button">Report an issue</button>
       <details class="menu" id="moreMenu"><summary>More</summary>
         <div class="menu-pop">
-          <label class="menu-row"><b>Stats from wardogstracker.gg</b><input type="checkbox" role="switch" class="switch" data-switch="stats">
-            <small><b>On:</b> sends your Steam ID to wardogstracker.gg (a fan site) every 15 minutes or so for your lifetime level and XP, unlocks and leaderboard rank, plus item prices and server status. Only works if you've synced your profile on their site.<br><b>Off:</b> nothing about you goes there. Every match still logs from your screen, with its XP and cash.</small></label>
-          <label class="menu-row"><b>Check for updates</b><input type="checkbox" role="switch" class="switch" data-switch="updates">
-            <small><b>On:</b> asks GitHub every few hours whether a new version is out. It sends nothing about you.<br><b>Off:</b> no Update button. To update, download it again.</small></label>
-          <label class="menu-row"><b>Install updates automatically</b><input type="checkbox" role="switch" class="switch" data-switch="auto_update">
-            <small><b>On:</b> installs new versions while you're not in a game, then restarts the tracker (a few seconds).<br><b>Off:</b> you click Update when one shows. Needs Check for updates.</small></label>
+          <p class="menu-h">Settings</p>
+          <label class="menu-row" title="On: sends your Steam ID to wardogstracker.gg (a fan site) every 15 minutes or so. Needs your profile synced there. Off: nothing about you goes there; matches still log from your screen."><span><b>Stats from wardogstracker.gg</b><small>Lifetime level, unlocks, rank and item prices. Sends your Steam ID.</small></span><input type="checkbox" role="switch" class="switch" data-switch="stats"></label>
+          <label class="menu-row" title="On: asks GitHub every few hours whether a new version is out. Off: no Update button; download it again to update."><span><b>Check for updates</b><small>Asks GitHub every few hours. Sends nothing about you.</small></span><input type="checkbox" role="switch" class="switch" data-switch="updates"></label>
+          <label class="menu-row sub" title="On: installs a new version as soon as it's out, mid-round too. The tracker restarts in about a second and keeps your round. Off: you click Update when one shows."><span><b>Install updates automatically</b><small>No waiting: restarts in about a second, keeps your round.</small></span><input type="checkbox" role="switch" class="switch" data-switch="auto_update"></label>
           <p class="menu-note">Report an issue only sends when you press Send.</p>
         </div>
       </details></div>
@@ -900,20 +907,11 @@ function snapAround(start, end) {
   return { xp: after.d.careerXp - before.d.careerXp, cash: after.d.cash - before.d.cash, roles };
 }
 
-function serverPill() {
-  const ss = data?.meta?.server_status;
-  if (!ss) return "";
-  const bad = [ss.servers?.health, ss.login?.health].some((h) => h && h !== "ok");
-  const cls = ss.overall === "ok" && !bad ? "on" : /down|outage|error|fail/i.test(ss.overall || "") ? "off" : "warn";
-  const tip = [ss.servers?.detail || ss.servers?.summary, ss.login?.summary, ss._updated ? "Checked " + when(ss._updated) : ""].filter(Boolean).join("\n");
-  return `<span class="pill" title="${esc(tip)}"><span class="dot ${cls}"></span>Servers <b>${ss.servers?.players ? short(ss.servers.players) + " online" : esc(ss.overall || "unknown")}</b></span>`;
-}
-
 function renderStatus(st) {
   const watcher = !st.alive ? '<span class="dot off"></span>Tracker <b>not running</b>'
     : st.game_running ? '<span class="dot on pulse"></span>Live: watching <b>WARDOGS</b>' : '<span class="dot warn"></span>Waiting for <b>WARDOGS</b> to start';
   $("pills").innerHTML = `<span class="pill" title="Results screens learned: ${st.templates ?? 0}">${watcher}</span>
-    ${st.last_event ? `<span class="pill">Last <b>${esc(st.last_event)}</b></span>` : ""}${serverPill()}`;
+    ${st.last_event ? `<span class="pill">Last <b>${esc(st.last_event)}</b></span>` : ""}`;
   $("notice").innerHTML = !st.alive
     ? `<div class="notice">The background tracker isn't running. It starts when you log in to Windows; to start it now, run <b>Start Tracker.vbs</b> in the tracker folder.</div>`
     : data && !data.switches?.stats && !data.snapshots.length && data.matches.length && store.get("wdt-stats-asked") !== "1"
@@ -1329,7 +1327,7 @@ function renderUpdate(msg) {
   const day = upd.date ? new Date(upd.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   el.innerHTML = msg ? `<span>${esc(msg)}</span>`
     : `<span class="what"><b>New version</b> <a href="${esc(upd.url)}" target="_blank" rel="noopener" title="What changed">${esc(upd.title)}</a>${day ? ` <span class="m">${esc(day)}</span>` : ""}</span>
-       <span class="acts"><span class="m" title="Your matches and settings stay. Updating mid-round is fine, the round picks back up.">3s restart, best between rounds</span>
+       <span class="acts"><span class="m" title="Your matches and settings stay. Updating mid-round is fine, the round picks back up.">Restarts in about a second, mid-round is fine</span>
        <button class="link" id="updLater">Later</button>
        <button id="updGo" title="Downloads the new version from GitHub and restarts the tracker. Your matches and settings stay.">Update</button></span>`;
 }
@@ -2170,8 +2168,10 @@ function replayEvents(d) {
 function drawReplay(id) {
   const st = replays[id], cv = $("rpCanvas");
   if (!cv || !st?.route?.length) return;
-  const W = cv.clientWidth, H = cv.clientHeight, dpr = window.devicePixelRatio || 1;
+  const W = cv.clientWidth, H = cv.clientHeight;
   if (!W || !H) return;
+  // CSS zoom on big screens draws the canvas larger than clientWidth; match it so the map stays sharp
+  const dpr = (window.devicePixelRatio || 1) * (cv.getBoundingClientRect().width / W || 1);
   if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
   const x = cv.getContext("2d");
   x.setTransform(dpr, 0, 0, dpr, 0, 0);
