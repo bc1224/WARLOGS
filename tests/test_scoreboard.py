@@ -3,7 +3,7 @@ import os
 import unittest
 import zlib
 
-from wdt.scoreboard import Gray, is_scoreboard, read_board
+from wdt.scoreboard import Gray, faction, is_scoreboard, read_board
 
 HERE = os.path.join(os.path.dirname(__file__), "fixtures")
 # real captures show other players' names, so they stay out of the public repo
@@ -59,6 +59,31 @@ class ScoreboardTests(unittest.TestCase):
         self.assertEqual((me["rank"], me["cash"], me["kills"], me["assists"], me["deaths"], me["revives"]),
                          (13, 71410, 2, 12, 2, 0))
         self.assertEqual((b["above"]["name"], b["above"]["cash"]), (NAMES["above_hl"], 71744))
+
+
+class FactionTests(unittest.TestCase):
+    """The team icon beside each level, sampled from real 2026-10-27/29 captures."""
+
+    @staticmethod
+    def icon(rgb, w=20, h=20, back=(70, 72, 75)):
+        # an icon in the middle of a plain cell, as BGRA
+        px = bytearray()
+        for y in range(h):
+            for x in range(w):
+                r, g, b = rgb if 5 <= x < 15 and 4 <= y < 16 else back
+                px += bytes((b, g, r, 255))
+        return Gray(bytes(px), w, h)
+
+    def test_each_team_colour(self):
+        for rgb, team in (((167, 28, 25), "red"), ((35, 215, 90), "green"), ((98, 164, 198), "blue")):
+            self.assertEqual(faction(self.icon(rgb), 0, 20, 0, 20), team)
+
+    def test_your_rows_gold_outline_is_no_team(self):
+        self.assertIsNone(faction(self.icon((205, 166, 39)), 0, 20, 0, 20))
+        self.assertEqual(faction(self.icon((145, 39, 0), back=(205, 166, 39)), 0, 20, 0, 20), "red")
+
+    def test_brightness_only_crops_have_no_colour(self):
+        self.assertIsNone(faction(Gray(bytes(400), 20, 20, 1), 0, 20, 0, 20))
 
 
 if __name__ == "__main__":

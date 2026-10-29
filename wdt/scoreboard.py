@@ -2,6 +2,7 @@
 and revives. Windows OCR drops lone digits ("0", "1"), so the numbers are read
 with digit shapes learned from the cash column of the same screen, whose
 "$13,381"-style amounts OCR reads well."""
+import colorsys
 import difflib
 import re
 
@@ -29,6 +30,38 @@ class Gray:
         i = (y * self.w + x) * self.bpp
         d = self.data
         return d[i] if self.bpp == 1 else max(d[i], d[i + 1], d[i + 2])
+
+    def rgb(self, x, y):
+        """(r, g, b), or None off the frame or on a brightness-only crop."""
+        x, y = x - self.ox, y - self.oy
+        if self.bpp < 3 or not (0 <= x < self.w and 0 <= y < self.h):
+            return None
+        i = (y * self.w + x) * self.bpp
+        return self.data[i + 2], self.data[i + 1], self.data[i]
+
+
+# hue ranges (degrees) of the faction icons beside each player's level: red wings,
+# blue gear, green globe; your row's gold outline (about 45) falls between them
+FACTION_HUES = {"red": ((0, 20), (335, 360)), "green": ((85, 165),), "blue": ((180, 235),)}
+
+
+def faction(px, x0, x1, y0, y1):
+    """The team colour of the icon inside a box: "red", "green", "blue" or None."""
+    votes = dict.fromkeys(FACTION_HUES, 0)
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            c = px.rgb(x, y)
+            if c is None:
+                return None
+            h, s, v = colorsys.rgb_to_hsv(*(n / 255 for n in c))
+            if s < 0.45 or v < 0.35:
+                continue
+            for team, spans in FACTION_HUES.items():
+                if any(a <= h * 360 < b for a, b in spans):
+                    votes[team] += 1
+    best = max(votes, key=votes.get)
+    rest = max(n for t, n in votes.items() if t != best)
+    return best if votes[best] >= 12 and votes[best] >= 3 * rest else None
 
 
 def is_scoreboard(lines):
@@ -243,8 +276,14 @@ def read_board(lines, px, name="", templates=None):
     title = next((txt(l) for l in lines if hy - 140 < l["y"] < hy - 50 and l["x"] < cash_x
                   and re.fullmatch(r"[A-Z][A-Z ]{3,}", re.sub(r"^\W*\w?\s+", "", txt(l)) or "")), "")
     title = re.sub(r"^\W*\w?\s+(?=[A-Z]{3})", "", title)
+    team = None
+    if me is not None and rank_x is not None:
+        # your team's icon sits between your rank and your level
+        y = rows[me]["y"]
+        team = faction(px, round(rank_x + 0.3 * pitch), round(rank_x + 1.8 * pitch),
+                       round(y - 0.35 * pitch), round(y + 0.35 * pitch))
     for r in rows:
         r.pop("y", None)
-    return {"view": title.title() or None, "players": players, "rows": rows,
+    return {"view": title.title() or None, "players": players, "rows": rows, "team": team,
             "me": rows[me] if me is not None else None,
             "above": rows[me - 1] if me else None, "below": rows[me + 1] if me is not None and me + 1 < len(rows) else None}

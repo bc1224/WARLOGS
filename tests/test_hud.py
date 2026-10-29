@@ -182,6 +182,27 @@ class TrackerHudTests(unittest.TestCase):
         self.assertEqual((m["cash_earned"], m["cash_spent"], m["xp"]), (71410, 12823, 2572 + 567))
         self.assertEqual(m["details"]["board_end"]["me"]["rank"], 15)
 
+    def test_your_team_comes_from_your_scoreboard_row(self):
+        self.t._start_session(100)
+        self.t.hud["playing"] = 110
+        board = {"view": "Global", "players": 90, "rows": [], "team": "red", "me": {"rank": 67}, "above": None, "below": None}
+        with mock.patch("wdt.tracker.read_board", return_value=dict(board)):
+            self.t._note_board(150, b"", 1, 1, [])
+        self.assertEqual(self.t.live(151)["side"], "red")
+        with mock.patch("wdt.tracker.read_board", return_value=dict(board, team=None)):
+            self.t._note_board(160, b"", 1, 1, [])  # scrolled or blurred: keep what was seen
+        self.t.record_end("auto", 200, lines=[L("VALKYRA"), L("WINS")])
+        self.assertEqual(self.store.dump()["matches"][0]["details"]["side"], "red")
+        self.assertIsNone(self.t.live(201)["side"])  # a new round, maybe a new team
+
+    def test_a_scoreboard_seen_only_after_the_round_still_gives_your_team(self):
+        self.t._start_session(100)
+        self.t.record_end("auto", 200, lines=PROGRESSION)
+        board = {"view": "Global", "players": 90, "rows": [], "team": "green", "me": {"rank": 26}, "above": None, "below": None}
+        with mock.patch("wdt.tracker.read_board", return_value=board):
+            self.t._note_board(210, b"", 1, 1, [])
+        self.assertEqual(self.store.dump()["matches"][0]["details"]["side"], "green")
+
     def test_a_learned_end_screen_logs_its_own_round(self):
         # 2026-10-27: a 1.5 hour round's results screen matched a learned look, but the
         # matcher marked the end before the read, so it was merged into the round before
