@@ -32,6 +32,15 @@ bar, using Edge or Chrome's app mode, and starts the tracker first if it isn't r
 tracker is running, the dashboard is also at http://127.0.0.1:8790 in any browser (that address
 means "this PC", so it only works on the PC running the tracker).
 
+**What runs in the background.** Setup asks before adding the tracker to Windows startup. It
+runs as `pythonw.exe`, which is Python without a console window, so look for that name in Task
+Manager. `Start Tracker.vbs` only starts it that way; neither file installs or changes anything
+else. While WARDOGS is in front, it saves screenshots to its own `data` folder (see
+[Is it safe?](#is-it-safe)).
+
+**Stop or uninstall.** To stop it for now, end `pythonw.exe` in Task Manager. To remove it, run
+the uninstall command under **Manual setup and uninstall** below, then delete the folder.
+
 **Updates:** when a new version is out, the dashboard shows an Update button. It downloads
 the new files from this repo, checks that each one is exactly what GitHub lists, keeps your
 settings and match log, and restarts the tracker. Nothing updates unless you click it, or turn
@@ -68,9 +77,12 @@ powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall
 The game process is never opened, read, injected or hooked, and none of its files are read. The tracker only:
 
 - checks the process list to see if WARDOGS is running (like Task Manager)
-- copies pixels from the screen while WARDOGS is in front (like OBS). It keeps the latest 150
-  frames (about 20 MB) and recent minimap pictures for the replay map in its own `data` folder,
-  and deletes older ones as it goes
+- copies pixels from the screen while WARDOGS is in front (like OBS). In its own `data` folder it
+  keeps the results-screen screenshots of your last 50 matches (`data/shots`, about 2 MB each,
+  so you can check what it read; the match log itself keeps everything), the latest 150 frames (about 20 MB, older ones deleted as it goes)
+  and recent minimap pictures for the replay map. These are pictures of your whole screen, so
+  anything shown over the game, like a Discord pop-up, is in them too. They never leave your PC
+  unless you add one to a report yourself, and you can delete any of them at any time
 - reads (never writes) your Steam screenshots folder for WARDOGS. Steam's own **F12**
   screenshot key is an optional backup: if a round wasn't logged, press F12 on the results
   screen and the tracker reads that picture. It doesn't take Steam screenshots itself, so that
@@ -127,6 +139,14 @@ It's light: about 150 MB of RAM, no GPU.
 software", and the developers haven't approved or reviewed this tracker. It never touches the
 game or sends input, which is what anti-cheat looks for, but that isn't permission. Use it at
 your own risk.
+
+## Known limits
+
+- It reads numbers off the screen, so it can misread one, most often when something covers the
+  results screen. Each match page shows the screenshot it read, so you can check, and **not a
+  match** removes one that shouldn't be there.
+- The replay map is experimental: the path can jump or miss parts of a round.
+- The screenshots above are from demo mode, not real matches.
 
 ## Troubleshooting
 
