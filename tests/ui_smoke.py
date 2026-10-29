@@ -21,7 +21,7 @@ import demo  # noqa: E402
 from wdt.dashboard import make_handler  # noqa: E402
 
 PAGES = ["#live", "#overview", "#matches", "#insights", "#career"]
-SIZES = {"desktop": (1280, 900), "phone": (390, 844)}
+SIZES = {"desktop": (1280, 900), "phone": (390, 844), "4k": (2560, 1440)}
 BAD_TEXT = re.compile(r"\bNaN\b|\bundefined\b|\[object Object\]|\bInfinity\b")
 
 

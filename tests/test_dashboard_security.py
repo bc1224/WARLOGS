@@ -211,8 +211,13 @@ class AutoUpdateTests(unittest.TestCase):
         self.updater.apply.assert_called_once_with("abc")
         self.restarted.assert_called_once()
 
-    def test_never_mid_game_offline_or_switched_off(self):
-        self.assertFalse(self.run_with({"alive": True, "session": 4}))
+    def test_installs_mid_round_too(self):
+        self.assertTrue(self.run_with({"alive": True, "session": 4, "results_screen": False}))
+        self.restarted.assert_called_once()
+
+    def test_never_on_results_screen_offline_or_switched_off(self):
+        self.assertFalse(self.run_with({"alive": True, "session": 4, "results_screen": True}))
+        self.assertFalse(self.run_with({"alive": False}))
         self.app.store.set_switch("updates", False)
         self.assertFalse(self.run_with({"alive": True, "session": None}))
         self.app.store.set_switch("updates", True)

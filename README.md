@@ -117,7 +117,7 @@ No password or login is ever asked for or read.
 |---|---|---|
 | Stats from wardogstracker.gg (starts off) | Sends your Steam ID there every 15 minutes or so for lifetime level and XP, unlocks, rank, item prices and server status | Nothing about you goes there |
 | Check for updates (starts on) | Asks GitHub every few hours if there's a new version; sends nothing about you | No Update button; download again to update |
-| Install updates automatically (starts off) | Installs new versions between games and restarts the tracker | You click Update when one shows |
+| Install updates automatically (starts off) | Installs new versions as soon as they're out, mid-round too (the tracker restarts in about a second and keeps the round) | You click Update when one shows |
 
 Each match logs from your screen either way, with its XP and cash. With the first two off,
 nothing leaves your PC unless you send a report.

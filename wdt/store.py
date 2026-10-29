@@ -307,7 +307,7 @@ class Store:
                     and server status. Off on a new install (it sends your Steam ID there);
                     on for anyone who already has stats from it
         updates     ask GitHub whether a newer version is out (sends nothing about you)
-        auto_update install those new versions on its own between games (starts off)
+        auto_update install those new versions on its own, mid-round too (starts off)
         The old single Online switch, once off, keeps the first two off."""
         saved = self.get_meta("switches") or {}
         off = bool(self.get_meta("offline"))

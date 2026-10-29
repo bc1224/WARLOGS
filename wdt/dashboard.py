@@ -66,12 +66,13 @@ class App:
             return 502, {"error": "Couldn't reach the report server. Check your connection."}
 
     def auto_update(self):
-        """With Install updates automatically on, install a new version while no game is
-        running. Returns True when it installed one (the tracker then restarts)."""
+        """With Install updates automatically on, install a new version right away, even
+        mid-round (the restart keeps the round going). Only the results screen waits, so
+        the match result still gets read. Returns True when it installed one."""
         with self.lock:
             on = self.store.auto_update() and self.store.updates_on()
         s = self.status()
-        if not on or not self.cfg.get("check_updates", True) or not s["alive"] or s.get("session") is not None:
+        if not on or not self.cfg.get("check_updates", True) or not s["alive"] or s.get("results_screen"):
             return False
         st = self.updater.fresh(AUTO_CHECK_AGE)
         if not st.get("available"):
