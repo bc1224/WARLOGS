@@ -13,9 +13,11 @@ It reads the screen like OBS does and never changes the game or its files. Every
 
 ![Live view mid-round](docs/screenshots/live-in-round.png)
 
-| Between rounds | Matches | Insights |
-|---|---|---|
-| ![](docs/screenshots/live-between-rounds.png) | ![](docs/screenshots/matches.png) | ![](docs/screenshots/insights.png) |
+| Between rounds | Overview |
+|---|---|
+| ![](docs/screenshots/live-between-rounds.png) | ![](docs/screenshots/overview.png) |
+| **Matches** | **Insights** |
+| ![](docs/screenshots/matches.png) | ![](docs/screenshots/insights.png) |
 
 <sub>Screenshots are from demo mode, which fills in sample matches so you can see every screen before you've played. Try it yourself: `py -3 demo.py`.</sub>
 
@@ -46,7 +48,7 @@ the uninstall command under **Manual setup and uninstall** below, then delete th
 the new files from this repo, checks that each one is exactly what GitHub lists, keeps your
 settings and match log, and restarts the tracker. Nothing updates unless you click it, or turn
 on **Install updates automatically** under **More**: then new versions install on their own
-while you're not in a game. A git clone updates with `git pull` instead.
+while WARDOGS is closed, checked a minute after the tracker starts and every 15 minutes after. A git clone updates with `git pull` instead.
 
 <details>
 <summary>Using Claude Code, Codex or another AI agent? Paste this instead.</summary>
