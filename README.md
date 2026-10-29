@@ -21,7 +21,8 @@ It reads the screen like OBS does and never changes the game or its files. Every
 
 ## Setup
 
-1. [Download the ZIP](https://github.com/bc1224/WARLOGS/archive/refs/heads/main.zip) and unzip it anywhere.
+1. Go to the [latest release](https://github.com/bc1224/WARLOGS/releases/latest), download **`WARLOGS.zip`**
+   and unzip it anywhere.
 2. Double-click **`Setup.bat`**. It finds Python (or installs it), suggests your Steam ID and
    name ([why it needs them](#is-it-safe)), then starts the tracker and opens the dashboard.
 3. Set WARDOGS to **Borderless** or **Windowed** fullscreen and play.
