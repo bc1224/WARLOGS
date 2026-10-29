@@ -59,11 +59,15 @@ dialog img { max-width: 100%; display: block; }
 dialog::backdrop { background: rgba(0,0,0,.7); }
 tr[data-open] { cursor: pointer; }
 .mlist { display: grid; gap: 10px; max-height: 72vh; overflow-y: auto; padding-right: 4px; }
-.mcard { display: grid; grid-template-columns: 6px 1fr auto; gap: 0 14px; align-items: stretch; text-align: left; width: 100%;
-  background: #1b1e22; border: 1px solid var(--line); border-radius: 8px; padding: 0; color: var(--text); cursor: pointer; font: inherit; }
+.mcard { position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr auto; gap: 0 14px; align-items: stretch; text-align: left; width: 100%;
+  background: #1b1e22; border: 1px solid var(--line); border-radius: 8px; padding: 0 0 0 16px; color: var(--text); cursor: pointer; font: inherit; }
+.mcard::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .07;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23e9e6df'%3E%3Cpath d='M0 100C120 70 220 110 340 80S520 50 600 70'/%3E%3Cpath d='M0 75C140 45 230 85 350 55S520 25 600 45'/%3E%3Cpath d='M0 50C150 20 240 60 360 30S520 0 600 20'/%3E%3C/g%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+.mcard > * { position: relative; }
 .mcard:hover, .mcard:focus-visible { border-color: #3a4048; background: #1f2328; outline: none; }
-.mcard .bar { border-radius: 8px 0 0 8px; background: var(--line); }
-.mcard .bar.pos { background: var(--pos); } .mcard .bar.neg { background: var(--neg); }
+.mcard .stamp { font: 700 15px/1 Bahnschrift, "Segoe UI", sans-serif; letter-spacing: .14em; text-transform: uppercase;
+  padding: 3px 8px; border: 2px solid currentColor; border-radius: 3px; transform: rotate(-4deg); display: inline-block; }
+.mcard .stamp.victory { color: #c9d46a; } .mcard .stamp.defeat { color: #d9795a; } .mcard .stamp.draw { color: var(--muted); }
 .mcard .main { padding: 12px 0; min-width: 0; }
 .mcard .top { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .mcard .top b { font-size: 15px; }
@@ -76,7 +80,13 @@ tr[data-open] { cursor: pointer; }
 .mcard .num-v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .mcard .num-s { font-size: 11px; color: var(--muted); }
 .mcard .note { margin-top: 6px; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@media (max-width: 640px) { .mcard { grid-template-columns: 6px 1fr; } .mcard .nums { grid-column: 2; padding: 0 0 12px; } }
+.mcard .num-v { font-family: Bahnschrift, "Segoe UI", sans-serif; }
+.mstrip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.mstrip > div { background: var(--panel); padding: 10px 14px; min-width: 0; }
+.mstrip .k { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.mstrip .v { font: 700 20px Bahnschrift, "Segoe UI", sans-serif; font-variant-numeric: tabular-nums; }
+.mstrip .s { font-size: 11px; color: var(--muted); }
+@media (max-width: 640px) { .mstrip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .mcard { grid-template-columns: 1fr; } .mcard .nums { padding: 0 0 12px; } }
 .mp-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mp-head h2 { margin: 0; font-size: 20px; letter-spacing: 0; text-transform: none; color: var(--text); }
 .mp-nav button { margin-left: 4px; }
@@ -204,7 +214,20 @@ td.used { max-width: 260px; overflow: hidden; text-overflow: ellipsis; color: va
 .heat .d { align-self: center; }
 input.edit.note { width: 170px; text-align: left; }
 .search { background: #101214; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; width: min(340px, 100%); margin-bottom: 10px; }
-.strat { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 16px; }
+.recaphead { margin: 2px 0 12px; font: 600 22px/1.3 Bahnschrift, "Segoe UI", sans-serif; text-wrap: balance; }
+.nexttime { margin: 12px 0 0; padding: 10px 14px; border-left: 3px solid var(--gold); background: #1b1e22; border-radius: 0 6px 6px 0; }
+.nexttime b { display: block; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); margin-bottom: 2px; }
+.paybars { display: grid; gap: 4px; }
+.payrow { display: grid; grid-template-columns: 80px minmax(60px, 1fr) 80px; grid-template-areas: "k bar v" "k s s"; gap: 2px 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.payrow b { grid-area: k; } .payrow .pbar { grid-area: bar; } .payrow .num { grid-area: v; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; } .payrow .m { grid-area: s; font-size: 12px; color: var(--muted); }
+.pbar { height: 10px; background: #22262b; border-radius: 3px; overflow: hidden; }
+.pbar i { display: block; height: 100%; background: var(--pos); border-radius: 3px; } .pbar i.neg { background: var(--neg); }
+.strat { margin-top: 16px; }
+.strat .seg { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.stratcols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-top: 12px; }
+.stratcols li { margin-bottom: 4px; }
+.stratcols .mine { margin-top: 0; padding: 10px 12px; }
+.stratcols .mine h4 { margin-top: 0; }
 .strat h3 { margin: 0 0 4px; font-size: 16px; color: var(--gold); }
 .strat h4 { margin: 10px 0 4px; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .strat ul { margin: 0; padding-left: 18px; line-height: 1.5; }
@@ -229,6 +252,10 @@ tr.me td { background: #1d1a12; color: var(--gold); }
 .hero .tile .v { font-size: 32px; line-height: 1.1; }
 .hero .tile .s { font-size: 12px; }
 .three { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.livecharts { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); }
+@media (max-width: 800px) { .livecharts { grid-template-columns: 1fr; } }
+#liveHero { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 800px) { #liveHero { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .feed { list-style: none; margin: 0; padding: 0; font-size: 13px; }
 .feed li { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
 .feed li:last-child { border-bottom: 0; }
@@ -292,7 +319,6 @@ tbody tr { transition: background .12s; }
 tbody tr:hover td { background: rgba(255,255,255,.025); }
 .mcard { border-radius: 12px; background: linear-gradient(180deg, #1c1f24, #191b1f); transition: border-color .15s, transform .15s; }
 .mcard:hover { transform: translateY(-1px); }
-.mcard .bar { border-radius: 12px 0 0 12px; }
 @media (prefers-reduced-motion: reduce) { .mcard, .mcard:hover { transition: none; transform: none; } }
 .chip { background: #24282e; }
 details.sec > summary { border-radius: 12px; background: linear-gradient(180deg, var(--panel2), var(--panel)); }
@@ -421,12 +447,12 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
         <span class="m" style="align-self:center;font-size:12px;margin-left:10px">Mode:</span>
         <button data-mode="infantry">Infantry</button><button data-mode="combined">With vehicles</button></div>
       <div id="planBody"></div></details>
-    <div class="grid three" id="liveCharts">
+    <div class="grid livecharts" id="liveCharts">
       <div class="card"><h2>Round profit <small id="cashLineSub"></small></h2><div class="chart" id="cashLine"></div></div>
-      <div class="card"><h2>XP this round <small id="xpLineSub"></small></h2><div class="chart" id="xpLine"></div></div>
       <div class="card"><h2>Latest <small>reward and kill feeds, newest first</small></h2><ul class="feed" id="liveFeed"></ul></div></div>
     <div class="grid tiles detail" id="liveTiles"></div>
     <div class="grid two detail">
+      <div class="card"><h2>XP this round <small id="xpLineSub"></small></h2><div class="chart" id="xpLine"></div></div>
       <div class="card"><h2>Do this now <small>most important first</small></h2><div class="tips" id="liveTips"></div></div>
       <div class="card"><h2>Best money maker right now <small>from your balance, levels, team and past rounds</small></h2>
         <div class="seg" id="teamSeg"><span class="m" style="align-self:center;font-size:12px">Team is:</span>
@@ -474,7 +500,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
   <section class="panel" data-panel="insights">
     <div class="grid tiles" id="winTiles"></div>
     <div class="grid two">
-      <div class="card"><h2>By role</h2><div class="scroll" id="byRole"></div></div>
+      <div class="card"><h2>What pays you <small>by role</small></h2><div id="byRole"></div></div>
       <div class="card"><h2>By item used</h2><div class="scroll" id="byItem"></div></div>
     </div>
     <details class="sec" data-sec="winrate"><summary><span class="st">Win rate over time</span><span class="sh">rolling, last 10 matches with a result</span></summary>
@@ -505,8 +531,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
         <div class="card"><h2>Fatigue check <small>XP per hour by time into a session</small></h2><div class="chart" id="fatigueChart"></div><div class="s" id="fatigueNote" style="color:var(--muted);margin-top:6px"></div></div>
       </div>
     </details>
-    <details class="sec" data-sec="strategy"><summary><span class="st">Tips per role</span><span class="sh">community guide tips next to your own numbers</span></summary>
-      <div class="grid"><div class="card"><h2>Your numbers</h2><div id="stratMine"></div></div></div>
+    <details class="sec" data-sec="strategy"><summary><span class="st">Role briefing</span><span class="sh">pick a role: how to level it, how to make cash, and your numbers</span></summary>
       <div class="strat" id="strat"></div>
       <div class="grid"><div class="card"><h2>For every role</h2><ul style="margin:0;padding-left:18px;line-height:1.6">
         <li>Early levels are cheap, so keeping all six roles moving raises your Wardog level fastest.</li>
@@ -527,6 +552,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
   <section class="panel" data-panel="matches">
     <div class="grid"><div class="card">
       <h2>Matches <small id="matchCount"></small></h2>
+      <div class="mstrip" id="matchSum"></div>
       <div class="toolbar"><input type="search" id="q" class="search" placeholder="Search notes, roles, items, maps, stats" aria-label="Search matches">
         <div class="seg mfilter" id="mfilter" role="group" aria-label="Filter matches">
           <button data-mf="">All</button><button data-mf="won">Won</button><button data-mf="lost">Lost</button>
@@ -856,7 +882,6 @@ function render() {
   renderRangeHint(ms);
   const latest = data.snapshots.length ? data.snapshots[data.snapshots.length - 1].data : null;
   const gained = unlockEvents();
-  const newIn = gained.filter((u) => u.t >= since).length;
   const playSecs = sum(ms, mlen);
   const xpN = ms.filter((m) => m.xp != null).length;
 
@@ -865,10 +890,9 @@ function render() {
     ["XP", fmt(sum(ms, (m) => m.xp)), playSecs > 300 ? fmt(sum(ms, (m) => m.xp) / playSecs * 3600) + " XP / hour" : rname],
     ["Net cash", `<span class="${sum(ms, net) < 0 ? "neg" : "pos"}">${money(sum(ms, net))}</span>`, "earned minus spent"],
     ["Avg XP / match", xpN ? fmt(sum(ms, (m) => m.xp) / xpN) : "–", rname],
-    ["Wardog level", latest ? fmt(latest.wardogLevel) : "–", latest ? "rank #" + fmt(latest.rank) + (latest.players ? " of " + fmt(latest.players) : "") : "no sync yet"],
-    ["Cash (synced)", latest ? money(latest.cash) : "–", latest ? "synced " + when(Date.parse(latest.syncedAt) / 1000) : ""],
-    ["Unlocks", fmt(data.unlocks.length || latest?.unlocks), newIn ? `<span class="gold">+${newIn} ${rname}</span>` : (latest?.unlockValue ? money(latest.unlockValue) + " worth" : "")],
   ].map(([k, v, s]) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("");
+  // the session recap below already says all of this for "Last session"; level, cash and unlocks live on Career
+  $("tiles").hidden = range === "session";
 
   renderRecap();
   $("bestRange").textContent = rname;
@@ -920,8 +944,17 @@ function renderMatches(ms, rname) {
   const MF = { won: (m) => won(m) === 1, lost: (m) => won(m) === 0, up: (m) => net(m) > 0, down: (m) => net(m) < 0, check: (m) => !m.reviewed };
   if (MF[mfilter]) ms = ms.filter(MF[mfilter]);
   document.querySelectorAll("[data-mf]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.mf === mfilter));
-  const tot = ms.length ? ` · ${fmt(sum(ms, (m) => m.xp))} XP, ${money(sum(ms, net))} net` : "";
-  $("matchCount").textContent = `${ms.length} ${rname}${q || mfilter ? " matching" : ""}${tot}`;
+  $("matchCount").textContent = `${ms.length} ${rname}${q || mfilter ? " matching" : ""}`;
+  const res = ms.map(won).filter((x) => x != null), wins = res.filter((x) => x === 1).length;
+  const best = ms.filter((m) => net(m) != null).sort((a, b) => net(b) - net(a))[0], n = sum(ms, net);
+  const cell = (k, v, s, c = "") => `<div><div class="k">${k}</div><div class="v ${c}">${v}</div><div class="s">${s}</div></div>`;
+  $("matchSum").hidden = !ms.length;
+  $("matchSum").innerHTML = ms.length ? [
+    cell("Net pay", money(n), `${money(Math.round(n / ms.length))} a match`, n < 0 ? "neg" : n > 0 ? "pos" : ""),
+    cell("XP", fmt(sum(ms, (m) => m.xp)), `${fmt(Math.round(sum(ms, (m) => m.xp) / ms.length))} a match`),
+    cell("Record", res.length ? `${wins}–${res.length - wins}` : "–", res.length ? `won ${pct(wins / res.length)}` : "no results read"),
+    cell("Best earner", best ? money(net(best)) : "–", best ? esc(when(best.ended_at)) : ""),
+  ].join("") : "";
   const base = matchAverages(data.matches);
   $("matchList").innerHTML = ms.length ? ms.slice().reverse().map((m) => matchCard(m, base)).join("")
     : `<div class="empty">No matches ${rname}${q ? " match that search" : ""}.</div>`;
@@ -943,7 +976,7 @@ function matchCard(m, base) {
   const gun = topKey(h?.guns);
   const w = where(m);
   const chips = [
-    d.result ? `<span class="res ${d.result}">${d.result}</span>` : d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : "",
+    !d.result && d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : "",
     role ? `<span class="chip">Role <b>${esc(role)}</b></span>` : "",
     gun ? `<span class="chip">Gun <b>${esc(gun)}</b></span>` : "",
     w ? `<span class="chip ${w.includes("Hot") ? "hot" : w.includes("FOB") ? "fob" : ""}">${esc(w)}</span>` : "",
@@ -955,13 +988,12 @@ function matchCard(m, base) {
   ].filter(Boolean).join("");
   const rate = perMinute(m);
   return `<button class="mcard" data-open="${m.id}" role="listitem" aria-label="Match ${esc(when(m.ended_at))}">
-    <span class="bar ${n > 0 ? "pos" : n < 0 ? "neg" : ""}"></span>
-    <span class="main"><span class="top"><b>${when(m.ended_at)}</b><span class="m">${dur(mlen(m))}${d.duration_s != null ? "" : "*"}</span></span>
+    <span class="main"><span class="top">${d.result ? `<span class="stamp ${esc(d.result)}">${esc(d.result)}</span>` : ""}<b>${when(m.ended_at)}</b><span class="m">${dur(mlen(m))}${d.duration_s != null ? "" : "*"}</span></span>
       <span class="chips">${chips || `<span class="chip">no details read</span>`}</span>
       ${m.notes ? `<span class="note">${esc(m.notes)}</span>` : ""}</span>
     <span class="nums">
-      <span><span class="num-k">XP</span><span class="num-v" style="display:block">${fmt(m.xp)}</span><span class="num-s">${rate != null ? rate.toFixed(0) + "/min" : ""}</span></span>
-      <span><span class="num-k">Net cash</span><span class="num-v ${n < 0 ? "neg" : n > 0 ? "pos" : ""}" style="display:block">${money(n)}</span><span class="num-s">${vsAvg(n, base.cash)}</span></span>
+      <span><span class="num-k">XP</span><span class="num-v" style="display:block">${fmt(m.xp)}</span><span class="num-s">${vsAvg(m.xp, base.xp) || (rate != null ? rate.toFixed(0) + "/min" : "")}</span></span>
+      <span><span class="num-k">Net pay</span><span class="num-v ${n < 0 ? "neg" : n > 0 ? "pos" : ""}" style="display:block">${money(n)}</span><span class="num-s">${vsAvg(n, base.cash)}</span></span>
     </span></button>`;
 }
 function renderRecap() {
@@ -984,15 +1016,17 @@ function renderRecap() {
   if (sessCash != null && base.cashMin != null && sessCash < base.cashMin * 0.8) tips.push(`Cash rate was ${money(sessCash)}/min against your usual ${money(base.cashMin)}/min. Check what you spent on in the match pages.`);
   if (sum(ms, (m) => m.cash_spent) > sum(ms, (m) => m.cash_earned) * 0.6) tips.push("Spending ate most of your earnings. Try a cheaper loadout until a round pays for it.");
   if (!tips.length) tips.push(best ? `Repeat what worked in your best round (${money(net(best))}): open it below to see where the money came from.` : "Solid session. Keep the same approach.");
-  el.innerHTML = `<h2>${live ? "This session" : "Last session"} <small>${when(s.started_at)}${s.ended_at ? " to " + clock(s.ended_at) : ", still playing"}</small></h2>
+  const n = sum(nets, (x) => x), xp = sum(ms, (m) => m.xp), secs = sum(ms.filter((m) => m.xp != null), mlen);
+  const res = ms.map(won).filter((x) => x != null), w = res.filter((x) => x === 1).length;
+  el.innerHTML = `<h2>${live ? "This session" : "Last session"} <small>${when(s.started_at)}${s.ended_at ? " to " + clock(s.ended_at) : ", still playing"} · ${dur(sum(ms, mlen))} played</small></h2>
+    <p class="recaphead">${fmt(ms.length)} match${ms.length === 1 ? "" : "es"}, <span class="${n < 0 ? "neg" : "pos"}">${n > 0 ? "+" : ""}${money(n)}</span> and ${fmt(xp)} XP${topRole ? `, mostly as ${esc(topRole)}` : ""}.</p>
     <div class="grid tiles" style="margin-top:0">
-      ${tile("Matches", fmt(ms.length), dur(sum(ms, mlen)) + " played")}
-      ${tile("XP", fmt(sum(ms, (m) => m.xp)), topRole ? `most as ${esc(topRole)}` : "")}
-      ${tile("Net cash", `<span class="${sum(nets, (x) => x) < 0 ? "neg" : "pos"}">${money(sum(nets, (x) => x))}</span>`, sessCash != null ? `${money(sessCash)}/min ${vsAvg(sessCash, base.cashMin)}` : "")}
+      ${tile("Cash rate", sessCash != null ? money(sessCash) + "/min" : "–", vsAvg(sessCash, base.cashMin) || "net cash per minute played")}
+      ${tile("XP rate", secs > 300 ? fmt(xp / secs * 3600) + "/h" : "–", vsAvg(secs > 300 ? xp / secs * 60 : null, base.xpMin) || "XP per hour played")}
+      ${tile("Record", res.length ? `${w}–${res.length - w}` : "–", res.length ? `won ${pct(w / res.length)}` : "no results read")}
       ${tile("Kills / deaths", fought.length ? `${kills} / ${deaths}` : "–", fought.length ? `downed ${downs} times` : "tracked from your next match")}
-      ${tile("Best round", best ? `<button class="link" data-open="${best.id}">${money(net(best))}</button>` : "–", best ? when(best.ended_at) + (best.details?.map ? " · " + esc(best.details.map) : "") : "")}
     </div>
-    <p style="margin:10px 0 0"><b>Next time:</b> ${tips[0]}</p>`;
+    <p class="nexttime"><b>Next time</b>${tips[0]}</p>`;
 }
 
 function renderSessions(since, now, gained, rname) {
@@ -1189,6 +1223,7 @@ document.addEventListener("click", async (e) => {
   if (!t) return;
   if (t.dataset.go) { openMatch(+t.dataset.go); return; }
   if (t.dataset.tab) { tab = t.dataset.tab; store.set("wdt-tab", tab); history.replaceState(null, "", "#" + tab); if (data) render(); else applyNav(); return; }
+  if (t.dataset.srole) { stratRole = t.dataset.srole; store.set("wdt-srole", stratRole); if (data) renderStrategy(stratLatest); return; }
   if (t.dataset.mf != null) { mfilter = t.dataset.mf; if (data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); return; }
   if (t.dataset.range) { range = t.dataset.range; store.set("wdt-range", range); if (data) render(); else applyNav(); return; }
   if (t.dataset.del && confirm("Delete this match from your log?")) { await post(`/api/match/${t.dataset.del}/delete`); if (tab === "match") location.hash = "matches"; load(); }
@@ -1374,6 +1409,18 @@ function groupStats(ms, keysOf) {
   }).sort((a, b) => b.n - a.n || a.k.localeCompare(b.k));
 }
 
+// roles ranked by average net cash, one bar each, with XP rate and win rate beside it
+function payBars(rows, empty) {
+  rows = rows.filter((r) => r.cash != null).sort((a, b) => b.cash - a.cash);
+  if (!rows.length) return `<div class="empty">${empty}</div>`;
+  const top = Math.max(...rows.map((r) => Math.abs(r.cash))) || 1;
+  return `<div class="paybars">${rows.map((r) => `<div class="payrow"><b>${esc(r.k)}</b>
+    <span class="pbar"><i class="${r.cash < 0 ? "neg" : ""}" style="width:${Math.max(2, Math.abs(r.cash) / top * 100).toFixed(1)}%"></i></span>
+    <span class="num ${r.cash < 0 ? "neg" : ""}">${money(r.cash)}</span>
+    <span class="m">${r.rate != null ? r.rate.toFixed(0) + " XP/min" : "–"} · ${r.dec ? "won " + pct(r.win) : "no results"} · ${r.n} match${r.n === 1 ? "" : "es"}</span></div>`).join("")}</div>
+    <p class="m" style="margin:8px 0 0;font-size:12px">Average net cash per match.</p>`;
+}
+
 function statTable(rows, head, empty) {
   if (!rows.length) return `<div class="empty">${empty}</div>`;
   return `<table><thead><tr><th>${head}</th><th class="num">Matches</th><th class="num">Win rate</th><th class="num">Avg XP</th><th class="num">Avg net cash</th><th class="num">XP / min</th></tr></thead><tbody>${rows.map((r) =>
@@ -1393,14 +1440,10 @@ function renderInsights(ms, rname) {
   const xLabel = (m) => shortRange() ? clock(m.ended_at) : day(m.ended_at);
   const dec = ms.filter((m) => won(m) != null), wins = dec.filter((m) => won(m) === 1).length;
   const roles = groupStats(ms, (m) => m.details?.used?.roles || []), items = groupStats(ms, (m) => m.details?.used?.items || []);
-  const bestRole = roles.filter((r) => r.rate != null).sort((a, b) => b.rate - a.rate)[0];
-  const bestCash = roles.filter((r) => r.cash != null).sort((a, b) => b.cash - a.cash)[0];
   $("winTiles").innerHTML = [
     tile("Win rate", pct(dec.length ? wins / dec.length : null), dec.length ? `${wins} won, ${dec.length - wins} lost, ${rname}` : "no results read " + rname),
     tile("Avg XP / match", fmt(avg(ms.filter((m) => m.xp != null).map((m) => m.xp))), rname),
     tile("Avg net cash / match", money(avg(ms.map(net).filter((x) => x != null))), rname),
-    tile("Best role for XP", bestRole ? esc(bestRole.k) : "–", bestRole ? bestRole.rate.toFixed(1) + " XP / min" : "roles come from loadout screens"),
-    tile("Best role for cash", bestCash ? esc(bestCash.k) : "–", bestCash ? money(bestCash.cash) + " avg net" : ""),
   ].join("");
 
   const pts = dec.map((m, i) => {
@@ -1408,7 +1451,7 @@ function renderInsights(ms, rname) {
     return { y: w / win.length * 100, label: xLabel(m), tip: `<b>${esc(when(m.ended_at))}</b><br>This match: ${esc(m.details.result)}<br>Last ${win.length}: ${w} won (${Math.round(w / win.length * 100)}%)` };
   });
   chart($("winChart"), { kind: "line", points: pts, xTitle: `Match (${rname})`, yTitle: "Win rate (%)", yRange: [0, 100], yFmt: (v) => Math.round(v) + "%", empty: `Needs two or more matches with a result ${rname}` });
-  $("byRole").innerHTML = statTable(roles, "Role", `No roles seen ${rname}. Roles are read from loadout and deploy screens.`);
+  $("byRole").innerHTML = payBars(roles, `No roles seen ${rname}. Roles are read from loadout and deploy screens.`);
   $("byItem").innerHTML = statTable(items, "Item", `No items seen ${rname}. Items are read from loadout screens.`);
   const hudEmpty = `Nothing yet ${rname}. During matches the screen is read every 20 seconds for Hot Zone, FOB and team names.`;
   $("byWhere").innerHTML = statTable(groupStats(ms, (m) => where(m) ? [where(m)] : []), "Where", hudEmpty);
@@ -2227,8 +2270,6 @@ function renderLive(st) {
   $("liveHead").innerHTML = `<div class="headline"><span class="dot ${stale ? "warn" : "on pulse"}"></span><b>${L.between ? "Round over" : "In a round"}</b>
     <span class="m">${L.between ? "the round just logged is below; the next one starts on its own" : `${liveClock(secs)} in`} · ${ago == null ? "waiting for the first read" : `screen read ${ago}s ago${stale ? " (alt-tabbed or on a menu?)" : ""}`}</span></div>`;
   if (L.between) renderIdle();
-  const byRole = Object.fromEntries(groupStats(data?.matches || [], (m) => mainRole(m) ? [mainRole(m)] : []).map((r) => [r.k, r]));
-  const roleRate = roles.map((r) => byRole[r]?.rate).find((x) => x != null);
   // where this round is heading: what you've earned per minute (gear bought is a one-off,
   // not a rate), carried to your usual round length; the first minutes lean on your usual rate
   const avgLen = matchAverages(recent).len, left = avgLen && secs != null ? avgLen - secs : null;
@@ -2242,7 +2283,6 @@ function renderLive(st) {
     tile("On pace for", proj == null ? "–" : `<span class="${proj < 0 ? "neg" : ""}">${money(proj)}</span>`,
       proj != null ? `by the end, if the round runs your usual ${dur(avgLen)} (~${Math.max(1, Math.round(left / 60))} min left)` : left != null && left <= 0 ? `past your usual ${dur(avgLen)} round` : "needs a minute of play"),
     boardTile(L.board, now),
-    tile("Playing as", roles.length === 1 ? cap(roles[0]) : "–", roleRate != null ? `you average ${roleRate.toFixed(0)} XP/min as ${cap(roles[0])}` : xpRate != null ? `overall ${xpRate.toFixed(0)} XP/min` : "shows once a loadout screen names it"),
     tile("This session", `<span class="${sess.net + (L.net || 0) < 0 ? "neg" : ""}">${money(sess.net + (L.net || 0))}</span>`,
       `${sess.n ? `${sess.n} round${sess.n === 1 ? "" : "s"} before this one, ${fmt(sess.xp)} XP` : "first round of the session"}${sess.wins + sess.losses ? `, ${sess.wins}W ${sess.losses}L` : ""}`),
   ].join("");
@@ -2277,7 +2317,7 @@ function renderLive(st) {
   const role = roles.length === 1 ? roles[0] : planPick().role, g = role && STRATS[role];
   const best = lastMoney[0];
   if (best && roles.length === 1 && best.mt.role !== roles[0] && !L.between)
-    tips.push([65, "do", "Plan", `Next deploy: ${esc(best.mt.name)}`, esc(`${best.why.slice(0, 2).join("; ")}.`)]);
+    tips.push([40, "do", "Plan", `Next deploy: ${esc(best.mt.name)}`, esc(`${best.why.slice(0, 2).join("; ")}.`)]);
   if (!roles.length) tips.push([30, "info", "Role", "Role not seen yet", "It shows once a loadout or deploy screen names it."]);
   // strategy for this round: where you are, your best-paying role from past rounds, and the role guide
   if (L.here === "fob") tips.push([55, "do", "Strategy", "At a FOB: restock and move out", "Buy only what this life needs, then head for the Hot Zone. Time at the FOB pays nothing."]);
@@ -2760,32 +2800,31 @@ const STRATS = {
       "Never fly back empty: haul ammo, medical gear or building materials to FOBs."] },
 };
 
+let stratRole = store.get("wdt-srole"), stratLatest = null;
 function renderStrategy(latest) {
+  stratLatest = latest;
   const rates = roleRates(), fc = Object.fromEntries(forecastRows(latest).map((x) => [x.r, x]));
   const byRole = Object.fromEntries(groupStats(data.matches, (m) => (m.details?.used?.roles || []).map((r) => r.toLowerCase())).map((r) => [r.k, r]));
   const fastest = ROLE_KEYS.filter((r) => rates[r]).sort((a, b) => rates[b] - rates[a]);
   const richest = ROLE_KEYS.filter((r) => byRole[r]?.cash != null).sort((a, b) => byRole[b].cash - byRole[a].cash);
-  const cheapest = ROLE_KEYS.filter((r) => fc[r]?.need != null).sort((a, b) => fc[a].need - fc[b].need);
-  $("stratMine").innerHTML = `<div class="grid tiles" style="margin-top:0">${[
-    tile("Fastest leveling role", fastest.length ? cap(fastest[0]) : "–", fastest.length ? fmt(rates[fastest[0]]) + " XP / hour played" : "needs a session between two syncs"),
-    tile("Best cash role", richest.length ? cap(richest[0]) : "–", richest.length ? money(byRole[richest[0]].cash) + " avg net per match" : "needs matches with roles read"),
-    tile("Closest level-up", cheapest.length ? cap(cheapest[0]) : "–", cheapest.length ? `level ${fc[cheapest[0]].v.level}, ~${fmt(fc[cheapest[0]].need)} XP to go` : ""),
-  ].join("")}</div><div class="s" style="color:var(--muted);margin-top:8px">Your Wardog level is the sum of all six role levels and low levels are cheap, so leveling your lowest roles raises it fastest.</div>`;
 
-  $("strat").innerHTML = ROLE_KEYS.map((r) => {
-    const s = STRATS[r], g = byRole[r], f = fc[r];
-    const top = g ? sourceRows(g.g).sort((a, b) => b.xp - a.xp).slice(0, 3) : [];
-    const mine = [
-      f ? `Level <b>${f.v.level}</b>, ${fmt(f.v.xp)} XP` + (f.need != null ? `, ~${fmt(f.need)} to next` : "") : null,
-      rates[r] != null ? `XP / hour played: <b>${fmt(rates[r])}</b>` + (f?.eta != null ? ` (next level in ~${etaText(f.eta)})` : "") : null,
-      g ? `${g.n} logged match${g.n === 1 ? "" : "es"}: avg <b>${fmt(g.xp)}</b> XP, <b class="${g.cash < 0 ? "neg" : ""}">${money(g.cash)}</b> net, win rate ${pct(g.win)}` : "No logged matches with this role yet.",
-      top.length ? `Your top sources: ${top.map((t) => `${esc(t.label)} ${short(t.xp)} XP`).join(", ")}` : null,
-    ].filter(Boolean).join("<br>");
-    return `<div class="card"><h3>${cap(r)}</h3>
-      <h4>Leveling</h4><ul>${s.level.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-      <h4>Making cash</h4><ul>${s.cash.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>
-      <div class="mine"><b>You as ${cap(r)}</b><br>${mine}</div></div>`;
-  }).join("");
+  // one role at a time: tabs pick it, three short columns instead of six cards of text
+  if (!ROLE_KEYS.includes(stratRole)) stratRole = fastest[0] || richest[0] || ROLE_KEYS[0];
+  const r = stratRole, s = STRATS[r], g = byRole[r], f = fc[r];
+  const top = g ? sourceRows(g.g).sort((a, b) => b.xp - a.xp).slice(0, 3) : [];
+  const mine = [
+    f ? `Level <b>${f.v.level}</b>` + (f.need != null ? `, ~${fmt(f.need)} XP to next` : "") : null,
+    rates[r] != null ? `<b>${fmt(rates[r])}</b> XP / hour played` + (f?.eta != null ? `, next level in ~${etaText(f.eta)}` : "") : null,
+    g ? `${g.n} match${g.n === 1 ? "" : "es"}: avg <b>${fmt(g.xp)}</b> XP, <b class="${g.cash < 0 ? "neg" : ""}">${money(g.cash)}</b> net, won ${pct(g.win)}` : "No logged matches with this role yet.",
+    top.length ? `Best sources: ${top.map((t) => `${esc(t.label)} ${short(t.xp)}`).join(", ")}` : null,
+  ].filter(Boolean);
+  const list = (xs) => `<ul>${xs.map((x) => `<li>${x}</li>`).join("")}</ul>`;
+  $("strat").innerHTML = `<div class="card">
+    <div class="seg" role="group" aria-label="Role">${ROLE_KEYS.map((k) => `<button data-srole="${k}" aria-pressed="${k === r}">${cap(k)}</button>`).join("")}</div>
+    <div class="stratcols">
+      <div><h4>Level faster</h4>${list(s.level.map(esc))}</div>
+      <div><h4>Make cash</h4>${list(s.cash.map(esc))}</div>
+      <div class="mine"><h4>You as ${cap(r)}</h4>${list(mine)}</div></div></div>`;
 }
 
 // goal inputs, personal-best dismiss, notes, match search
