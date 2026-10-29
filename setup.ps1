@@ -5,20 +5,22 @@ Double-click Setup.bat, or run:
   powershell -ExecutionPolicy Bypass -File setup.ps1
 
 Non-interactive (for scripts and AI agents):
-  powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes [-SteamId 7656...] [-PlayerName "MyName"] [-NoStartup]
+  powershell -ExecutionPolicy Bypass -File setup.ps1 -Yes [-SteamId 7656...] [-PlayerName "MyName"] [-NoStartup] [-NoDesktop]
 
 Remove autostart and stop the tracker:
   powershell -ExecutionPolicy Bypass -File setup.ps1 -Uninstall
 
 It installs nothing into the game and needs no admin rights. It writes config.json,
 remembers which pythonw.exe to use, adds a Startup shortcut, starts the tracker and
-opens the dashboard.
+opens the dashboard. A WARLOGS icon that opens the dashboard goes in the Start menu,
+this folder and (if you say yes) the desktop.
 #>
 param(
     [string]$SteamId = "",
     [string]$PlayerName = "",
     [switch]$Yes,
     [switch]$NoStartup,
+    [switch]$NoDesktop,
     [switch]$NoOpen,
     [switch]$Uninstall
 )
@@ -26,6 +28,8 @@ $ErrorActionPreference = "Stop"
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Shortcut = Join-Path ([Environment]::GetFolderPath("Startup")) "WARLOGS.lnk"
 $MenuShortcut = Join-Path ([Environment]::GetFolderPath("Programs")) "WARLOGS.lnk"
+$DesktopShortcut = Join-Path ([Environment]::GetFolderPath("Desktop")) "WARLOGS.lnk"
+$FolderShortcut = Join-Path $Here "WARLOGS.lnk"
 # shortcuts from before the WARLOGS rename
 $OldShortcuts = @((Join-Path ([Environment]::GetFolderPath("Startup")) "WARDOGS Match Tracker.lnk"),
                   (Join-Path ([Environment]::GetFolderPath("Programs")) "WARDOGS Dashboard.lnk"))
@@ -53,7 +57,7 @@ function Stop-Tracker {
 if ($Uninstall) {
     Stop-Tracker
     if (Test-Path $Shortcut) { Remove-Item $Shortcut }
-    if (Test-Path $MenuShortcut) { Remove-Item $MenuShortcut }
+    @($MenuShortcut, $DesktopShortcut, $FolderShortcut) | Where-Object { Test-Path $_ } | Remove-Item
     $OldShortcuts | Where-Object { Test-Path $_ } | Remove-Item
     Say "Tracker stopped and removed from Startup. Your match log is still in $Here\data." Green
     exit 0
@@ -188,20 +192,26 @@ for ($i = 0; $i -lt 20 -and -not $ok; $i++) {
 if ($ok) { Say "Tracker running. Dashboard: http://127.0.0.1:$Port" Green }
 else { Say "The dashboard didn't answer yet. Check $Here\data\tracker.log." Red }
 
-# the dashboard opens in its own window (Edge or Chrome app mode) from the Start menu
+# the WARLOGS icon opens the dashboard in its own window (Edge or Chrome app mode),
+# starting the tracker first if it isn't running
 $open = Join-Path $Here "Open Dashboard.vbs"
 $sh = New-Object -ComObject WScript.Shell
-$lnk = $sh.CreateShortcut($MenuShortcut)
-$lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
-$lnk.Arguments = '"' + $open + '"'
-$lnk.WorkingDirectory = $Here
-$lnk.Description = "WARLOGS dashboard"
-$lnk.IconLocation = (Join-Path $Here "wdt\warlogs.ico") + ",0"
-$lnk.Save()
+function Save-Icon($path) {
+    $lnk = $sh.CreateShortcut($path)
+    $lnk.TargetPath = "$env:WINDIR\System32\wscript.exe"
+    $lnk.Arguments = '"' + $open + '"'
+    $lnk.WorkingDirectory = $Here
+    $lnk.Description = "WARLOGS dashboard"
+    $lnk.IconLocation = (Join-Path $Here "wdt\warlogs.ico") + ",0"
+    $lnk.Save()
+}
+Save-Icon $MenuShortcut
+Save-Icon $FolderShortcut
+if (-not $NoDesktop -and (Confirm "Put a WARLOGS icon on the desktop?")) { Save-Icon $DesktopShortcut; Say "Added WARLOGS to the desktop." Green }
 $oldUrl = Join-Path $Here "WARDOGS Dashboard.url"
 if (Test-Path $oldUrl) { Remove-Item $oldUrl }
 $OldShortcuts | Where-Object { Test-Path $_ } | Remove-Item
-Say "Added WARLOGS to the Start menu." Green
+Say "Added WARLOGS to the Start menu and this folder." Green
 if ($ok -and -not $NoOpen) { Start-Process wscript.exe -ArgumentList ('"' + $open + '"') }
 
 Say ""

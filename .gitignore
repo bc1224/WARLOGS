@@ -3,6 +3,8 @@ __pycache__/
 config.json
 .python-path
 WARDOGS Dashboard.url
+# setup's WARLOGS icon: it holds this PC's folder path
+/WARLOGS.lnk
 # real scoreboard captures (other players' names): kept local only
 tests/fixtures/
 
