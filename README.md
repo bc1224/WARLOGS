@@ -78,8 +78,8 @@ The game process is never opened, read, injected or hooked, and none of its file
 
 - checks the process list to see if WARDOGS is running (like Task Manager)
 - copies pixels from the screen while WARDOGS is in front (like OBS). In its own `data` folder it
-  keeps the results-screen screenshots of each match (`data/shots`, about 2 MB each, so you
-  can check what it read), the latest 150 frames (about 20 MB, older ones deleted as it goes)
+  keeps the results-screen screenshots of your last 50 matches (`data/shots`, about 2 MB each,
+  so you can check what it read; the match log itself keeps everything), the latest 150 frames (about 20 MB, older ones deleted as it goes)
   and recent minimap pictures for the replay map. These are pictures of your whole screen, so
   anything shown over the game, like a Discord pop-up, is in them too. They never leave your PC
   unless you add one to a report yourself, and you can delete any of them at any time

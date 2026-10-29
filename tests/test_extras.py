@@ -1,5 +1,6 @@
 import os
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -63,6 +64,44 @@ class MetaTests(unittest.TestCase):
         with mock.patch.object(sources, "_get", return_value={"overall": "ok", "servers": {"players": 5}}):
             sources.pull_status(self.store)
         self.assertEqual(self.store.get_meta("server_status")["overall"], "ok")
+
+
+class ShotPruneTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = Store(os.path.join(self.tmp.name, "t.db"))
+        self.shots = os.path.join(self.tmp.name, "shots")
+        os.makedirs(self.shots)
+
+    def tearDown(self):
+        self.store.db.close()
+        self.tmp.cleanup()
+
+    def shot(self, name, age=0):
+        p = os.path.join(self.shots, name)
+        open(p, "wb").close()
+        os.utime(p, (time.time() - age, time.time() - age))
+        return p
+
+    def test_keeps_the_newest_matches_pictures_and_forgets_the_rest(self):
+        steam = os.path.join(self.tmp.name, "steam.jpg")  # an F12 picture: Steam's, never deleted
+        open(steam, "wb").close()
+        old = self.store.add_match(1, 0, 100, "auto", self.shot("old.png"), details={"end_shots": [self.shot("old-tab.png")]})
+        f12 = self.store.add_match(1, 0, 200, "steam", steam)
+        new = self.store.add_match(1, 0, 300, "auto", self.shot("new.png"), details={"end_shots": [self.shot("new-tab.png")]})
+        stray = self.shot("deleted-match.png", age=7200)
+        fresh = self.shot("being-logged.png")  # written a moment ago, its match not saved yet
+        self.store.prune_shots(self.shots, keep=1)
+        left = sorted(os.listdir(self.shots))
+        self.assertEqual(left, ["being-logged.png", "new-tab.png", "new.png"])
+        self.assertTrue(os.path.exists(steam))
+        rows = dict(self.store.db.execute("SELECT id, screenshot FROM matches").fetchall())
+        self.assertIsNone(rows[old])  # the match page stops showing a picture that's gone
+        self.assertEqual(rows[f12], steam)
+        self.assertEqual(self.store.match_full(old)["details"].get("end_shots"), [])
+        self.assertEqual(len(self.store.match_full(new)["details"]["end_shots"]), 1)
+        self.assertFalse(os.path.exists(stray))
+        self.assertTrue(os.path.exists(fresh))
 
 
 class XpSourceTests(unittest.TestCase):

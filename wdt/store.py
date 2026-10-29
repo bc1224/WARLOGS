@@ -1,5 +1,6 @@
 """SQLite storage for sessions, matches, API snapshots and screen templates."""
 import json
+import os
 import re
 import sqlite3
 import time
@@ -99,6 +100,37 @@ class Store:
         det = json.loads(row[0]) if row[0] else {}
         det.setdefault("end_shots", []).append(path)
         self.db.execute("UPDATE matches SET details=? WHERE id=?", (json.dumps(det), mid))
+
+    def prune_shots(self, shots_dir, keep, grace=3600):
+        """Delete the results-screen pictures in shots_dir except the newest `keep` matches',
+        and forget them on those matches. Pictures anywhere else (Steam's F12 ones) stay. A
+        picture no match lists is deleted once it's `grace` seconds old (its match may not be
+        saved yet)."""
+        root = os.path.normcase(os.path.abspath(shots_dir))
+        ours = lambda p: bool(p) and os.path.normcase(os.path.dirname(os.path.abspath(p))) == root
+        norm = lambda p: os.path.normcase(os.path.abspath(p))
+        kept, dropped = set(), set()
+        rows = self.db.execute("SELECT id, screenshot, details FROM matches ORDER BY ended_at DESC").fetchall()
+        for i, (mid, shot, det) in enumerate(rows):
+            det = json.loads(det) if det else {}
+            ends = det.get("end_shots", [])
+            if i < keep:
+                kept.update(norm(p) for p in [shot, *ends] if ours(p))
+                continue
+            dropped.update(norm(p) for p in [shot, *ends] if ours(p))
+            if ours(shot):
+                self.db.execute("UPDATE matches SET screenshot=NULL WHERE id=?", (mid,))
+            if any(ours(p) for p in ends):
+                det["end_shots"] = [p for p in ends if not ours(p)]
+                self.db.execute("UPDATE matches SET details=? WHERE id=?", (json.dumps(det), mid))
+        for name in os.listdir(shots_dir) if os.path.isdir(shots_dir) else []:
+            p = os.path.join(shots_dir, name)
+            try:
+                n = norm(p)
+                if n in dropped or (n not in kept and time.time() - os.path.getmtime(p) > grace):
+                    os.remove(p)
+            except OSError:
+                pass
 
     def fill_match(self, mid, parsed, info):
         """Fill what a match is still missing (XP, cash, detail keys) from another
