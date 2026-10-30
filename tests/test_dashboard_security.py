@@ -107,6 +107,28 @@ class DashboardSecurityTests(unittest.TestCase):
         r, _ = self.get("/api/settings", method="POST", headers={"Origin": f"http://localhost:{self.port}"}, body=b"{}")
         self.assertNotEqual(r.status, 403)
 
+    def test_read_again_reads_the_kept_pictures(self):
+        page = {"Origin": f"http://127.0.0.1:{self.port}"}
+        shot = f"{self.tmp.name}/end.png"
+        open(shot, "wb").close()
+        with self.app.lock:
+            sid = self.app.store.start_session(0)
+            mid = self.app.store.add_match(sid, 0, 100, "auto", screenshot=shot)
+            bare = self.app.store.add_match(sid, 0, 100, "manual")
+        worker = mock.Mock()
+        worker.read.return_value = [{"text": "VALKYRA WINS", "x": 960, "y": 470}]
+        with mock.patch("wdt.dashboard.OcrWorker", return_value=worker):
+            r, body = self.get(f"/api/match/{mid}/read-again", method="POST", headers=page)
+            self.assertEqual(r.status, 200)
+            self.assertIn("winner", json.loads(body)["changed"])
+            r, _ = self.get(f"/api/match/{bare}/read-again", method="POST", headers=page)
+            self.assertEqual(r.status, 404)
+            r, _ = self.get(f"/api/match/{mid}/read-again", method="POST", headers={"Origin": "https://evil.example"})
+            self.assertEqual(r.status, 403)
+        worker.stop.assert_called()
+        m = next(m for m in self.app.store.dump()["matches"] if m["id"] == mid)
+        self.assertEqual(m["details"]["winner"], "VALKYRA")
+
     def test_updates_install_only_from_the_dashboard_page(self):
         r, _ = self.get("/api/update", method="POST", headers={"Origin": "https://evil.example"})
         self.assertEqual(r.status, 403)

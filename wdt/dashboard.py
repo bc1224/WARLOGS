@@ -14,6 +14,7 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from .ocr import OcrWorker
 from .sources import pull_api, pull_status
 from . import track
 from .store import Store
@@ -44,6 +45,29 @@ class App:
         self.on_updated = on_updated or (lambda: None)
         self.updater = updater or Updater(os.path.dirname(HERE), ddir)
         self.lock = threading.Lock()
+
+    def read_again(self, mid):
+        """Read a match's kept results-screen pictures again with the current reader
+        (after a fix to how screens are read, say). Returns (status, reply)."""
+        with self.lock:
+            pics = self.store.match_pictures(mid)
+        if not pics:
+            return 404, {"ok": False, "error": "No results-screen pictures are kept for this match "
+                                               "(only the latest matches keep theirs)."}
+        ocr, reads = OcrWorker(), []
+        try:
+            for p in pics:
+                try:
+                    reads.append((p, ocr.read(p)))
+                except Exception as e:
+                    log.warning("reading %s again failed: %s", p, e)
+        finally:
+            ocr.stop()
+        if not reads:
+            return 500, {"ok": False, "error": "Windows couldn't read the pictures."}
+        with self.lock:
+            changed = self.store.reread_match(mid, reads)
+        return 200, {"ok": True, "pictures": len(reads), "changed": changed}
 
     def report(self, body):
         """Send a Report an issue form to the relay: (status, reply)."""
@@ -244,6 +268,9 @@ def make_handler(app):
                 with app.lock:
                     app.store.fill_match(int(m.group(1)), {}, {"track_route": route})
                 return self._send(200, {"ok": True})
+            m = re.fullmatch(r"/api/match/([0-9]+)/read-again", self.path)
+            if m:
+                return self._send(*app.read_again(int(m.group(1))))
             m = re.fullmatch(r"/api/match/(\d+)(/delete|/not-end-screen)?", self.path)
             if m:
                 mid, action = int(m.group(1)), m.group(2)

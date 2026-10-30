@@ -100,6 +100,55 @@ class CyrillicFixTests(unittest.TestCase):
         self.assertNotIn("TOTAL PROFIT", self.st.match_text(mid))
 
 
+class ReadAgainTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.st = Store(os.path.join(self.tmp.name, "t.db"))
+        self.sid = self.st.start_session(0)
+        self.shot = os.path.join(self.tmp.name, "end.png")
+        open(self.shot, "wb").close()
+
+    def tearDown(self):
+        self.st.db.close()
+        self.tmp.cleanup()
+
+    def match(self, mid):
+        return {m["id"]: m for m in self.st.dump()["matches"]}[mid]
+
+    def test_what_the_screen_says_comes_from_the_new_read(self):
+        old = [_l("VIPER W1NS", 960, 470)]  # an older reader's mistakes
+        mid = self.st.add_match(self.sid, 0, 100, "auto", screenshot=self.shot, ocr=old,
+                                details={"winner": "VIPER"})
+        changed = self.st.reread_match(mid, [(self.shot, CYRILLIC_SCREEN)])
+        m = self.match(mid)
+        self.assertEqual(m["details"]["winner"], "LONESTAR")
+        self.assertEqual(m["details"]["cash_summary"]["spent"], 610464)
+        self.assertEqual((m["cash_earned"], m["cash_spent"]), (613700, 610464))
+        self.assertIn("TOTAL PROFIT", self.st.match_text(mid))
+        self.assertEqual(m["details"]["ocr_before_reread"], old)
+        self.assertTrue({"winner", "cash_summary", "cash", "text"} <= set(changed))
+
+    def test_your_own_changes_stay(self):
+        mid = self.st.add_match(self.sid, 0, 100, "auto", screenshot=self.shot,
+                                parsed={"cash_earned": 13000, "cash_spent": 4000, "xp": 900},
+                                details={"result": "victory"})
+        self.st.reread_match(mid, [(self.shot, CYRILLIC_SCREEN)])
+        m = self.match(mid)
+        self.assertEqual((m["cash_earned"], m["cash_spent"], m["xp"]), (13000, 4000, 900))
+        self.assertEqual(m["details"]["result"], "victory")
+
+    def test_reading_the_same_thing_changes_nothing(self):
+        mid = self.st.add_match(self.sid, 0, 100, "auto", screenshot=self.shot, ocr=ENGLISH_SCREEN)
+        self.st.reread_match(mid, [(self.shot, ENGLISH_SCREEN)])
+        self.assertEqual(self.st.reread_match(mid, [(self.shot, ENGLISH_SCREEN)]), [])
+
+    def test_only_pictures_still_on_disk_are_offered(self):
+        mid = self.st.add_match(self.sid, 0, 100, "auto", screenshot=self.shot,
+                                details={"end_shots": [os.path.join(self.tmp.name, "gone.png")]})
+        self.assertEqual(self.st.match_pictures(mid), [self.shot])
+        self.assertEqual(self.st.match_pictures(mid + 1), [])
+
+
 class MatcherTests(unittest.TestCase):
     def test_needs_consecutive_hits_then_cools_down(self):
         m = EndScreenMatcher([END], threshold=10, confirm=2, cooldown=60)

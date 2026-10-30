@@ -198,6 +198,60 @@ class Store:
         sets = ", ".join(f"{k}=?" for k in cols)
         self.db.execute(f"UPDATE matches SET {sets} WHERE id=?", (*cols.values(), mid))
 
+    def match_pictures(self, mid):
+        """The results-screen pictures still kept for a match, the first screen first."""
+        row = self.db.execute("SELECT screenshot, details FROM matches WHERE id=?", (mid,)).fetchone()
+        if not row:
+            return []
+        det = json.loads(row[1]) if row[1] else {}
+        return [p for p in [row[0], *det.get("end_shots", [])] if p and os.path.isfile(p)]
+
+    def reread_match(self, mid, reads):
+        """Apply a fresh read of a match's pictures, reads = [(path, lines)] with the
+        first results screen first. What the screen says (winner, score, map, stats,
+        money summary) is replaced by the new read; the result is only filled in when
+        missing, since it may have been set by hand, and so is cash (the round's own
+        figure may include a bonus the money screen lists apart, and "numbers checked"
+        ones are yours). XP isn't touched: it comes from cards counting up, which one
+        picture can't show. Returns the names of what changed."""
+        row = self.db.execute("SELECT screenshot, cash_earned, cash_spent, reviewed, ocr_json, details "
+                              "FROM matches WHERE id=?", (mid,)).fetchone()
+        if not row or not reads:
+            return []
+        shot, earned, spent, reviewed, ocr, det = row
+        det = json.loads(det) if det else {}
+        reads = [(p, repair_lines(lines)) for p, lines in reads]  # for a PC with no English reader
+        new = {}
+        summ = {}
+        for _, lines in reads:
+            for k, v in details(lines).items():
+                if v not in (None, {}, []) and new.get(k) in (None, {}, []):
+                    new[k] = v
+            for k, v in cash_summary(lines).items():
+                summ.setdefault(k, v)
+        if summ:
+            new["cash_summary"] = summ
+        changed = []
+        for k, v in new.items():
+            if k == "result" and det.get("result"):
+                continue
+            if det.get(k) != v:
+                det[k] = v
+                changed.append(k)
+        if not reviewed and earned is None and spent is None and summ.get("gained") is not None:
+            earned, spent = summ["gained"], summ.get("spent")
+            changed.append("cash")
+        if reads[0][0] == shot:
+            text = [l for l in reads[0][1] if isinstance(l, dict)]
+            if [l.get("text") for l in text] != [l.get("text") for l in json.loads(ocr or "[]") if isinstance(l, dict)]:
+                det.setdefault("ocr_before_reread", json.loads(ocr or "[]"))
+                ocr = json.dumps(text)
+                changed.append("text")
+        if changed:
+            self.db.execute("UPDATE matches SET cash_earned=?, cash_spent=?, ocr_json=?, details=? WHERE id=?",
+                            (earned, spent, ocr, json.dumps(det), mid))
+        return changed
+
     def add_end_shot(self, mid, path):
         """Keep a picture of another results tab (cash, XP) with the match."""
         row = self.db.execute("SELECT details FROM matches WHERE id=?", (mid,)).fetchone()
