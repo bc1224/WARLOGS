@@ -428,13 +428,16 @@ class Store:
                     on for anyone who already has stats from it
         updates     ask GitHub whether a newer version is out (sends nothing about you)
         auto_update install those new versions on its own, mid-round too (starts off)
-        The old single Online switch, once off, keeps the first two off."""
+        maps        download the full map pictures from wardogstracker.gg for the replay
+                    map, once each (sends nothing about you)
+        The old single Online switch, once off, keeps stats, updates and maps off."""
         saved = self.get_meta("switches") or {}
         off = bool(self.get_meta("offline"))
         had_stats = self.db.execute("SELECT 1 FROM snapshots LIMIT 1").fetchone() is not None
         return {"stats": bool(saved.get("stats", had_stats and not off)),
                 "updates": bool(saved.get("updates", not off)),
-                "auto_update": bool(saved.get("auto_update", self.get_meta("auto_update")))}
+                "auto_update": bool(saved.get("auto_update", self.get_meta("auto_update"))),
+                "maps": bool(saved.get("maps", not off))}
 
     def set_switch(self, name, on):
         if name not in self.switches():
@@ -445,6 +448,9 @@ class Store:
 
     def stats_on(self):
         return self.switches()["stats"]
+
+    def maps_on(self):
+        return self.switches()["maps"]
 
     def updates_on(self):
         return self.switches()["updates"]

@@ -162,7 +162,7 @@ class DashboardSecurityTests(unittest.TestCase):
 
     def test_switches_start_private_and_change_only_from_the_page(self):
         # a new install asks before looking you up on wardogstracker.gg; update checks send nothing about you
-        self.assertEqual(self.switches(), {"stats": False, "updates": True, "auto_update": False})
+        self.assertEqual(self.switches(), {"stats": False, "updates": True, "auto_update": False, "maps": True})
         for name in ("stats", "updates", "auto_update"):
             self.assertEqual(self.switch(name, True, headers={})[0].status, 403)  # no Origin
         self.assertEqual(self.switch("evil", True)[0].status, 400)
@@ -199,8 +199,31 @@ class DashboardSecurityTests(unittest.TestCase):
     def test_old_offline_mode_keeps_both_lookups_off(self):
         self.app.store.db.execute("DELETE FROM meta WHERE key='switches'")  # never touched the new switches
         self.app.store.set_meta("offline", True)
-        self.assertEqual(self.switches(), {"stats": False, "updates": False, "auto_update": False})
+        self.assertEqual(self.switches(), {"stats": False, "updates": False, "auto_update": False, "maps": False})
         self.app.store.set_meta("offline", False)
+
+    def test_map_tiles_are_kept_and_downloaded_only_with_the_switch_on(self):
+        webp = b"RIFF\x10\x00\x00\x00WEBPVP8 tile"
+        got = []
+
+        def fake(req, timeout):
+            got.append(req.full_url)
+            return io.BytesIO(webp)
+        try:
+            with mock.patch("wdt.sources.urllib.request.urlopen", fake):
+                self.switch("maps", False)
+                self.assertEqual(self.get("/maptile/bakurani/2/1_3.webp")[0].status, 404)
+                self.switch("maps", True)
+                r, body = self.get("/maptile/bakurani/2/1_3.webp")
+                self.assertEqual((r.status, r.getheader("Content-Type"), body), (200, "image/webp", webp))
+                self.switch("maps", False)
+                self.assertEqual(self.get("/maptile/bakurani/2/1_3.webp")[1], webp)  # the kept copy
+                for bad in ("/maptile/bakurani/2/4_0.webp", "/maptile/elsewhere/0/0_0.webp", "/maptile/bakurani/5/0_0.webp",
+                            "/maptile/../2/0_0.webp"):
+                    self.assertEqual(self.get(bad)[0].status, 404, bad)
+            self.assertEqual(got, ["https://wardogstracker.gg/map-tiles/bakurani/2/1_3.webp"])
+        finally:
+            self.switch("maps", True)
 
     def test_existing_stats_users_stay_on(self):
         self.app.store.db.execute("DELETE FROM meta WHERE key='switches'")

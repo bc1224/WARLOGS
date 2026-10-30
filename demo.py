@@ -229,6 +229,9 @@ def build(ddir, now, idle):
     last = store.dump()["matches"][-1]
     t0, t1 = last["started_at"], last["ended_at"]
     trk = build_track(ddir, rng, t0, t1)
+    store.set_switch("maps", False)  # the demo stays offline
+    store.db.execute("UPDATE matches SET details=json_set(details, '$.map', 'Proving Ground') WHERE id=?",
+                     (last["id"],))  # a made-up map, so no real one is drawn under the route
     ts = [p[0] for p in TRUTH]
     store.fill_match(last["id"], {}, {
         "track": trk,

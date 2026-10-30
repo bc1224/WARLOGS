@@ -1,5 +1,7 @@
 """Read-only data source: the wardogstracker.gg public API. It never touches the running game."""
+import difflib
 import json
+import os
 import urllib.request
 
 BASE = "https://wardogstracker.gg/api/v1"
@@ -38,6 +40,50 @@ def parse_unlocks(body):
 
 def fetch_unlocks(steam_id, timeout=15):
     return parse_unlocks(_get(API.format(steam_id) + "/unlocks", timeout))
+
+
+# The full maps, as 512 px tiles: zoom z has 2^z x 2^z of them across the 16.384 km
+# map, row 0 at the top (north). Game coordinates (100 m units) start at the bottom left.
+TILES = "https://wardogstracker.gg/map-tiles/{}/{}/{}_{}.webp"
+MAPS = ("bakurani", "ozeti", "zestafona")
+TILE_MAX = 2 * 1024 * 1024
+
+
+def map_key(name):
+    """The tile name of a map read off a results screen ("Akurani" is Bakurani), or None."""
+    got = difflib.get_close_matches(str(name or "").strip().lower(), MAPS, n=1, cutoff=0.7)
+    return got[0] if got else None
+
+
+def map_tile(ddir, key, z, x, y, fetch, timeout=15):
+    """One map tile's webp bytes: from the copy kept in data/maptiles, else downloaded
+    (when fetch is on) and kept. None if it isn't there or can't be had."""
+    if key not in MAPS or not (0 <= z <= 4 and 0 <= x < 2 ** z and 0 <= y < 2 ** z):
+        return None
+    p = os.path.join(ddir, "maptiles", key, str(z), f"{x}_{y}.webp")
+    try:
+        with open(p, "rb") as f:
+            return f.read()
+    except OSError:
+        pass
+    if not fetch:
+        return None
+    try:
+        req = urllib.request.Request(TILES.format(key, z, x, y), headers={"User-Agent": UA})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read(TILE_MAX + 1)
+    except Exception:
+        return None
+    if len(body) > TILE_MAX or body[:4] != b"RIFF" or body[8:12] != b"WEBP":
+        return None
+    try:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p + ".part", "wb") as f:
+            f.write(body)
+        os.replace(p + ".part", p)
+    except OSError:
+        pass
+    return body
 
 
 def pull_api(store, steam_id, at):

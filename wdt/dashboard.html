@@ -449,6 +449,7 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
           <label class="menu-row" title="On: sends your Steam ID to wardogstracker.gg (a fan site) every 15 minutes or so. Needs your profile synced there. Off: nothing about you goes there; matches still log from your screen."><span><b>Stats from wardogstracker.gg</b><small>Lifetime level, unlocks, rank and item prices. Sends your Steam ID.</small></span><input type="checkbox" role="switch" class="switch" data-switch="stats"></label>
           <label class="menu-row" title="On: asks GitHub every few hours whether a new version is out. Off: no Update button; download it again to update."><span><b>Check for updates</b><small>Asks GitHub every few hours. Sends nothing about you.</small></span><input type="checkbox" role="switch" class="switch" data-switch="updates"></label>
           <label class="menu-row sub" title="On: installs a new version as soon as it's out, mid-round too. The tracker restarts in about a second and keeps your round. Off: you click Update when one shows."><span><b>Install updates automatically</b><small>No waiting: restarts in about a second, keeps your round.</small></span><input type="checkbox" role="switch" class="switch" data-switch="auto_update"></label>
+          <label class="menu-row" title="On: the replay map on a match shows the whole map, downloaded once from wardogstracker.gg (a fan site) and kept. Off: only the parts of the map you opened in game."><span><b>Full maps for replays</b><small>Downloads each map once. Sends nothing about you.</small></span><input type="checkbox" role="switch" class="switch" data-switch="maps"></label>
           <p class="menu-note">Report an issue only sends when you press Send.</p>
         </div>
       </details></div>
@@ -1931,6 +1932,45 @@ const RP_EVENTS = { kill: ["Kill", "var(--pos)"], death: ["Death", "var(--neg)"]
 const loadImg = (src) => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error(src)); i.src = src; });
 const nextFrame = () => new Promise((r) => setTimeout(r));
 const refName = (m) => m.file.replace(/\.\w+$/, "");
+// the full maps (wardogstracker.gg tiles, kept by the tracker): 512 px tiles, 2^z across
+// the 163.84-unit map, row 0 at the top; game coordinates start at the bottom left
+const MAP_SPAN = 163.84, TILE_PX = 512, MAPS = ["bakurani", "ozeti", "zestafona"];
+function mapKey(name) {  // a map name read off a results screen ("Akurani" is Bakurani)
+  const s = String(name || "").trim().toLowerCase(), dist = (a, b) => {
+    let row = [...Array(b.length + 1).keys()];
+    for (let i = 1; i <= a.length; i++) {
+      const next = [i];
+      for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] !== b[j - 1]));
+      row = next;
+    }
+    return row[b.length];
+  };
+  return s ? MAPS.find((m) => dist(s, m) <= 2) || null : null;
+}
+
+// full-map tiles under the view, the sharpest zoom the screen needs; true if any is drawn.
+// The tracker hands out kept tiles, and downloads missing ones only with the switch on.
+function drawTiles(id, x, px, k, dpr, W, H) {
+  const st = replays[id];
+  if (!st.mapKey) return false;
+  const z = Math.max(0, Math.min(4, Math.ceil(Math.log2(k * dpr * MAP_SPAN / TILE_PX)))), n = 2 ** z, ts = MAP_SPAN / n;
+  const [X0, Y1] = [(0 - W / 2) / k, (H / 2) / k], c = st.center;
+  const xa = Math.max(0, Math.floor((c[0] + X0) / ts)), xb = Math.min(n - 1, Math.floor((c[0] - X0) / ts));
+  const ya = Math.max(0, Math.floor((MAP_SPAN - (c[1] + Y1)) / ts)), yb = Math.min(n - 1, Math.floor((MAP_SPAN - (c[1] - Y1)) / ts));
+  let drawn = 0;
+  for (let ty = ya; ty <= yb; ty++) for (let tx = xa; tx <= xb; tx++) {
+    const key = `${z}/${tx}_${ty}`, img = (st.tiles ||= {})[key];
+    if (img === undefined) {
+      st.tiles[key] = null;
+      loadImg(`/maptile/${st.mapKey}/${key}.webp`).then((i) => { st.tiles[key] = i; drawReplay(id); }, () => { st.tiles[key] = false; });
+    }
+    if (!img) continue;
+    const [ax, ay] = px(tx * ts, MAP_SPAN - ty * ts);
+    x.drawImage(img, ax, ay, ts * k + 0.5, ts * k + 0.5);
+    drawn++;
+  }
+  return drawn > 0;
+}
 
 function canvasOf(w, h) {
   const c = document.createElement("canvas");
@@ -2204,14 +2244,22 @@ function drawReplay(id) {
   x.setTransform(dpr, 0, 0, dpr, 0, 0);
   const r = st.route, xs = r.map((p) => p[1]), ys = r.map((p) => p[2]);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  // the whole route plus a margin, at least 300 m across
-  const k = Math.min(W / Math.max(3, Math.max(...xs) - Math.min(...xs) + 1.6), H / Math.max(3, Math.max(...ys) - Math.min(...ys) + 1.6));
+  // the whole route plus a margin, at least 300 m across (800 m on a full map, for the area around it)
+  const least = st.mapKey ? 8 : 3;
+  const k = Math.min(W / Math.max(least, Math.max(...xs) - Math.min(...xs) + 1.6), H / Math.max(least, Math.max(...ys) - Math.min(...ys) + 1.6));
   const px = (X, Y) => [(X - cx) * k + W / 2, (cy - Y) * k + H / 2];
+  st.center = [cx, cy];
   x.fillStyle = "#101215"; x.fillRect(0, 0, W, H);
   x.globalAlpha = 0.9;
-  for (const m of [...st.refs].sort((a, b) => (b.x1 - b.x0) - (a.x1 - a.x0))) {
-    const [ax, ay] = px(m.x0, m.y0);
-    x.drawImage(m.img, ax, ay, (m.x1 - m.x0) * k, (m.y0 - m.y1) * k);
+  const full = drawTiles(id, x, px, k, dpr, W, H);
+  const src = $("rpSrc");
+  if (src) src.hidden = !full;
+  if (full) { x.globalAlpha = 1; x.fillStyle = "rgba(16,18,21,.35)"; x.fillRect(0, 0, W, H); }  // the route stands out on it
+  if (!full) {  // no full map: the parts you opened in game
+    for (const m of [...st.refs].sort((a, b) => (b.x1 - b.x0) - (a.x1 - a.x0))) {
+      const [ax, ay] = px(m.x0, m.y0);
+      x.drawImage(m.img, ax, ay, (m.x1 - m.x0) * k, (m.y0 - m.y1) * k);
+    }
   }
   x.globalAlpha = 1;
   // a faint grid every 100 m (every 500 m when zoomed out)
@@ -2280,7 +2328,7 @@ function replayBody(id) {
         <div class="rp-ticks">${st.events.map((e) => `<button class="rp-tick" data-rpt="${e.t}" title="${when(e.t)} ${esc(e.text)}" aria-label="${when(e.t)} ${esc(e.text)}" style="left:${Math.max(0, Math.min(100, (e.t - st.t0) / span * 100)).toFixed(2)}%;background:${RP_EVENTS[e.kind][1]}"></button>`).join("")}</div></div></div>
     <div id="rpNow" class="rp-now"></div>
     <div class="legend">${Object.entries(RP_EVENTS).filter(([k]) => st.events.some((e) => e.kind === k)).map(([, [n, c]]) => `<span><i style="background:${c};border-radius:50%"></i>${n}</span>`).join("")}<span><i style="background:var(--gold)"></i>Route so far</span></div>
-    <p class="m" style="margin:6px 0 0">Placed from ${fmt(st.route.length)} of ${fmt(st.n || st.route.length)} minimap pictures by matching them to the big map, so it's approximate. Gaps are where the minimap was hidden or off the part of the map you've opened.</p>`;
+    <p class="m" style="margin:6px 0 0">Placed from ${fmt(st.route.length)} of ${fmt(st.n || st.route.length)} minimap pictures by matching them to the big map, so it's approximate. Gaps are where the minimap was hidden or off the part of the map you've opened. <span id="rpSrc" hidden>Full map from wardogstracker.gg.</span></p>`;
 }
 
 function renderReplay(id) {
@@ -2321,6 +2369,7 @@ async function setupReplay(m, d, t0) {
   if (!tr?.dir || !$("rpBody")) return;
   const st = replays[id] ||= { status: "new", t: t0, t0, t1: m.ended_at, n: tr.n, playing: false, route: null, refs: [] };
   st.events = replayEvents(d);
+  st.mapKey = mapKey(d.map);
   st.timeline = d.timeline || [];
   if (st.status !== "new") { renderReplay(id); return; }
   st.status = "working";
