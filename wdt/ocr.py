@@ -78,12 +78,62 @@ CYRILLIC_WORD = re.compile(rf"\w*{CYRILLIC}\w*")
 
 def latin(text):
     """Swap look-alike Cyrillic letters for Latin ones in words that are mixed with
-    Latin letters or written only in look-alikes; real Cyrillic chat stays as it is."""
+    Latin letters, or in capitals (like the game's labels) written only in look-alikes;
+    real Cyrillic chat ("а ты где") stays as it is."""
     def fix(m):
         w = m.group(0)
         swapped = w.translate(LOOKALIKE)
-        return swapped if re.search(r"[A-Za-z]", w) or not re.search(CYRILLIC, swapped) else w
+        mixed = re.search(r"[A-Za-z0-9]", w)  # with Latin letters or digits: a name or label, not prose
+        return swapped if mixed or (w.isupper() and not re.search(CYRILLIC, swapped)) else w
     return CYRILLIC_WORD.sub(fix, text)
+
+
+# Repairing text a recognizer for a Cyrillic language read before 2026-10-30 (issue #28):
+# it dropped the $ from amounts and turned labels it had no letters for into nonsense
+# ("TOTAL PROFIT" -> "ТОПЕ ПОЮТ"). The money screen's labels always come in this order.
+MONEY_ORDER = ("CONTRIBUTION", "SPENT", "EARNED", "REFUNDED", "TOTAL PROFIT")
+BARE_AMOUNT = re.compile(r"^([+-]?)\s*(\d{1,3}(?:,\d{3})+)$")
+
+
+def repair_lines(lines):
+    """Copies of saved results-screen lines with look-alike letters swapped back,
+    the $ put back on amounts, and a garbled money-screen label replaced by the one
+    whose place in the column it takes. Lines that can't be placed stay as read."""
+    out = []
+    for l in lines:
+        t = latin(_text(l))
+        m = BARE_AMOUNT.match(t.strip())
+        out.append(dict(l, text=f"{m.group(1)}${m.group(2)}" if m else t) if isinstance(l, dict) else
+                   {"text": t})
+    known = []
+    for l in out:
+        up = l["text"].upper()
+        k = next((i for i, lab in enumerate(MONEY_ORDER) if re.search(rf"\b{lab.split()[-1]}\b", up)), None)
+        if k is not None and "x" in l:
+            known.append((l["y"], k, l["x"]))
+    known.sort()
+    steps = sorted((y2 - y1) / (k2 - k1) for (y1, k1, _), (y2, k2, _) in zip(known, known[1:]) if k2 > k1)
+    if not steps:
+        return out
+    pitch, col = steps[len(steps) // 2], sorted(x for *_, x in known)[len(known) // 2]
+    taken = {k for _, k, _ in known}
+    for l in out:
+        t = l["text"]
+        if "x" not in l or not re.search(CYRILLIC, t) or ":" in t or abs(l["x"] - col) > 60:
+            continue
+        above = [(y, k) for y, k, _ in known if y < l["y"]]
+        if not above:
+            continue
+        y0, k0 = above[-1]
+        k = k0 + round((l["y"] - y0) / pitch)
+        if not (k0 < k < len(MONEY_ORDER)) or k in taken or abs(l["y"] - y0 - (k - k0) * pitch) > 0.3 * pitch:
+            continue
+        label = MONEY_ORDER[k]
+        # and it has to look like that label: as many words, about as long
+        if len(t.split()) == len(label.split()) and 0.6 <= len(t) / len(label) <= 1.4:
+            l["text"] = label
+            taken.add(k)
+    return out
 
 
 def _text(line):
