@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from wdt.ocr import cash_summary, weapon, hud_state, looks_like_end_screen, parse, role_progress, top_bar
+from wdt.ocr import cash_summary, latin, weapon, hud_state, looks_like_end_screen, parse, role_progress, top_bar
 from wdt.store import Store
 from wdt.tracker import DEFAULTS, Tracker
 
@@ -259,6 +259,14 @@ class TrackerHudTests(unittest.TestCase):
         self.t.record_end("hotkey", 200, lines=[L("VICTORY"), L("+1,200 XP")])
         m = self.store.dump()["matches"][0]
         self.assertEqual((m["cash_earned"], m["cash_spent"]), (18942, 6555))
+
+    def test_cyrillic_look_alikes_in_english_words_become_latin(self):
+        # 2026-10-30: a Russian Windows recognizer read "BONUS" as "ВОNUS" and the like
+        self.assertEqual(latin("ВОNUS"), "BONUS")
+        self.assertEqual(latin("СОМВАТ ЕХР"), "COMBAT EXP")  # only look-alikes
+        self.assertEqual(latin("[ДЕЕ] М01060у: на карте"), "[ДЕЕ] M01060y: на карте")  # chat stays Russian
+        self.assertTrue(looks_like_end_screen([L("DEFEAT"), L("LONESTAR W1NS")]))  # I read as 1
+        self.assertEqual(parse([L(latin("+1,200 ХР"))])["xp"], 1200)
 
     def test_looting_a_body_is_not_a_results_screen(self):
         # 2026-10-29: an item tooltip ("REWARDS + MEDIC XP") and the reward feed's
