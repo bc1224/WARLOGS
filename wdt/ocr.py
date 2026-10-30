@@ -123,6 +123,10 @@ CASH_SUMMARY = (re.compile(r"\b(spent|spend|costs?|expenses?)\b", re.I),
                 re.compile(r"\bbonus(es)?\b", re.I))
 # the big banner when a match ends: "WINS" under the team name, or "VALKYRA WINS"
 BANNER_RE = re.compile(r"^\W*(?:[A-Za-z][\w-]{1,20}\s+)?(wins|victory|defeat|draw)\W*$", re.I)
+# the inventory and looting screens mid-round: item tooltips say "REWARDS + MEDIC XP"
+# and the reward feed's "25XP" stays up, so they'd pass for results screens
+BAG_RE = re.compile(r"^(?:looting\W*|deceased player|equipment|quick transfer|split stack|toggle weight"
+                    r"|drop one|swap / move|.*// quick slot)$", re.I)
 
 
 def looks_like_end_screen(lines):
@@ -131,6 +135,8 @@ def looks_like_end_screen(lines):
     texts = [_text(l) for l in lines if not CHAT_RE.search(_text(l))]
     if any(BANNER_RE.search(t) for t in texts):
         return True
+    if sum(bool(BAG_RE.match(t.strip())) for t in texts) >= 2:
+        return False
     # the money summary shown first after a round: spent / gained / bonus with $ amounts
     words = " ".join(texts)
     if "$" in words and sum(bool(rx.search(words)) for rx in CASH_SUMMARY) >= 2:
