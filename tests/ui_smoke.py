@@ -71,6 +71,17 @@ def check_replay(page, base, store, latest):
                               sorted(truth)[len(truth) // 2])
     if not page.inner_text(".rp-now").strip():
         errors.append("the replay slider shows nothing for the moment it is on")
+    # full screen: the map fills the window, the side panel follows the slider, Escape leaves
+    page.click("#rpExpand")
+    page.wait_for_timeout(300)
+    box = page.eval_on_selector("#rpCard", "c => { const r = c.getBoundingClientRect(); return [r.width, innerWidth, document.documentElement.scrollWidth]; }")
+    if box[0] < box[1] - 1 or box[2] > box[1]:
+        errors.append(f"the full screen replay doesn't fit the window (card {box[0]}, window {box[1]}, page {box[2]})")
+    if not page.inner_text("#rpStats").strip() or not page.query_selector(".rp-act.cur"):
+        errors.append("the full screen replay's side panel doesn't show the moment the slider is on")
+    page.keyboard.press("Escape")
+    if page.eval_on_selector("#rpCard", "c => c.classList.contains('rp-full') || document.body.classList.contains('rp-open')"):
+        errors.append("Escape doesn't leave the full screen replay")
     return errors
 
 
