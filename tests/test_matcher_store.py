@@ -31,6 +31,75 @@ class RoleXpFixTests(unittest.TestCase):
             st.db.close()
 
 
+def _l(text, x, y):
+    return {"text": text, "x": x, "y": y}
+
+
+# a results screen read with a Cyrillic recognizer (issue #28, 2026-10-30): no $ on amounts,
+# I read as 1, and "TOTAL PROFIT" read as "ТОПЕ ПОЮТ"; the chat line really is Russian
+CYRILLIC_SCREEN = [_l("32,543", 1660, 30), _l("366,147", 1790, 30), _l("• RNS]SthsRy: а ты где", 44, 132),
+                   _l("DEFEAT", 960, 400), _l("LONESTAR W1NS", 960, 470),
+                   _l("2ND + CONTRIBUTION", 599, 808), _l("62,400", 1298, 808), _l("SPENT", 599, 863),
+                   _l("-610,464", 1288, 863), _l("EARNED", 599, 918), _l("613,700", 1304, 918),
+                   _l("REFUNDED", 599, 973), _l("63,901", 1300, 973), _l("ТОПЕ ПОЮТ", 599, 1028),
+                   _l("69,537", 1297, 1028), _l("NEXT ROUND 1N 00:32", 880, 1100)]
+ENGLISH_SCREEN = [_l("$13,000", 1588, 25), _l("VALKYRA WINS", 960, 470), _l("CASH SPENT", 599, 863),
+                  _l("-$12,823", 1288, 863)]
+
+
+class CyrillicFixTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.path = os.path.join(self.tmp.name, "t.db")
+        self.st = Store(self.path)
+        self.sid = self.st.start_session(0)
+
+    def tearDown(self):
+        self.st.db.close()
+        self.tmp.cleanup()
+
+    def reopen(self):
+        self.st.set_meta("cyrillic_fixed", 0)
+        self.st.db.close()
+        self.st = Store(self.path)
+        return {m["id"]: m for m in self.st.dump()["matches"]}
+
+    def test_a_misread_screen_is_repaired_and_read_again(self):
+        mid = self.st.add_match(self.sid, 0, 100, "auto", ocr=CYRILLIC_SCREEN, details={"result": "defeat"})
+        m = self.reopen()[mid]
+        d = m["details"]
+        self.assertEqual((d["winner"], d["result"]), ("LONESTAR", "defeat"))
+        self.assertEqual((d["cash_summary"]["spent"], d["cash_summary"]["gained"]), (610464, 613700))
+        self.assertEqual((m["cash_earned"], m["cash_spent"]), (613700, 610464))
+        text = self.st.match_text(mid)
+        self.assertIn("TOTAL PROFIT", text)
+        self.assertIn("$69,537", text)
+        self.assertIn("• RNS]SthsRy: а ты где", text)  # chat stays as written
+        self.assertEqual(d["ocr_before_repair"], CYRILLIC_SCREEN)
+
+    def test_nothing_already_set_changes(self):
+        mid = self.st.add_match(self.sid, 0, 100, "auto", ocr=CYRILLIC_SCREEN,
+                                parsed={"cash_earned": 13000, "cash_spent": 4000},
+                                details={"result": "victory", "winner": "VIPER"})  # set by hand
+        m = self.reopen()[mid]
+        self.assertEqual((m["cash_earned"], m["cash_spent"]), (13000, 4000))
+        self.assertEqual((m["details"]["result"], m["details"]["winner"]), ("victory", "VIPER"))
+
+    def test_screens_read_in_english_are_not_touched(self):
+        mid = self.st.add_match(self.sid, 0, 100, "auto", ocr=ENGLISH_SCREEN, details={"result": "defeat"})
+        m = self.reopen()[mid]
+        self.assertEqual(m["details"], {"result": "defeat"})
+        self.assertEqual(self.st.match_text(mid), [l["text"] for l in ENGLISH_SCREEN])
+        self.assertIsNone(m["cash_earned"])
+
+    def test_it_runs_once(self):
+        self.reopen()
+        mid = self.st.add_match(self.sid, 0, 100, "auto", ocr=CYRILLIC_SCREEN)
+        self.st.db.close()
+        self.st = Store(self.path)
+        self.assertNotIn("TOTAL PROFIT", self.st.match_text(mid))
+
+
 class MatcherTests(unittest.TestCase):
     def test_needs_consecutive_hits_then_cools_down(self):
         m = EndScreenMatcher([END], threshold=10, confirm=2, cooldown=60)

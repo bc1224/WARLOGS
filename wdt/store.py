@@ -5,7 +5,7 @@ import re
 import sqlite3
 import time
 
-from .ocr import NOT_TEAM, ROLES, gun_name, player_name, reward_label
+from .ocr import CYRILLIC, NOT_TEAM, ROLES, cash_summary, details, gun_name, player_name, repair_lines, reward_label
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
@@ -50,6 +50,39 @@ class Store:
                 IN ({",".join("?" * len(NOT_TEAM))})""", tuple(NOT_TEAM))
         self._fix_names()
         self._fix_role_xp()
+        self._fix_cyrillic()
+
+    def _fix_cyrillic(self):
+        """Once: results screens read by a recognizer for a Cyrillic language (before
+        2026-10-30, issue #28) are repaired and read again. Only what a match is missing
+        is filled in, nothing set already (or by hand) changes, and the text as first
+        read is kept in details["ocr_before_repair"]. Matches with no Cyrillic in their
+        text, which is everyone reading with English, aren't touched."""
+        if self.get_meta("cyrillic_fixed"):
+            return
+        rows = self.db.execute("SELECT id, cash_earned, cash_spent, ocr_json, details FROM matches "
+                               "WHERE ocr_json IS NOT NULL").fetchall()
+        for mid, earned, spent, ocr, det in rows:
+            lines = json.loads(ocr)
+            if not any(re.search(CYRILLIC, l.get("text") or "") for l in lines if isinstance(l, dict)):
+                continue
+            fixed = repair_lines(lines)
+            if [l.get("text") for l in fixed] == [l.get("text") for l in lines if isinstance(l, dict)]:
+                continue
+            det = json.loads(det) if det else {}
+            det.setdefault("ocr_before_repair", lines)
+            info = details(fixed)
+            summ = cash_summary(fixed)
+            if summ:
+                info["cash_summary"] = summ
+            for k, v in info.items():
+                if v not in (None, {}, []) and det.get(k) in (None, {}, []):
+                    det[k] = v
+            if earned is None and spent is None and summ:
+                earned, spent = summ.get("gained"), summ.get("spent")
+            self.db.execute("UPDATE matches SET cash_earned=?, cash_spent=?, ocr_json=?, details=? WHERE id=?",
+                            (earned, spent, json.dumps(fixed), json.dumps(det), mid))
+        self.set_meta("cyrillic_fixed", 1)
 
     def _fix_role_xp(self):
         """Once: versions before 2026-10-29 read a Progression card's next-level target
