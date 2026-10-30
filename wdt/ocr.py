@@ -54,6 +54,8 @@ class OcrWorker:
         lines = json.loads(reply, strict=False)  # OCR text can contain raw control characters
         if isinstance(lines, dict):
             raise RuntimeError(lines.get("error", "OCR failed"))
+        for line in lines:
+            line["text"] = latin(line.get("text") or "")
         return lines
 
     def stop(self):
@@ -65,6 +67,23 @@ class OcrWorker:
                 except subprocess.TimeoutExpired:
                     self.proc.kill()
             self.proc = None
+
+
+# Cyrillic letters drawn like Latin ones, which a non-English recognizer puts in
+# English words: "ВОNUS" -> "BONUS"
+LOOKALIKE = str.maketrans("АВЕКМНОРСТХУаеорсухі", "ABEKMHOPCTXYaeopcyxi")
+CYRILLIC = r"[Ѐ-ӿ]"
+CYRILLIC_WORD = re.compile(rf"\w*{CYRILLIC}\w*")
+
+
+def latin(text):
+    """Swap look-alike Cyrillic letters for Latin ones in words that are mixed with
+    Latin letters or written only in look-alikes; real Cyrillic chat stays as it is."""
+    def fix(m):
+        w = m.group(0)
+        swapped = w.translate(LOOKALIKE)
+        return swapped if re.search(r"[A-Za-z]", w) or not re.search(CYRILLIC, swapped) else w
+    return CYRILLIC_WORD.sub(fix, text)
 
 
 def _text(line):
@@ -122,7 +141,8 @@ CASH_SUMMARY = (re.compile(r"\b(spent|spend|costs?|expenses?)\b", re.I),
                 re.compile(r"\b(gained|earned|made|income|payout)\b", re.I),
                 re.compile(r"\bbonus(es)?\b", re.I))
 # the big banner when a match ends: "WINS" under the team name, or "VALKYRA WINS"
-BANNER_RE = re.compile(r"^\W*(?:[A-Za-z][\w-]{1,20}\s+)?(wins|victory|defeat|draw)\W*$", re.I)
+# (a recognizer for a Cyrillic language reads I as 1: "LONESTAR W1NS")
+BANNER_RE = re.compile(r"^\W*(?:[A-Za-z][\w-]{1,20}\s+)?(w[i1]ns|v[i1]ctory|defeat|draw)\W*$", re.I)
 # the inventory and looting screens mid-round: item tooltips say "REWARDS + MEDIC XP"
 # and the reward feed's "25XP" stays up, so they'd pass for results screens
 BAG_RE = re.compile(r"^(?:looting\W*|deceased player|equipment|quick transfer|split stack|toggle weight"
@@ -148,7 +168,7 @@ def looks_like_end_screen(lines):
 
 # --- match details: result, winner, score, length, personal stats -----------
 RESULT_RE = re.compile(r"\b(victory|defeat|draw)\b|\byou (won|lost|win|lose)\b", re.I)
-WINNER_RE = [re.compile(r"^(.{2,40}?)\s+(?:wins|won|is victorious)\b", re.I),
+WINNER_RE = [re.compile(r"^(.{2,40}?)\s+(?:w[i1]ns|won|is victorious)\b", re.I),
              re.compile(r"\bwinn(?:er|ers|ing team)\b\s*:?\s*(.{2,40})$", re.I)]
 WINNER_LABEL = re.compile(r"^\s*winn(?:er|ers|ing team)\s*:?\s*$", re.I)
 SCORE_RE = re.compile(r"\b(\d{1,3})\s*(?:-|–|:|vs\.?)\s*(\d{1,3})\b", re.I)

@@ -20,7 +20,12 @@ function Await($op, [Type]$type) {
     $task.Result
 }
 
-$engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages()
+# The game is in English: use an English recognizer when Windows has one. One for
+# another language (Russian, say) reads English letters as look-alikes of its own.
+$english = [Windows.Media.Ocr.OcrEngine]::AvailableRecognizerLanguages |
+    Where-Object { $_.LanguageTag -like 'en*' } | Select-Object -First 1
+$engine = if ($english) { [Windows.Media.Ocr.OcrEngine]::TryCreateFromLanguage($english) } else { $null }
+if (-not $engine) { $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserProfileLanguages() }
 
 function Read-Text([string]$imagePath) {
     $file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($imagePath)) ([Windows.Storage.StorageFile])
