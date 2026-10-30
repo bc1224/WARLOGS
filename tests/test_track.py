@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import tempfile
@@ -25,6 +26,20 @@ def labels(x0=64.35, y0=110.8, step=52.0, xs=range(65, 77), ys=range(99, 111)):
     out = [L(str(v), PX + (v - x0) * step - 12, PY + PH + 18, 24, 20) for v in xs]
     out += [L(str(v), PX - 40, PY + (y0 - v) * step - 10, 34, 20) for v in ys]
     return out
+
+
+class FullMapTests(unittest.TestCase):
+    def test_map_names_read_off_screens_find_their_tiles(self):
+        from wdt.sources import map_key
+        self.assertEqual([map_key(n) for n in ("Bakurani", "Akurani", "OZETI", "Zestafona ", "Lonestar", None)],
+                         ["bakurani", "bakurani", "ozeti", "zestafona", None, None])
+
+    def test_only_real_pictures_are_kept(self):
+        from wdt import sources
+        page = io.BytesIO(b"<html>busy</html>")  # a site error page, not a map picture
+        with tempfile.TemporaryDirectory() as d, mock.patch("wdt.sources.urllib.request.urlopen", return_value=page):
+            self.assertIsNone(sources.map_tile(d, "ozeti", 0, 0, 0, True))
+            self.assertFalse(os.path.exists(os.path.join(d, "maptiles")))
 
 
 class GeorefTests(unittest.TestCase):
