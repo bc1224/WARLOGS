@@ -1292,6 +1292,16 @@ document.addEventListener("click", async (e) => {
   if (t.dataset.mf != null) { mfilter = t.dataset.mf; if (data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); return; }
   if (t.dataset.range) { range = t.dataset.range; store.set("wdt-range", range); if (data) render(); else applyNav(); return; }
   if (t.dataset.del && confirm("Delete this match from your log?")) { await post(`/api/match/${t.dataset.del}/delete`); if (tab === "match") location.hash = "matches"; load(); }
+  if (t.dataset.reread) {
+    t.disabled = true; t.textContent = "reading…";
+    let r;
+    try { r = await (await post(`/api/match/${t.dataset.reread}/read-again`)).json(); } catch { r = { ok: false, error: "the tracker didn't answer" }; }
+    const names = { winner: "winner", result: "result", score: "score", map: "map", stats: "stats", cash_summary: "money screen", cash: "cash", text: "text read", duration_s: "length" };
+    alert(!r.ok ? `Couldn't read it again: ${r.error}` : r.changed.length
+      ? `Read ${r.pictures} picture${r.pictures > 1 ? "s" : ""} again. Updated: ${r.changed.map((k) => names[k] || k).join(", ")}.`
+      : `Read ${r.pictures} picture${r.pictures > 1 ? "s" : ""} again. Nothing new: this match already matches what the screen says.`);
+    load(); return;
+  }
   if (t.dataset.notend && confirm("Delete this and stop treating that screen as a results screen?")) { await post(`/api/match/${t.dataset.notend}/not-end-screen`); load(); }
   if (t.dataset.shot) { const d = $("shot"); d.querySelector("img").src = `/shot/${t.dataset.shot}`; d.showModal(); }
   if (t.id === "updLater") { store.set("wdt-skip-update", upd.sha); renderUpdate(); return; }
@@ -1891,6 +1901,7 @@ async function renderMatchPage(id) {
       <label>Role<br><select class="edit" data-setk="role" data-mid="${m.id}">${["", "Assault", "Medic", "Recon", "Support", "Driver", "Pilot"].map((r) => `<option value="${r}" ${(m.details?.role || "") === r ? "selected" : ""}>${r || (mainRole(m) ? `${cap(mainRole(m))} (read)` : "–")}</option>`).join("")}</select></label>
       <label style="flex:1;min-width:220px">Note<br><input class="edit note" data-note="${m.id}" value="${esc(m.notes || "")}" placeholder="add note" style="width:100%"></label>
       <label><input type="checkbox" data-review="${m.id}" ${m.reviewed ? "checked" : ""}> numbers checked</label>
+      ${m.screenshot || (full.details.end_shots || []).length ? `<button class="link" data-reread="${m.id}" title="Read this match's results-screen pictures again with the latest version of the reader. Fills in what the screen says; your own changes stay.">read again</button>` : ""}
       ${m.source.startsWith("auto") ? `<button class="link" data-notend="${m.id}">not a match</button>` : ""}<button class="link" data-del="${m.id}">delete</button>
     </div></div>
 
