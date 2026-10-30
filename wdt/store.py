@@ -252,6 +252,11 @@ class Store:
                             (earned, spent, ocr, json.dumps(det), mid))
         return changed
 
+    def set_route(self, mid, route):
+        """Keep the replay route the dashboard worked out, replacing an older one."""
+        self.db.execute("UPDATE matches SET details = json_set(COALESCE(details, '{}'), '$.track_route', json(?)) WHERE id=?",
+                        (json.dumps(route), mid))
+
     def add_end_shot(self, mid, path):
         """Keep a picture of another results tab (cash, XP) with the match."""
         row = self.db.execute("SELECT details FROM matches WHERE id=?", (mid,)).fetchone()

@@ -273,7 +273,7 @@ def make_handler(app):
                 if route is None:
                     return self._send(400, {"error": "bad route"})
                 with app.lock:
-                    app.store.fill_match(int(m.group(1)), {}, {"track_route": route})
+                    app.store.set_route(int(m.group(1)), route)
                 return self._send(200, {"ok": True})
             m = re.fullmatch(r"/api/match/([0-9]+)/read-again", self.path)
             if m:

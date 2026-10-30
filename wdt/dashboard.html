@@ -1959,6 +1959,7 @@ const HP = 0.35;         // detail kept: changes over less than ~35 m (zone tint
 // a match counts near the last fix at OK_NEAR, anywhere else only as a clear winner
 // (tuned on real rounds, cross-checked against map pictures from other days)
 const OK_NEAR = 0.4, OK_ANY = 0.5, OK_GAP = 0.2;
+const ROUTE_V = 2;       // how routes are worked out; a route saved by an older way is worked out again
 const replays = {};      // match id -> { status, route, refs, t, playing, progress }
 const RP_EVENTS = { kill: ["Kill", "var(--pos)"], death: ["Death", "var(--neg)"], down: ["Downed", "#e8913a"],
   revive: ["Revived", "var(--blue)"], respawn: ["Respawned", "#b9a4e8"], buy: ["Bought", "var(--gold)"] };
@@ -2188,10 +2189,11 @@ async function routeFor(st, dir, list) {
   const refs = await mapPictures(list);
   const snaps = list.snaps || [];
   if (!refs.length || !snaps.length) return { route: [], refs: [] };
-  // this round's own map pictures pick the map; without any, try the biggest groups on a few pictures
+  // this round's own map pictures are all one map (zooms too far apart to compare can
+  // land in separate groups): use them all; without any, try the biggest groups on a few pictures
   let groups = mapGroups(refs);
   const own = (g) => g.filter((r) => r.round === dir).length;
-  if (groups.some(own)) groups = [groups.sort((a, b) => own(b) - own(a))[0]];
+  if (groups.some(own)) groups = [groups.filter(own).flat()];
   let best = null;
   for (const g of groups.slice(0, 3)) {
     const gc = mapGrid(g, RC);
@@ -2578,9 +2580,11 @@ async function setupReplay(m, d, t0) {
   try {
     const list = await (await fetch(`/api/track/${encodeURIComponent(tr.dir)}`)).json();
     let route = d.track_route?.path, names = d.track_route?.refs;
-    if (!route) {  // first look at this round: work it out once and save it with the match
+    if (!route || (d.track_route.v || 1) < ROUTE_V) {  // work it out once and save it with the match
+      const old = route;
       ({ route, refs: names } = await routeFor(st, encodeURIComponent(tr.dir), list));
-      if (route.length) post(`/api/match/${id}/track`, { path: route, refs: names });
+      if (route.length) post(`/api/match/${id}/track`, { path: route, refs: names, v: ROUTE_V });
+      else if (old) ({ path: route, refs: names } = d.track_route);
     }
     st.route = route;
     st.refs = await mapPictures(list, new Set(names || []));
