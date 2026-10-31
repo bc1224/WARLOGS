@@ -16,9 +16,9 @@ body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
 main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
 /* big windows: use more of the width, then scale everything up so text stays readable */
 @media (min-width: 1600px) { main { max-width: 1480px; } }
-@media (min-width: 2000px) { main { max-width: 1560px; zoom: 1.15; } }
-@media (min-width: 2500px) { main { max-width: 1600px; zoom: 1.35; } }
-@media (min-width: 3200px) { main { max-width: 1640px; zoom: 1.6; } }
+@media (min-width: 2000px) { main { max-width: 1560px; zoom: 1.15; --zf: 1.15; } }
+@media (min-width: 2500px) { main { max-width: 1600px; zoom: 1.35; --zf: 1.35; } }
+@media (min-width: 3200px) { main { max-width: 1640px; zoom: 1.6; --zf: 1.6; } }
 header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
 h1 { font-size: 22px; letter-spacing: .04em; margin: 0; text-transform: uppercase; }
 h1 span { color: var(--gold); }
@@ -432,9 +432,17 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 .rp-bar > button { width: 38px; height: 32px; padding: 0; flex: none; }
 .rp-track { position: relative; flex: 1; min-width: 0; padding-bottom: 14px; }
 .rp-track input { width: 100%; margin: 0; accent-color: var(--gold); }
-.rp-ticks { position: absolute; left: 8px; right: 8px; bottom: 0; height: 10px; }
-.rp-tick { position: absolute; top: 0; width: 4px; height: 10px; margin-left: -2px; padding: 0; border: 0; border-radius: 2px; cursor: pointer; }
-.rp-tick:hover, .rp-tick:focus-visible { transform: scaleY(1.4); outline: 1px solid var(--text); }
+/* the timeline under the slider: where you were as a band, and labeled moments above it */
+.rp-place { position: absolute; left: 8px; right: 8px; bottom: 0; height: 6px; display: flex; border-radius: 3px; overflow: hidden; background: #3a3e45; }
+.rp-place i { position: absolute; top: 0; bottom: 0; }
+.rp-marks { position: relative; margin: 0 8px; }
+.rp-mark { position: absolute; display: flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px 0 0; border: 0; background: none; color: var(--text); font-size: 11px; white-space: nowrap; cursor: pointer; opacity: .55; }
+.rp-mark::before { content: ""; flex: none; width: 3px; align-self: stretch; border-radius: 2px; background: var(--c); }
+.rp-mark.past { opacity: 1; }
+.rp-mark.dot span { display: none; }
+.rp-mark.flip { flex-direction: row-reverse; padding: 0 0 0 6px; transform: translateX(-100%); }
+.rp-mark:hover, .rp-mark:focus-visible { opacity: 1; outline: 1px solid var(--text); }
+.rp-track { padding-bottom: 10px; }
 .rp-now { margin: 6px 0 8px; font-size: 13px; min-height: 1.4em; }
 .rp-wrap { position: relative; }
 .rp-map { cursor: grab; touch-action: none; }
@@ -442,13 +450,17 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 .rp-zoom { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; }
 .rp-zoom button { width: 32px; height: 32px; padding: 0; font-size: 16px; background: rgba(16,18,21,.85); }
 .rp-side { display: none; }
-/* full screen: the map on the left, what was going on at that moment on the right */
-.card.rp-full { position: fixed; inset: 0; z-index: 60; border-radius: 0; margin: 0; display: flex; flex-direction: column; overflow: auto; }
+/* popped out: a window over the page with a square map, and what was going on at that moment beside it */
+.rp-shade { position: fixed; inset: 0; z-index: 59; background: rgba(5,6,8,.78); }
+/* --zf undoes the page zoom on big screens, so the window still fits the screen */
+.card.rp-full { --vw: calc(100vw / var(--zf, 1)); --vh: calc(100vh / var(--zf, 1)); --sq: max(300px, min(var(--vh) - 250px, var(--vw) - 470px));
+  position: fixed; inset: 0; z-index: 60; margin: auto;
+  width: calc(var(--sq) + 430px); max-width: calc(var(--vw) - 16px); height: fit-content; max-height: calc(var(--vh) - 16px);
+  box-sizing: border-box; overflow: auto; box-shadow: 0 24px 80px rgba(0,0,0,.7); }
 body.rp-open { overflow: hidden; }
-.rp-full #rpBody { flex: 1; min-height: 0; }
-.rp-full .rp-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); gap: 16px; height: 100%; }
-.rp-full .rp-map { height: calc(100vh - 210px); min-height: 320px; }
-.rp-full .rp-side { display: flex; flex-direction: column; gap: 12px; min-height: 0; max-height: calc(100vh - 80px); }
+.rp-full .rp-grid { display: grid; grid-template-columns: var(--sq) minmax(0, 1fr); gap: 16px; }
+.rp-full .rp-map { width: var(--sq); height: var(--sq); }
+.rp-full .rp-side { display: flex; flex-direction: column; gap: 12px; min-height: 0; max-height: calc(var(--sq) + 190px); }
 .rp-side h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .rp-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .rp-stats div { background: rgba(255,255,255,.03); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
@@ -465,10 +477,12 @@ body.rp-open { overflow: hidden; }
 .rp-act time { flex: none; width: 42px; font-variant-numeric: tabular-nums; color: var(--muted); }
 .rp-act i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
 @media (max-width: 860px) {
-  .rp-full .rp-grid { grid-template-columns: minmax(0, 1fr); height: auto; }
-  .rp-full .rp-map { height: 60vh; }
+  .card.rp-full { width: calc(var(--vw) - 16px); }
+  .rp-full .rp-grid { grid-template-columns: minmax(0, 1fr); }
+  .rp-full .rp-map { width: 100%; height: auto; aspect-ratio: 1; }
   .rp-full .rp-side { max-height: none; }
   .rp-acts { max-height: 50vh; }
+}
 }
 </style>
 </head>
@@ -1893,7 +1907,7 @@ async function renderMatchPage(id) {
     ${card("Money over the match", tl.some((r) => r.net != null) ? `<div id="mpCash"></div>` : noTimeline, "round profit from the top bar")}
   </div>
 
-  ${d.track ? `<div class="card" id="rpCard"><h2>Where you went <small>drag the slider or press play; drag the map to move it</small><button class="link" id="rpExpand" style="margin-left:auto" aria-pressed="false">Full screen</button></h2><div id="rpBody"></div></div>` : ""}
+  ${d.track ? `<div class="card" id="rpCard"><h2>Where you went <small id="rpHint">click the map to open it bigger; drag the slider or press play</small><button class="link" id="rpExpand" style="margin-left:auto" aria-pressed="false">Pop out</button></h2><div id="rpBody"></div></div>` : ""}
 
   <div class="grid two">
     ${card("Where you made money", Object.keys(share).length ? `<table><thead><tr><th>Where</th><th>Time</th><th class="num">Made</th><th class="num">Spent / lost</th><th class="num">Net</th></tr></thead><tbody>${["hotzone", "fob", "none"].filter((p) => share[p] || byPlace[p]).map((p) => { const r = byPlace[p] || { gain: 0, loss: 0 };
@@ -2245,15 +2259,41 @@ async function routeFor(st, dir, list) {
   return { route: clean, refs: best.g.map(refName) };
 }
 
-// where you were at time t: between two fixes close in time, or near one
-function routeAt(route, t) {
+// two fixes in a row belong on one line: close in time, no respawn between them,
+// and no faster apart than a helicopter (100 m a second)
+function joined(st, a, b) {
+  const dt = b[0] - a[0];
+  return dt <= GAP_S && Math.hypot(b[1] - a[1], b[2] - a[2]) <= 1 + dt && !st.breaks.some((t) => t > a[0] && t <= b[0]);
+}
+
+// a fix far from where the pictures either side of it put you is a mismatch: leave it out.
+// So is a short run of up to three that jumps away and straight back within 40 seconds.
+function tidyRoute(route) {
+  const med = (a) => { const s = [...a].sort((x, y) => x - y); return (s[(s.length - 1) >> 1] + s[s.length >> 1]) / 2; };
+  const dist = (a, b) => Math.hypot(a[1] - b[1], a[2] - b[2]), out = new Set();
+  for (let i = 1; i < route.length - 1; i++) for (let n = 1; n <= 3 && i + n < route.length; n++) {
+    const a = route[i - 1], b = route[i + n], run = route.slice(i, i + n);
+    if (b[0] - a[0] <= 40 && dist(a, b) < 1 && run.every((p) => dist(p, a) > 2 && dist(p, b) > 2)) run.forEach((p) => out.add(p));
+  }
+  route = route.filter((p) => !out.has(p));
+  return route.filter((p, i) => {
+    const n = [...route.slice(Math.max(0, i - 2), i), ...route.slice(i + 1, i + 3)].filter((q) => Math.abs(q[0] - p[0]) <= GAP_S);
+    if (n.length < 3) return true;
+    const dt = n.reduce((a, q) => a + Math.abs(q[0] - p[0]), 0) / n.length;
+    return Math.hypot(p[1] - med(n.map((q) => q[1])), p[2] - med(n.map((q) => q[2]))) <= 1 + 0.15 * dt;
+  });
+}
+
+// where you were at time t: between two fixes on one line, or near one
+function routeAt(st, t) {
+  const route = st.route;
   let lo = 0, hi = route.length - 1;
   if (hi < 0 || t < route[0][0] - GAP_S / 2 || t > route[hi][0] + GAP_S / 2) return null;
   while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (route[mid][0] <= t) lo = mid; else hi = mid; }
   const a = route[lo], b = route[hi];
   if (t <= a[0]) return [a[1], a[2]];
   if (t >= b[0]) return [b[1], b[2]];
-  if (b[0] - a[0] > GAP_S) return t - a[0] < GAP_S / 2 ? [a[1], a[2]] : b[0] - t < GAP_S / 2 ? [b[1], b[2]] : null;
+  if (!joined(st, a, b)) return t - a[0] < GAP_S / 2 ? [a[1], a[2]] : b[0] - t < GAP_S / 2 ? [b[1], b[2]] : null;
   const f = (t - a[0]) / (b[0] - a[0]);
   return [a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
@@ -2266,6 +2306,58 @@ function replayEvents(d) {
   for (const x of d.respawns_log || []) ev.push({ t: x.t, kind: "respawn", text: "Respawned" });
   for (const e of d.cash_events || []) if (e.vendor && e.delta < 0) ev.push({ t: e.t, kind: "buy", text: `Bought ${e.vendor} for ${money(-e.delta)}` });
   return ev.filter((e) => Number.isFinite(e.t)).sort((a, b) => a.t - b.t);
+}
+
+// the round's moments for the timeline and the list: spawning, getting to the Hot Zone or a
+// FOB, fights, buys and level ups. The HUD flickers between places, so a place only counts
+// once you've been there 20 seconds.
+const RP_PLACE = { hotzone: ["Hot Zone", "var(--gold)"], fob: ["FOB", "var(--blue)"] };
+function replayMoments(st, d) {
+  const out = [], tl = d.timeline || [];
+  const add = (t, kind, short, text, color) => Number.isFinite(t) && out.push({ t, kind, short, text, color });
+  add(st.t0, "spawn", "Spawned", "Spawned", "#e9e6df");
+  const runs = [], places = [];
+  for (const r of tl) { const p = r.here || "none"; if (!runs.length || runs[runs.length - 1].p !== p) runs.push({ p, t: r.t }); }
+  runs.forEach((r, i) => {
+    if ((runs[i + 1]?.t ?? st.t1) - r.t < 20 || places[places.length - 1]?.p === r.p) return;
+    places.push({ p: r.p, t: r.t });
+  });
+  // the band shows every stay; a label only the first time, or back after two minutes away
+  const left = {};
+  places.forEach((r, i) => {
+    r.end = places[i + 1]?.t ?? st.t1;
+    if (RP_PLACE[r.p] && !(r.t - left[r.p] < 120)) add(r.t, r.p, RP_PLACE[r.p][0], `Reached the ${RP_PLACE[r.p][0]}`, RP_PLACE[r.p][1]);
+    left[r.p] = r.end;
+  });
+  st.places = places;
+  for (const e of st.events) add(e.t, e.kind, e.kind === "death" ? "Died" : e.kind === "down" ? "Down" : RP_EVENTS[e.kind][0], e.text, RP_EVENTS[e.kind][1]);
+  for (const x of d.promos || []) add(x.t, "promo", `${x.role}${x.level ? " " + x.level : ""}`, `Promoted to ${x.role}${x.level ? " level " + x.level : ""}`, "var(--pos)");
+  add(st.t1, "end", "Match over", "Match over", "#e9e6df");
+  return out.sort((a, b) => a.t - b.t);
+}
+
+// labels that fit go in up to three rows, the most telling first; the rest stay as ticks
+const MARK_FIRST = new Set(["spawn", "hotzone", "fob", "kill", "death", "respawn", "end"]);
+function layoutMarks() {
+  const box = $("rpMarks");
+  if (!box) return;
+  const W = box.clientWidth, rows = [], marks = [...box.querySelectorAll(".rp-mark")];
+  let dots = false;
+  marks.sort((a, b) => MARK_FIRST.has(b.dataset.kind) - MARK_FIRST.has(a.dataset.kind));
+  for (const b of marks) {
+    b.classList.remove("dot", "flip");
+    b.style.height = "";
+    const x = parseFloat(b.style.left) / 100 * W, w = b.offsetWidth, flip = x + w > W;
+    const a = flip ? x - w : x, z = flip ? x : x + w;
+    let row = rows.findIndex((r) => r.every(([l, h]) => z + 6 < l || a > h + 6));
+    if (row < 0 && rows.length < 3) row = rows.push([]) - 1;
+    if (row < 0) { b.classList.add("dot"); dots = true; continue; }
+    rows[row].push([a, z]);
+    b.classList.toggle("flip", flip);
+    b.style.top = `${row * 20}px`;
+  }
+  box.querySelectorAll(".rp-mark.dot").forEach((b) => { b.style.top = `${rows.length * 20}px`; b.style.height = "8px"; });
+  box.style.height = `${rows.length * 20 + (dots ? 10 : 0)}px`;
 }
 
 function drawReplay(id) {
@@ -2311,7 +2403,7 @@ function drawReplay(id) {
   const line = (pts, style, width) => {
     x.strokeStyle = style; x.lineWidth = width; x.lineJoin = x.lineCap = "round";
     x.beginPath();
-    pts.forEach((p, i) => { const [a, b] = px(p[1], p[2]); if (i && p[0] - pts[i - 1][0] <= GAP_S) x.lineTo(a, b); else x.moveTo(a, b); });
+    pts.forEach((p, i) => { const [a, b] = px(p[1], p[2]); if (i && joined(st, pts[i - 1], p)) x.lineTo(a, b); else x.moveTo(a, b); });
     x.stroke();
   };
   line(r, "rgba(233,230,223,.35)", 2);
@@ -2319,7 +2411,7 @@ function drawReplay(id) {
   const css = getComputedStyle(document.documentElement);
   const color = (c) => c.startsWith("var(") ? css.getPropertyValue(c.slice(4, -1)).trim() : c;
   for (const e of st.events) {
-    const at = routeAt(r, e.t);
+    const at = routeAt(st, e.t);
     if (!at) continue;
     const [a, b] = px(...at);
     x.globalAlpha = e.t <= st.t ? 1 : 0.35;
@@ -2328,9 +2420,9 @@ function drawReplay(id) {
     x.lineWidth = 2; x.strokeStyle = "#101215"; x.stroke();
   }
   x.globalAlpha = 1;
-  const here = routeAt(r, st.t);
+  const here = routeAt(st, st.t);
   if (here) {
-    const ahead = routeAt(r, st.t + 4) || here, behind = routeAt(r, st.t - 4) || here;
+    const ahead = routeAt(st, st.t + 4) || here, behind = routeAt(st, st.t - 4) || here;
     const moved = Math.hypot(ahead[0] - behind[0], ahead[1] - behind[1]) > 0.02;
     const ang = moved ? Math.atan2(-(ahead[1] - behind[1]), ahead[0] - behind[0]) : -Math.PI / 2;
     const [a, b] = px(...here);
@@ -2351,10 +2443,11 @@ function replayNow(id) {
   if (row?.here) bits.push(row.here === "hotzone" ? "in the Hot Zone" : "at the FOB");
   if (row?.gun) bits.push(`holding the ${esc(row.gun)}`);
   if (row?.net != null) bits.push(`round profit ${money(row.net)}`);
-  if (!routeAt(st.route, st.t)) bits.push(`<span class="m">not placed on the map here</span>`);
+  if (!routeAt(st, st.t)) bits.push(`<span class="m">not placed on the map here</span>`);
   el.innerHTML = bits.join(" · ") + recent.map((e) => ` · <span style="color:${RP_EVENTS[e.kind][1]}">${esc(e.text)}</span>`).join("");
   const s = $("rpTime");
   if (s && +s.value !== Math.round(st.t)) s.value = Math.round(st.t);
+  $("rpMarks")?.querySelectorAll(".rp-mark").forEach((b) => b.classList.toggle("past", +b.dataset.rpt <= st.t));
   replaySide(id);
 }
 
@@ -2364,13 +2457,15 @@ function replayBody(id) {
   if (!st.route?.length) return `<div class="empty">${st.n ? `${fmt(st.n)} minimap pictures were saved this round, but none could be placed on a map yet.` : "No minimap pictures were saved this round."}
     Open the big map in game for a moment now and then: each look saves that part of the map, and routes are drawn on it.</div>`;
   const span = Math.max(1, st.t1 - st.t0), when = (t) => liveClock(Math.max(0, t - st.t0));
+  const pos = (t) => Math.max(0, Math.min(100, (t - st.t0) / span * 100));
   return `<div class="rp-grid"><div class="rp-main"><div class="rp-wrap"><canvas id="rpCanvas" class="rp-map" role="img" aria-label="Map of where you went this round, with kills, deaths and purchases marked"></canvas>
     <div class="rp-zoom"><button data-rpzoom="1.5" aria-label="Zoom in" title="Zoom in">+</button><button data-rpzoom="0.667" aria-label="Zoom out" title="Zoom out">−</button><button data-rpzoom="0" aria-label="Back to the whole route" title="Back to the whole route">⟲</button></div></div>
     <div class="rp-bar"><button id="rpPlay" aria-label="Play or pause the round">${st.playing ? "❚❚" : "▶"}</button>
-      <div class="rp-track"><input id="rpTime" type="range" min="${Math.floor(st.t0)}" max="${Math.ceil(st.t1)}" step="1" value="${Math.round(st.t)}" aria-label="Match time">
-        <div class="rp-ticks">${st.events.map((e) => `<button class="rp-tick" data-rpt="${e.t}" title="${when(e.t)} ${esc(e.text)}" aria-label="${when(e.t)} ${esc(e.text)}" style="left:${Math.max(0, Math.min(100, (e.t - st.t0) / span * 100)).toFixed(2)}%;background:${RP_EVENTS[e.kind][1]}"></button>`).join("")}</div></div></div>
+      <div class="rp-track"><div class="rp-marks" id="rpMarks">${st.moments.map((e) => `<button class="rp-mark" data-rpt="${e.t}" data-kind="${e.kind}" title="${when(e.t)} ${esc(e.text)}" aria-label="${when(e.t)} ${esc(e.text)}" style="left:${pos(e.t).toFixed(2)}%;--c:${e.color}"><span>${esc(e.short)}</span></button>`).join("")}</div>
+        <input id="rpTime" type="range" min="${Math.floor(st.t0)}" max="${Math.ceil(st.t1)}" step="1" value="${Math.round(st.t)}" aria-label="Match time">
+        <div class="rp-place" aria-hidden="true">${(st.places || []).filter((p) => RP_PLACE[p.p]).map((p) => `<i style="left:${pos(p.t).toFixed(2)}%;width:${(pos(p.end) - pos(p.t)).toFixed(2)}%;background:${RP_PLACE[p.p][1]}"></i>`).join("")}</div></div></div>
     <div id="rpNow" class="rp-now"></div>
-    <div class="legend">${Object.entries(RP_EVENTS).filter(([k]) => st.events.some((e) => e.kind === k)).map(([, [n, c]]) => `<span><i style="background:${c};border-radius:50%"></i>${n}</span>`).join("")}<span><i style="background:var(--gold)"></i>Route so far</span></div>
+    <div class="legend">${Object.entries(RP_EVENTS).filter(([k]) => st.events.some((e) => e.kind === k)).map(([, [n, c]]) => `<span><i style="background:${c};border-radius:50%"></i>${n}</span>`).join("")}<span><i style="background:var(--gold)"></i>Route so far</span><span><i style="background:var(--gold);height:4px"></i>Hot Zone</span><span><i style="background:var(--blue);height:4px"></i>FOB</span></div>
     <p class="m" style="margin:6px 0 0">Placed from ${fmt(st.route.length)} of ${fmt(st.n || st.route.length)} minimap pictures by matching them to the big map, so it's approximate. Gaps are where the minimap was hidden or off the part of the map you've opened. <span id="rpSrc" hidden>Full map from wardogstracker.gg.</span></p></div>
     <aside class="rp-side" id="rpSide" aria-label="What was going on at this moment">${replaySideBody(id)}</aside></div>`;
 }
@@ -2379,7 +2474,7 @@ function replayBody(id) {
 const GUN_COLORS = ["#e3a92b", "#5aa7e8", "#7cc47c", "#d77a9c", "#b9a4e8", "#e8913a", "#4fc1b5", "#c9c36a"];
 
 function replayActs(st) {  // what happened, for the list: fights, buys and the reward feed
-  const acts = st.events.map((e) => ({ t: e.t, color: RP_EVENTS[e.kind][1], text: e.text }));
+  const acts = st.moments.map((e) => ({ t: e.t, color: e.color, text: e.text }));
   for (const f of st.feed || []) {
     if (!Number.isFinite(f.t) || !(f.cash || f.xp)) continue;
     const got = [f.cash ? money(f.cash) : "", f.xp ? `${fmt(f.xp)} XP` : ""].filter(Boolean).join(", ");
@@ -2467,12 +2562,20 @@ function replaySide(id) {
   }
 }
 
-let rpOpen = null;  // the match whose replay is full screen; it stays so when the page refreshes
+let rpOpen = null;  // the match whose replay is popped out; it stays so when the page refreshes
 function replayFullClass(on) {
   $("rpCard")?.classList.toggle("rp-full", on);
   document.body.classList.toggle("rp-open", on);
-  const b = $("rpExpand");
-  if (b) { b.textContent = on ? "Close full screen" : "Full screen"; b.setAttribute("aria-pressed", String(on)); }
+  let shade = $("rpShade");
+  if (on && !shade) {
+    shade = document.createElement("div");
+    shade.id = "rpShade"; shade.className = "rp-shade";
+    shade.addEventListener("click", () => rpOpen != null && replayFull(rpOpen, false));
+    document.body.append(shade);
+  } else if (!on) shade?.remove();
+  const b = $("rpExpand"), hint = $("rpHint");
+  if (b) { b.textContent = on ? "Close" : "Pop out"; b.setAttribute("aria-pressed", String(on)); }
+  if (hint) hint.textContent = on ? "scroll to zoom, drag to move, click the timeline to jump" : "click the map to open it bigger; drag the slider or press play";
 }
 function replayFull(id, on) {
   if (!$("rpCard")) return;
@@ -2490,7 +2593,7 @@ function renderReplay(id) {
   el.dataset.status = st.status;
   el.dataset.fixes = st.route?.length || 0;
   if (!st.route?.length) return;
-  drawReplay(id); replayNow(id);
+  layoutMarks(); drawReplay(id); replayNow(id);
   $("rpTime").addEventListener("input", (e) => { st.t = +e.target.value; drawReplay(id); replayNow(id); });
   $("rpPlay").addEventListener("click", () => {
     st.playing = !st.playing;
@@ -2515,7 +2618,7 @@ function renderReplay(id) {
     if (+b.dataset.rpzoom) zoomAt(+b.dataset.rpzoom, cv.clientWidth / 2, cv.clientHeight / 2);
     else { st.view = { z: 1, x: 0, y: 0 }; drawReplay(id); }
   }));
-  // the wheel zooms in full screen; on the page it keeps scrolling the page
+  // the wheel zooms when popped out; on the page it keeps scrolling the page (Ctrl zooms)
   cv.addEventListener("wheel", (e) => {
     if (!$("rpCard")?.classList.contains("rp-full") && !e.ctrlKey) return;
     e.preventDefault();
@@ -2523,16 +2626,22 @@ function renderReplay(id) {
     zoomAt(Math.exp(-e.deltaY * 0.0015), (e.clientX - r.left) * cv.clientWidth / r.width, (e.clientY - r.top) * cv.clientHeight / r.height);
   }, { passive: false });
   let drag = null;
-  cv.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY }; cv.setPointerCapture(e.pointerId); cv.classList.add("drag"); });
+  cv.addEventListener("pointerdown", (e) => { drag = { x: e.clientX, y: e.clientY, moved: 0 }; cv.setPointerCapture(e.pointerId); cv.classList.add("drag"); });
   cv.addEventListener("pointermove", (e) => {
     if (!drag || !st.frame) return;
+    drag.moved += Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y);
     const s = cv.clientWidth / cv.getBoundingClientRect().width;
     v().x -= (e.clientX - drag.x) * s / st.frame.k; v().y += (e.clientY - drag.y) * s / st.frame.k;
-    drag = { x: e.clientX, y: e.clientY };
+    drag.x = e.clientX; drag.y = e.clientY;
     drawReplay(id);
   });
   const stop = () => { drag = null; cv.classList.remove("drag"); };
-  cv.addEventListener("pointerup", stop); cv.addEventListener("pointercancel", stop);
+  cv.addEventListener("pointerup", () => {
+    const click = drag && drag.moved < 5;
+    stop();
+    if (click && !$("rpCard").classList.contains("rp-full")) replayFull(id, true);
+  });
+  cv.addEventListener("pointercancel", stop);
   cv.addEventListener("dblclick", () => { st.view = { z: 1, x: 0, y: 0 }; drawReplay(id); });
   const seek = (e, box) => {
     const r = box.getBoundingClientRect();
@@ -2568,6 +2677,7 @@ async function setupReplay(m, d, t0) {
   if (!tr?.dir || !$("rpBody")) return;
   const st = replays[id] ||= { status: "new", t: t0, t0, t1: m.ended_at, n: tr.n, playing: false, route: null, refs: [] };
   st.events = replayEvents(d);
+  st.breaks = [...(d.respawns_log || []), ...(d.kill_log || []).filter((k) => k.kind !== "kill")].map((x) => x.t).filter(Number.isFinite);
   st.mapKey = mapKey(d.map);
   st.feed = d.feed || []; st.cash = d.cash_events || []; st.kills = d.kill_log || []; st.downs = d.downs_log || [];
   if (rpOpen !== id) rpOpen = null;
@@ -2586,13 +2696,14 @@ async function setupReplay(m, d, t0) {
       if (route.length) post(`/api/match/${id}/track`, { path: route, refs: names, v: ROUTE_V });
       else if (old) ({ path: route, refs: names } = d.track_route);
     }
-    st.route = route;
+    st.route = tidyRoute(route);
     st.refs = await mapPictures(list, new Set(names || []));
     if (route.length) { st.t0 = Math.min(st.t0, route[0][0]); st.t1 = Math.max(st.t1, route[route.length - 1][0]); st.t = st.t0; }
   } catch {
     st.route = [];
   }
   st.status = "ready";
+  st.moments = replayMoments(st, d);
   renderReplay(id);
 }
 
