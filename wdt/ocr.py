@@ -10,6 +10,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PS = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
                   r"System32\WindowsPowerShell\v1.0\powershell.exe")
 CREATE_NO_WINDOW = 0x08000000
+BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
 
 NUM = r"\d{1,3}(?:[,.]\s?\d{3})+|\d+"
 XP_RES = [re.compile(rf"([+-]?)\s*({NUM})\s*XP\b", re.I),
@@ -36,7 +37,13 @@ class OcrWorker:
             [PS, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
              os.path.join(HERE, "ocr.ps1"), "-Serve"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, encoding="utf-8", errors="replace", creationflags=CREATE_NO_WINDOW)
+            text=True, encoding="utf-8", errors="replace",
+            creationflags=CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS)
+        try:
+            from . import winapi
+            winapi.background(int(self.proc._handle))  # reads while you play give way to the game
+        except (ImportError, AttributeError, OSError):
+            pass
 
     def read(self, image_path):
         """Returns [{'text', 'x', 'y'}] lines, or raises on failure."""
