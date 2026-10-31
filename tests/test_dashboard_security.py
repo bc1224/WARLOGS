@@ -50,6 +50,11 @@ class DashboardSecurityTests(unittest.TestCase):
         self.assertEqual(self.get("/api/refresh", host="evil.example", method="POST")[0].status, 403)
         self.assertEqual(self.get("/api/version", host=f"localhost:{self.port}")[0].status, 200)
 
+    def test_version_poll_names_the_running_build(self):
+        # an open page reloads itself when an automatic update restarts the tracker
+        import json
+        self.assertEqual(json.loads(self.get("/api/version")[1])["app"], self.app.app_version)
+
     def test_replay_pictures_are_served_only_from_the_track_folder(self):
         import os
         rnd = os.path.join(self.tmp.name, "track", "20261027-210000")
@@ -289,12 +294,16 @@ class AutoUpdateTests(unittest.TestCase):
         self.assertFalse(self.run_with({"alive": True, "session": None}))
         self.updater.apply.assert_not_called()
 
+    def test_an_update_found_by_the_refresh_button_is_used_without_asking_github_again(self):
+        self.run_with({"alive": True, "session": None})
+        self.assertLessEqual(self.updater.fresh.call_args[0][0], 10 * 60)
+
     def test_nothing_new_installs_nothing(self):
         self.updater.fresh.return_value = {"available": False}
         self.assertFalse(self.run_with({"alive": True, "session": None}))
         self.updater.apply.assert_not_called()
 
-    def test_first_look_comes_soon_after_start_then_every_few_minutes(self):
+    def test_first_look_comes_soon_after_start_then_every_minute(self):
         # a tracker that restarts often must still get a look before it restarts again
         waits = []
 
@@ -305,6 +314,7 @@ class AutoUpdateTests(unittest.TestCase):
         with mock.patch.object(self.app, "auto_update") as look, self.assertRaises(SystemExit):
             self.app._auto_loop(sleep=sleep)
         self.assertLessEqual(waits[0], 120)
+        self.assertLessEqual(waits[1], 60)  # an update shown on the page installs within a minute
         self.assertEqual(look.call_count, 2)
         self.assertEqual(waits[1], waits[2])
 

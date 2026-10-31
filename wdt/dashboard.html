@@ -1387,11 +1387,14 @@ let resizeTimer;
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => data && render(), 150); });
 applyNav();
 // Live updates: a tiny version check every 2 s; full reload only when something changed.
-let lastFull = 0;
+let lastFull = 0, appVersion = null;
 async function poll() {
   if (document.hidden) return;  // a tab in the background costs nothing; it catches up when shown
   try {
     const r = await (await fetch("/api/version")).json();
+    // the tracker restarted on a new version (installed automatically, say): load the new page
+    if (r.app && appVersion && r.app !== appVersion) { location.reload(); return; }
+    appVersion ||= r.app;
     if (!data || r.v !== data.version || Date.now() - lastFull > 30000) { await load(); lastFull = Date.now(); }
     else renderStatus(r.status);
   } catch { renderStatus({ alive: false }); }
@@ -1401,6 +1404,7 @@ setInterval(poll, 2000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
 
 // Update check: the tracker asks GitHub every few hours; one click installs the new version.
+// With Install updates automatically on, the tracker installs it within a minute and the page reloads itself.
 let upd = null;
 async function checkUpdate() {
   try { upd = await (await fetch("/api/update")).json(); } catch { return; }
@@ -1415,7 +1419,7 @@ function renderUpdate(msg) {
   const day = upd.date ? new Date(upd.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
   el.innerHTML = msg ? `<span>${esc(msg)}</span>`
     : `<span class="what"><b>New version</b> <a href="${esc(upd.url)}" target="_blank" rel="noopener" title="What changed">${esc(upd.title)}</a>${day ? ` <span class="m">${esc(day)}</span>` : ""}</span>
-       <span class="acts"><span class="m" title="Your matches and settings stay. Updating mid-round is fine, the round picks back up.">Restarts in about a second, mid-round is fine</span>
+       <span class="acts"><span class="m" title="Your matches and settings stay. Updating mid-round is fine, the round picks back up.">${data?.switches?.auto_update && data?.status?.alive ? "Installing on its own within a minute (not on a results screen)" : "Restarts in about a second, mid-round is fine"}</span>
        <button class="link" id="updLater">Later</button>
        <button id="updGo" title="Downloads the new version from GitHub and restarts the tracker. Your matches and settings stay.">Update</button></span>`;
 }
@@ -1433,7 +1437,7 @@ async function installUpdate(btn) {
   back();
 }
 checkUpdate();
-setInterval(checkUpdate, 30 * 60 * 1000);
+setInterval(checkUpdate, 5 * 60 * 1000);  // shows what the tracker last heard; GitHub is only asked when that is hours old
 // The refresh icon: new stats (if that switch is on), an update check now, then a fresh page.
 async function refreshAll(btn) {
   if (btn.classList.contains("busy")) return;
