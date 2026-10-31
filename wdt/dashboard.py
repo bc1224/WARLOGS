@@ -27,8 +27,8 @@ REPORT_MAX = 6 * 1024 * 1024  # a 4 MB screenshot, base64 encoded, plus the text
 ROUTE_MAX = 400 * 1024        # a worked-out replay route: a few thousand points
 BODY_MAX = 256 * 1024         # settings, match edits and the rest
 AUTO_FIRST = 60               # Install updates automatically looks this soon after the tracker starts
-AUTO_EVERY = 15 * 60          # and this often after that
-AUTO_CHECK_AGE = 3600         # asking GitHub at most once an hour (it allows 60 calls)
+AUTO_EVERY = 60               # and this often after that, so an update the page shows installs within a minute
+AUTO_CHECK_AGE = 10 * 60      # asking GitHub at most every 10 minutes (2 calls each; it allows 60 an hour)
 log = logging.getLogger(__name__)
 LOCAL = re.compile(r"(127\.0\.0\.1|localhost)(:\d+)?")
 # only our own inline scripts run; names read off the screen or the API can't become code
@@ -44,6 +44,8 @@ class App:
         self.on_templates_changed = on_templates_changed or (lambda: None)
         self.on_updated = on_updated or (lambda: None)
         self.updater = updater or Updater(os.path.dirname(HERE), ddir)
+        # an update restarts the whole process, so this names the build open pages are talking to
+        self.app_version = installed_version(os.path.dirname(HERE), ddir)
         self.lock = threading.Lock()
 
     def read_again(self, mid):
@@ -185,7 +187,7 @@ def make_handler(app):
             if path == "/api/version":
                 with app.lock:
                     v = app.store.version()
-                return self._send(200, {"v": v, "status": app.status()})
+                return self._send(200, {"v": v, "app": app.app_version, "status": app.status()})
             if path == "/api/data":
                 with app.lock:
                     data = app.store.dump()

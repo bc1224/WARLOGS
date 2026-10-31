@@ -308,6 +308,7 @@ class DemoApp:
     def __init__(self, store, sid, balance, idle, ddir):
         self.store, self.sid, self.balance, self.idle, self.ddir = store, sid, balance, idle, ddir
         self.cfg = {"steam_id": STEAM_ID, "player_name": NAME, "dashboard_port": PORT, "check_updates": False}
+        self.app_version = "demo"
         self.lock = threading.Lock()
         self.on_templates_changed = lambda: None
 
