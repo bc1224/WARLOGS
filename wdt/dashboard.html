@@ -1940,8 +1940,8 @@ async function renderMatchPage(id) {
       ${m.source.startsWith("auto") ? `<button class="link" data-notend="${m.id}">not a match</button>` : ""}<button class="link" data-del="${m.id}">delete</button>
     </div></div>
 
-  ${m.screenshot || (full.details.end_shots || []).length ? `<div class="card"><h2>Results screens</h2>${m.screenshot ? `<img src="/shot/${m.id}" alt="Results screen for this match" style="max-width:100%;border-radius:6px">` : ""}
-    ${(full.details.end_shots || []).map((_, i) => `<img src="/shot/${m.id}/${i}" alt="Results tab ${i + 2} for this match" style="max-width:100%;border-radius:6px;margin-top:10px">`).join("")}</div>` : ""}
+  ${m.screenshot || (full.details.end_shots || []).length ? `<div class="card"><details><summary class="m">Results screens (${(m.screenshot ? 1 : 0) + (full.details.end_shots || []).length})</summary>${m.screenshot ? `<img src="/shot/${m.id}" alt="Results screen for this match" loading="lazy" style="max-width:100%;border-radius:6px;margin-top:10px">` : ""}
+    ${(full.details.end_shots || []).map((_, i) => `<img src="/shot/${m.id}/${i}" alt="Results tab ${i + 2} for this match" loading="lazy" style="max-width:100%;border-radius:6px;margin-top:10px">`).join("")}</details></div>` : ""}
   <div class="card"><details><summary class="m">Text read from the results screen (${full.lines.length} lines)</summary><pre style="white-space:pre-wrap;font-size:12px;color:var(--muted)">${esc(full.lines.join("\n")) || "Nothing was read."}</pre></details></div>`;
 
   if ($("mpCash")) chart($("mpCash"), { kind: "line", xTime: true, points: tl.filter((r) => r.net != null).map((r) => ({ x: r.t, y: r.net, label: at(r.t), tip: `${at(r.t)}: ${money(r.net)}${r.here ? " · " + placeName[r.here] : ""}${r.gun ? " · " + r.gun : ""}` })),
