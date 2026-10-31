@@ -73,6 +73,26 @@ def check_replay(page, base, store, latest):
         errors.append("the replay slider shows nothing for the moment it is on")
     if not page.query_selector(".rp-mark:not(.dot)"):
         errors.append("the replay timeline has no labeled moments")
+    # the pictures from a vehicle (zoomed out) are placed too, and keep their zoom
+    zoomed = [p for p in route if p[0] in demo.ICONS["zoomed"]]
+    if len(zoomed) < len(demo.ICONS["zoomed"]) - 1 or any(len(p) < 5 or p[4] != 3 for p in zoomed) \
+            or any(abs(p[1] - truth[p[0]][0]) > 0.5 or abs(p[2] - truth[p[0]][1]) > 0.5 for p in zoomed):
+        errors.append(f"the zoomed out minimap pictures weren't placed right ({zoomed})")
+    # the FOB and the drill on the minimap end up where they are; players can be shown
+    try:
+        page.wait_for_function(f"() => replays[{latest}].fobs", timeout=30000)
+    except Exception:
+        errors.append("the minimap's FOBs and drills were never worked out")
+    seen = page.evaluate(f"() => [replays[{latest}].fobs || [], replays[{latest}].drills || []]")
+    for (name, at), found in zip((("FOB", demo.ICONS["fob"]), ("drill", demo.ICONS["drill"])), seen):
+        if len(found) != 1 or abs(found[0]["x"] - at[0]) > 0.15 or abs(found[0]["y"] - at[1]) > 0.15:
+            errors.append(f"the {name} on the minimap wasn't found once where it is ({found})")
+    if page.query_selector("[data-rplayer=places]"):
+        errors.append("the Places switch shows on a made-up map that has no places")
+    page.click("[data-rplayer=players]")
+    if page.get_attribute("[data-rplayer=players]", "aria-pressed") != "true":
+        errors.append("the Players switch doesn't turn on")
+    page.click("[data-rplayer=players]")
     # popped out: a window inside the screen with a square map, the side panel follows the slider,
     # Escape or a click beside it closes it
     page.click("#rpExpand")

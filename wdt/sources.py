@@ -46,6 +46,7 @@ def fetch_unlocks(steam_id, timeout=15):
 # map, row 0 at the top (north). Game coordinates (100 m units) start at the bottom left.
 TILES = "https://wardogstracker.gg/map-tiles/{}/{}/{}_{}.webp"
 MAPS = ("bakurani", "ozeti", "zestafona")
+TILE_ZOOM = {"bakurani": 4, "ozeti": 4, "zestafona": 5}  # the sharpest zoom each map has
 TILE_MAX = 2 * 1024 * 1024
 
 
@@ -58,7 +59,7 @@ def map_key(name):
 def map_tile(ddir, key, z, x, y, fetch, timeout=15):
     """One map tile's webp bytes: from the copy kept in data/maptiles, else downloaded
     (when fetch is on) and kept. None if it isn't there or can't be had."""
-    if key not in MAPS or not (0 <= z <= 4 and 0 <= x < 2 ** z and 0 <= y < 2 ** z):
+    if key not in MAPS or not (0 <= z <= TILE_ZOOM[key] and 0 <= x < 2 ** z and 0 <= y < 2 ** z):
         return None
     p = os.path.join(ddir, "maptiles", key, str(z), f"{x}_{y}.webp")
     try:
