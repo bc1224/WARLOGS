@@ -139,6 +139,7 @@ class Tracker:
         self.away_since = None
         self.cost = {}  # seconds each kind of in-match read takes, averaged
         self.pace = 1.0
+        self.light, self.next_light = True, 0.0  # the Go easy on a slower PC switch, looked up now and then
 
     # --- inputs -----------------------------------------------------------
     def _steam_shots(self):
@@ -953,6 +954,7 @@ class Tracker:
                 "game_focused": bool(self.rect), "session": self.session,
                 "templates": len(self.matcher.templates), "last_event": self.last_event,
                 "auto_read": self.cfg["auto_read"], "live": self.live(now), "pace": round(self.pace, 2),
+                "pace_needed": self._needed_pace(),
                 "results_screen": self.session is not None and self.matcher.recently_ended(now),
                 "hotkey_end": self.cfg["hotkey_end"], "hotkey_start": self.cfg["hotkey_start"]}
 
@@ -1018,7 +1020,7 @@ class Tracker:
             self._timed("track", self._snap_minimap, now)
         if now >= self.next_api:
             self._pull_api(now)
-        self._set_pace()
+        self._set_pace(now)
         return self._scan_wait(now)
 
     def _timed(self, kind, fn, *args, **kw):
@@ -1032,16 +1034,28 @@ class Tracker:
                 old = self.cost.get(kind)
                 self.cost[kind] = took if old is None else old * 0.8 + took * 0.2
 
-    def _set_pace(self):
-        """On a slower PC the same reads take longer. The scan for the end of a round keeps
-        its pace; the corner, screen and minimap reads are spaced out (up to MAX_PACE) so
-        that all of it stays within load_budget of one core."""
+    def _needed_pace(self):
+        """How far apart the reads would go on this PC with the switch on (None before any are timed)."""
+        if not self.cost:
+            return None
         every = {"feed": self.cfg["feed_seconds"], "hud": self.cfg["hud_seconds"],
                  "track": self.cfg["track_seconds"] and max(1.0, float(self.cfg["track_seconds"]))}
         flex = sum(self.cost.get(k, 0) / v for k, v in every.items() if v)
         room = float(self.cfg["load_budget"]) - self.cost.get("scan", 0) / self.cfg["scan_seconds"]
-        pace = MAX_PACE if room <= 0 else min(MAX_PACE, max(1.0, flex / room))
-        if abs(pace - self.pace) >= 0.25:
+        return round(MAX_PACE if room <= 0 else min(MAX_PACE, max(1.0, flex / room)), 2)
+
+    def _set_pace(self, now=0.0):
+        """On a slower PC the same reads take longer. The scan for the end of a round keeps
+        its pace; the corner, screen and minimap reads are spaced out (up to MAX_PACE) so
+        that all of it stays within load_budget of one core. With the Go easy on a slower
+        PC switch off, they keep the full pace whatever they cost."""
+        if now >= self.next_light:
+            self.next_light = now + 5
+            self.light = self.store.switches()["light"]
+        pace = self._needed_pace() or 1.0
+        if not self.light:
+            pace = 1.0
+        if abs(pace - self.pace) >= 0.25 or (pace == 1.0 and self.pace != 1.0):
             log.info("reads during a match now %.1fx apart (%s)", pace,
                      ", ".join(f"{k} {v * 1000:.0f} ms" for k, v in sorted(self.cost.items())))
             self.pace = pace

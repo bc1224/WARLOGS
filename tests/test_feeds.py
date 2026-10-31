@@ -156,6 +156,30 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(self.t.next_hud, 200 + 2 * DEFAULTS["hud_seconds"])
         self.assertEqual(self.t.next_track, 200 + 2 * DEFAULTS["track_seconds"])
 
+    def test_the_switch_keeps_the_full_pace_until_it_is_turned_back_on(self):
+        slow = {"scan": 0.15, "feed": 0.135, "hud": 0.6, "track": 0.042}
+        self.t.cost = dict(slow)
+        self.t._set_pace(100)
+        self.assertEqual(self.t.pace, 2.0)
+        self.store.set_switch("light", False)
+        self.t._set_pace(103)  # looked up every few seconds, not every tick
+        self.assertEqual(self.t.pace, 2.0)
+        self.t._set_pace(105)
+        self.assertEqual(self.t.pace, 1.0)
+        for now in range(110, 400, 10):  # stays off however slow the reads get
+            self.t.cost = {k: v * 2 for k, v in slow.items()}
+            self.t._set_pace(now)
+            self.assertEqual(self.t.pace, 1.0)
+        st = self.t.status(400)
+        self.assertEqual((st["pace"], st["pace_needed"]), (1.0, 2.0))  # the menu can say this PC would need it
+        self.assertFalse(self.store.switches()["light"])
+        self.store.set_switch("light", True)
+        self.t._set_pace(410)
+        self.assertEqual(self.t.pace, 2.0)
+        self.t.cost = {"scan": 0.05, "feed": 0.045, "hud": 0.2, "track": 0.014}  # a fast PC: on, but not needed
+        self.t._set_pace(420)
+        self.assertEqual((self.t.pace, self.t.status(420)["pace_needed"]), (1.0, 1.0))
+
     def test_a_read_that_starts_the_ocr_helper_isnt_counted(self):
         class Ocr:
             starts = 0
