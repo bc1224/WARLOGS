@@ -436,7 +436,7 @@ class Store:
         maps        download the full map pictures from wardogstracker.gg for the replay
                     map, once each (sends nothing about you)
         light       space the reads during a match out when they'd slow a slower PC down
-                    (starts on; off reads at the full pace, which misses less)
+                    (starts off: the full pace misses the fewest kills and rewards)
         The old single Online switch, once off, keeps stats, updates and maps off."""
         saved = self.get_meta("switches") or {}
         off = bool(self.get_meta("offline"))
@@ -445,7 +445,7 @@ class Store:
                 "updates": bool(saved.get("updates", not off)),
                 "auto_update": bool(saved.get("auto_update", self.get_meta("auto_update"))),
                 "maps": bool(saved.get("maps", not off)),
-                "light": bool(saved.get("light", True))}
+                "light": bool(saved.get("light", False))}
 
     def set_switch(self, name, on):
         if name not in self.switches():

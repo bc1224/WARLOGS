@@ -139,7 +139,7 @@ class Tracker:
         self.away_since = None
         self.cost = {}  # seconds each kind of in-match read takes, averaged
         self.pace = 1.0
-        self.light, self.next_light = True, 0.0  # the Go easy on a slower PC switch, looked up now and then
+        self.light, self.next_light = False, 0.0  # the Go easy on a slower PC switch, looked up now and then
 
     # --- inputs -----------------------------------------------------------
     def _steam_shots(self):
