@@ -26,7 +26,7 @@ import time
 
 from . import winapi
 from .matcher import EndScreenMatcher, distance
-from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, round_break, kill_feed, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources, _text as _line_text
+from .ocr import ZONE_REWARD, OcrWorker, cash_summary, details, downed, hud_state, round_break, kill_feed, progress_bars, promotions, reward_feed, role_progress, top_bar, vendor_item, weapon, looks_like_end_screen, mentions, parse, xp_sources, _text as _line_text
 from .catalog import refresh_catalog
 from .sources import pull_api, pull_status
 from .scoreboard import Gray, is_scoreboard, read_board
@@ -122,6 +122,7 @@ class Tracker:
         self.last_read_sig = None
         self.need_xp = False  # a round was logged without XP; its XP tab may still be coming
         self.end_text = None  # text of the last results tab pictured, so re-reads aren't saved twice
+        self.round_roles = []  # roles seen on screen in the round just logged
         self._reset_progress()
         self.next_read = 0.0
         self.reads = 0
@@ -302,6 +303,7 @@ class Tracker:
         if lines:
             self._note_used(lines)
         info["used"] = {k: sorted(v) for k, v in self.used.items()}
+        self.round_roles = info["used"].get("roles", [])
         if lines:
             info["sources"] = xp_sources(lines)
             self._note_progress(lines, parsed, info)
@@ -422,8 +424,10 @@ class Tracker:
         """Each role card on the Progression tab reads "XP <your XP> <XP for the next
         level>". The cards slide in one at a time and each XP figure counts up from where
         it stood before the round, so the lowest figure seen is before and the highest after."""
-        prog = role_progress(lines)
+        prog = role_progress(lines, self.round_roles)
         if not prog:
+            if progress_bars(lines):  # a card still fading in: keep reading until its name shows
+                self.prog_last, self.prog_same = self.prog_last or {}, 0
             return
         self.prog_same = self.prog_same + 1 if prog == self.prog_last else 0
         self.prog_last = prog

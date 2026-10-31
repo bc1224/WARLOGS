@@ -246,6 +246,34 @@ class TrackerHudTests(unittest.TestCase):
         self.assertEqual(png.call_count, 2)
         self.assertEqual(self.t._scan_wait(206), DEFAULTS["scan_seconds"])  # back to the usual pace
 
+    def test_a_progression_card_fading_in_is_read_once_it_settles(self):
+        # 2026-10-30: the card fading in read as "xp 43," "608" "43,750" with no role name;
+        # it was logged as 43 round XP (or missed as no results screen) and never re-read
+        def tab(xp, nxt, name=True):
+            head = [L("SCORE", 175, 23), L("PROGRESSION", 317, 22), L("SCOREBOARD", 466, 23),
+                    L("[ALL] Trizun: GGs", 55, 161), L("NEXT ROUND IN 00:30", 844, 912)]
+            return head + ([L("ASSAULT", 853, 650)] if name else []) + xp + [nxt]
+        fading = tab([dict(L("xp 43,", 839, 753), h=22), dict(L("608", 926, 753), h=22)],
+                     dict(L("43,750", 993, 753), h=25), name=False)
+        self.assertTrue(looks_like_end_screen(fading))
+        self.assertIsNone(parse(fading)["xp"])
+        self.assertEqual(role_progress(fading), {})
+        self.assertEqual(role_progress(fading, ["Assault"]), {"Assault": [43608, 43750]})
+        self.assertIsNone(parse([L("xp 43,")])["xp"])
+        self.t._start_session(100)
+        self.t.record_end("auto", 200, lines=[L("DEFEAT"), L("CASH EARNED", 599, 918), L("$29,850", 1304, 918)])
+        self.t.round_roles = []  # its role wasn't seen on screen this round
+        reads = iter([fading, fading, tab([L("XP 43,608 43,750", 839, 753)], L("", 0, 0)),
+                      tab([L("XP 43,750 46,000", 839, 753)], L("", 0, 0))] + [tab([L("XP 43,750 46,000", 839, 753)], L("", 0, 0))] * 3)
+        with mock.patch.object(self.t, "_read_screen", side_effect=lambda: (b"", 1, 1, next(reads))), \
+                mock.patch.object(self.t, "_shot_path", side_effect=lambda now: os.path.join(self.tmp.name, f"{now}.png")), \
+                mock.patch("wdt.tracker.winapi.write_png"):
+            for now in (202, 203, 204, 205, 206, 207, 208):
+                self.t._maybe_read([10, 200, 10, 200], now)
+        m = self.store.dump()["matches"][0]
+        self.assertEqual(m["xp"], 43750 - 43608)
+        self.assertEqual(m["details"]["role_xp"]["Assault"]["after"], 43750)
+
     def test_live_cash_and_round_split(self):
         self.t._start_session(100)
         with mock.patch.object(self.t, "_save_sample"):
