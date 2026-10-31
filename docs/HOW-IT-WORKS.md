@@ -28,7 +28,7 @@ The details behind the tracker. For setup, see the [README](../README.md).
   open in a vendor (a cash drop then counts as buying it) and "PROMOTED TO ... LVL n".
   The first screen of each kind, plus one every 3 minutes, is kept in `data/samples/`
   (newest 150).
-- **Every 3 seconds** (`feed_seconds`): only two small corners, the reward feed under
+- **Every 1.5 seconds** (`feed_seconds`): only two small corners, the reward feed under
   the cash ("CONTROL ZONE PRESENCE +$200") and the kill feed. Lines naming your
   `player_name` count as your kills or deaths, without the kill distance ("1220m").
   Smeared reward names snap to the reward they look like; a teammate's name with a few
@@ -41,6 +41,9 @@ The details behind the tracker. For setup, see the [README](../README.md).
   (171 x 153, about 6 KB) for the replay map. Nothing is worked out while you play.
 - **While the big map is open** (on a screen read anyway): its picture, plus where its
   edges are in map coordinates, read off the grid labels. At most one every 8 seconds.
+- **On a slower PC** these reads take longer, so they are spaced out, up to twice as far
+  apart, to keep the tracker within a tenth of one CPU core (`load_budget`). The scan
+  that catches the results screens keeps its pace. The tracker log says when this changes.
 - XP isn't on the HUD, so round XP lands when the round ends. Open the in-game
   Scoreboard tab for a few seconds to update your place.
 
