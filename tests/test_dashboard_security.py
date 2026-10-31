@@ -79,7 +79,12 @@ class DashboardSecurityTests(unittest.TestCase):
         self.assertEqual(r.status, 413)
         self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=ok)[0].status, 200)
         det = self.app.store.match_full(mid)["details"]
-        self.assertEqual(det["track_route"], {"path": [[1761600000, 70.5, 104.25, 0.7]], "refs": ["20261027-210100"]})
+        self.assertEqual(det["track_route"], {"path": [[1761600000, 70.5, 104.25, 0.7]], "refs": ["20261027-210100"], "v": 1})
+        # a route worked out again by a newer dashboard replaces the old one
+        newer = json.dumps({"path": [[1761600000, 70.5, 104.25, 0.7]] * 2, "refs": [], "v": 2}).encode()
+        self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=newer)[0].status, 200)
+        self.assertEqual(len(self.app.store.match_full(mid)["details"]["track_route"]["path"]), 2)
+        self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=json.dumps({"path": [], "v": "2"}).encode())[0].status, 400)
 
     def test_odd_request_bodies_are_turned_away(self):
         mid = self.app.store.add_match(self.app.store.start_session(1), 1, 2, "auto")

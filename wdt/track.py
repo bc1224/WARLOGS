@@ -195,7 +195,8 @@ def file_path(ddir, round_dir, name):
 
 def clean_route(body):
     """A replay route posted by the dashboard, checked before it's stored:
-    {"path": [[t, x, y, score]], "refs": [map picture names]}, or None if it's off."""
+    {"path": [[t, x, y, score]], "refs": [map picture names], "v": how it was worked out},
+    or None if it's off."""
     if not isinstance(body, dict):
         return None
     path, refs = body.get("path"), body.get("refs") or []
@@ -206,4 +207,7 @@ def clean_route(body):
         return None
     if not all(isinstance(r, str) and NAME.fullmatch(r) for r in refs):
         return None
-    return {"path": [[int(p[0]), round(p[1], 2), round(p[2], 2), round(p[3], 2)] for p in path], "refs": refs}
+    v = body.get("v", 1)
+    if not isinstance(v, int) or isinstance(v, bool) or not 0 < v < 1000:
+        return None
+    return {"path": [[int(p[0]), round(p[1], 2), round(p[2], 2), round(p[3], 2)] for p in path], "refs": refs, "v": v}
