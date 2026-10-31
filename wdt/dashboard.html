@@ -607,7 +607,7 @@ body.rp-open { overflow: hidden; }
       <div class="grid"><div class="card"><h2>Cash breakdown</h2><div class="grid tiles" id="cashTiles" style="margin-top:0"></div>
         <h2 style="margin-top:16px">Matches that lost money</h2><div class="scroll" id="lossTable"></div></div></div>
     </div>
-    <div class="sec" data-sec="where" data-title="Zone, team, map and fights" role="tabpanel"><p class="sh">Hot Zone vs FOB, by team and map, kills and deaths.</p>
+    <div class="sec" data-sec="where" data-title="Zone, team, map, fights and teamwork" role="tabpanel"><p class="sh">Hot Zone vs FOB, by team and map, kills and deaths, and teamwork.</p>
       <div class="grid two">
         <div class="card"><h2>Hot Zone vs FOB <small>where in-match reads found you</small></h2><div class="scroll" id="byWhere"></div></div>
         <div class="card"><h2>By team</h2><div class="scroll" id="byTeam"></div></div>
@@ -615,6 +615,9 @@ body.rp-open { overflow: hidden; }
       <div class="grid two">
         <div class="card"><h2>By map <small>from the results banner</small></h2><div class="scroll" id="byMap"></div></div>
         <div class="card"><h2>Fights <small>kills and deaths from the kill feed, downs from the screen</small></h2><div class="scroll" id="byFight"></div></div>
+      </div>
+      <div class="grid two">
+        <div class="card"><h2>Teamwork <small>counted from the reward feed</small></h2><div class="scroll" id="byTeamwork"></div></div>
       </div>
     </div>
     <div class="sec" data-sec="timing" data-title="When you play best" role="tabpanel"><p class="sh">XP per hour by time of day and by time into a session.</p>
@@ -1464,6 +1467,32 @@ const kpi = (k, v, s) => `<div class="kpi"><div class="k">${k}</div><div class="
 const tile = (k, v, s) => `<div class="card tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s || ""}</div></div>`;
 const snapList = () => data.snapshots.map((s) => ({ t: Date.parse(s.synced_at) / 1000, d: s.data }));
 const avg = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+// teamwork counted from the reward feed: each reward line is one event (a heal is one patch-up, so
+// healing the same teammate twice counts twice), and a line that scrolls past between reads is missed
+const TEAMWORK = [
+  ["Supplies delivered", ["Supplies Deposited", "Supplies Delivered"], "pallets dropped off, by truck or heli"],
+  ["Enemies spotted", ["Target Spotted"], "new marks, not refreshed ones"],
+  ["Spots your team killed", ["Spotted Target Destroyed", "Spotted Vehicle Destroyed"], ""],
+  ["Teammates healed", ["Healed Teammate"], "each heal counts"],
+  ["Teammates revived", ["Revived Teammate", "Revive"], ""],
+  ["Stims given", ["Applied Stim"], ""],
+  ["Passengers carried", ["Passenger Survived"], "passengers who got out alive"],
+  ["Kill assists", ["Kill Assist"], ""],
+  ["Vehicle kill assists", ["Vehicle Destroyed Assist"], ""],
+  ["Headshots", ["Headshot"], ""],
+  ["Longshot kills", ["Longshot Kill"], ""],
+  ["Artillery kills", ["Artillery Kill"], ""],
+  ["FOB doors closed", ["Fob Door Closed"], ""],
+];
+const TEAMWORK_ALWAYS = 7;  // the first rows show even at 0
+// counts per TEAMWORK row, or null when the round's reward feed wasn't read
+const teamwork = (d) => {
+  if (!d?.rewards || !Object.keys(d.rewards).length) return null;
+  const n = {};
+  for (const [k, v] of Object.entries(d.rewards)) n[k.toLowerCase()] = (n[k.toLowerCase()] || 0) + (v?.n || 0);
+  return TEAMWORK.map(([, labels]) => labels.reduce((a, l) => a + (n[l.toLowerCase()] || 0), 0));
+};
+const teamworkAvg = (ms) => { const c = ms.map((m) => teamwork(m.details)).filter(Boolean); return c.length ? TEAMWORK.map((_, i) => avg(c.map((r) => r[i]))) : null; };
 
 function renderExtras(ms, since, rname, latest) {
   renderGoals(); renderPB(); renderInsights(ms, rname); renderCash(ms, rname);
@@ -1626,6 +1655,14 @@ function renderInsights(ms, rname) {
     .map(([k, v], i) => `<tr><td>${k}</td><td class="num">${v == null ? "–" : i < 3 ? v.toFixed(1) : money(v)}</td></tr>`).join("")}</tbody></table>
     <p class="m">${fought.length} matches with fight data. The kill feed is read every 1.5 seconds, so a kill that scrolls past faster can be missed.</p>`
     : `<div class="empty">Kills, deaths and downs are tracked from matches played from now on.</div>`;
+
+  const tw = ms.map((m) => teamwork(m.details)).filter(Boolean);
+  $("byTeamwork").innerHTML = tw.length ? `<table><thead><tr><th></th><th class="num">Per match</th><th class="num">Total</th></tr></thead><tbody>${TEAMWORK.map(([k, , s], i) => {
+      const tot = tw.reduce((a, r) => a + r[i], 0);
+      return i < TEAMWORK_ALWAYS || tot ? `<tr><td>${k}${s ? ` <span class="m">${s}</span>` : ""}</td><td class="num">${(tot / tw.length).toFixed(1)}</td><td class="num">${fmt(tot)}</td></tr>` : "";
+    }).join("")}</tbody></table>
+    <p class="m">${tw.length} match${tw.length === 1 ? "" : "es"} with the reward feed read. It's read every 1.5 seconds, so a reward that scrolls past faster is missed: treat these as at least this many.</p>`
+    : `<div class="empty">Teamwork counts come from the reward feed under your cash, read during matches.</div>`;
 
   const src = sourceRows(ms), withSrc = ms.filter((m) => m.details?.sources?.length).length;
   $("srcNote").textContent = withSrc ? `from ${withSrc} results screens ${rname}` : "";
@@ -1946,6 +1983,13 @@ async function renderMatchPage(id) {
       <p class="m">${esc(lives(d.combat)).replace(/^d/, "D")}. The kill feed is read every 1.5 seconds, so fast ones can be missed.</p>`
       : `<div class="empty">Kills, deaths and downs are tracked for matches from now on.</div>`, "from the kill feed")}
   </div>
+  ${(() => {
+    const tw = teamwork(d), twAvg = teamworkAvg(all.filter((x) => x.id !== m.id));
+    if (!tw) return "";
+    const rows = TEAMWORK.map(([k, , s], i) => tw[i] || i < TEAMWORK_ALWAYS || twAvg?.[i] ? `<tr><td>${k}${s ? ` <span class="m">${s}</span>` : ""}</td><td class="num">${tw[i]}</td><td class="num">${twAvg ? twAvg[i].toFixed(1) : "–"}</td></tr>` : "").join("");
+    return `<div class="grid two">${card("Teamwork", `<table><thead><tr><th></th><th class="num">This match</th><th class="num">Your average</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="m">Each reward line counts once. The feed is read every 1.5 seconds, so these are at least this many.</p>`, "from the reward feed")}</div>`;
+  })()}
   <div class="grid two">
     ${card("Loadout and stats", `<dl style="display:grid;grid-template-columns:max-content 1fr;gap:6px 14px;margin:0">
       <dt class="m">Roles</dt><dd style="margin:0">${esc((u.roles || []).join(", ")) || "–"}</dd>
