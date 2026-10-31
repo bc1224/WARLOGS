@@ -31,8 +31,10 @@ class OcrWorker:
     def __init__(self):
         self.proc = None
         self.lock = threading.Lock()
+        self.starts = 0  # a read that had to start the process first took much longer than usual
 
     def _start(self):
+        self.starts += 1
         self.proc = subprocess.Popen(
             [PS, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
              os.path.join(HERE, "ocr.ps1"), "-Serve"],

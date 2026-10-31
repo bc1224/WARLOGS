@@ -132,6 +132,43 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual(self.t.hud["rewards"]["Bribe"]["cash"], -500)
         self.assertEqual([k["other"] for k in self.t.hud["kills"]], ["Hollisx"])
 
+    def test_reads_are_spaced_out_on_a_slow_pc(self):
+        # this PC at 4K: nothing changes
+        self.t.cost = {"scan": 0.05, "feed": 0.045, "hud": 0.2, "track": 0.014}
+        self.t._set_pace()
+        self.assertEqual(self.t.pace, 1.0)
+        # three times slower: the corner, screen and minimap reads go twice as far apart
+        self.t.cost = {k: v * 3 for k, v in self.t.cost.items()}
+        self.t._set_pace()
+        self.assertEqual(self.t.pace, 2.0)
+        self.assertEqual(self.t.status(200)["pace"], 2.0)
+        self.t.rect = (0, 0, 1920, 1080)
+        self.t.hud["playing"] = 100
+        with mock.patch("wdt.tracker.winapi.find_pids", return_value={1}), \
+                mock.patch("wdt.tracker.winapi.foreground_rect", return_value=self.t.rect), \
+                mock.patch.object(self.t, "_thumb", return_value=bytes(64 * 36)), \
+                mock.patch.object(self.t, "_read_and_log"), mock.patch.object(self.t, "_read_feeds"), \
+                mock.patch.object(self.t, "_snap_minimap"), mock.patch.object(self.t, "_set_pace"):
+            self.t.next_hud = self.t.next_feed = self.t.next_track = 0
+            wait = self.t.tick(200)
+        self.assertEqual(wait, DEFAULTS["scan_seconds"])  # the results-screen scan keeps its pace
+        self.assertEqual(self.t.next_feed, 200 + 2 * DEFAULTS["feed_seconds"])
+        self.assertEqual(self.t.next_hud, 200 + 2 * DEFAULTS["hud_seconds"])
+        self.assertEqual(self.t.next_track, 200 + 2 * DEFAULTS["track_seconds"])
+
+    def test_a_read_that_starts_the_ocr_helper_isnt_counted(self):
+        class Ocr:
+            starts = 0
+
+        self.t.ocr = Ocr()
+
+        def slow_start():
+            self.t.ocr.starts += 1  # the helper took a second to start
+        self.t._timed("feed", slow_start)
+        self.assertNotIn("feed", self.t.cost)
+        self.t._timed("feed", lambda: None)
+        self.assertLess(self.t.cost["feed"], 0.05)
+
     def test_stack_puts_crops_under_each_other(self):
         a, b = (bytes([1]) * 2 * 1 * 4, 2, 1), (bytes([2]) * 3 * 2 * 4, 3, 2)
         data, w, h, starts = stack([a, b])

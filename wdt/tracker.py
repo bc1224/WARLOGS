@@ -58,6 +58,7 @@ DEFAULTS = {
     "samples_max": 150,        # screenshots kept in data/samples for tuning
     "shots_matches": 50,       # matches whose results-screen pictures stay in data/shots
     "check_updates": True,     # ask GitHub every few hours whether a newer version is out
+    "load_budget": 0.10,       # share of one CPU core the in-match reads may take; on a slower PC they are spaced out
     "track_seconds": 3.0,      # save a small minimap picture this often for the replay map (0 = off)
     "track_rounds": 15,        # rounds of minimap pictures kept (a replay already worked out stays)
     "track_maps": 80,          # big map pictures kept as the replay's background
@@ -77,6 +78,7 @@ FEED_AREAS = ((0.78, 0.045, 0.22, 0.18),   # reward feed under the top-right cas
 MENU_STRIP = (0.0, 0.0, 0.32, 0.045)        # INVENTORY / SCOREBOARD / PROGRESSION tabs of the in-match menu
 STACK_GAP = 40     # dark rows between the corners stacked into one picture for one OCR read
 OCR_IDLE = 120     # with the game in the background this long, the OCR helper is closed to free its memory
+MAX_PACE = 2.0     # the corner, screen and minimap reads are spaced out at most this much on a slow PC
 log = logging.getLogger("wdt")
 
 
@@ -135,6 +137,8 @@ class Tracker:
         self.next_map = 0.0
         self.last_event = None
         self.away_since = None
+        self.cost = {}  # seconds each kind of in-match read takes, averaged
+        self.pace = 1.0
 
     # --- inputs -----------------------------------------------------------
     def _steam_shots(self):
@@ -948,7 +952,7 @@ class Tracker:
         return {"pid": os.getpid(), "updated": now, "game_running": bool(self.pids),
                 "game_focused": bool(self.rect), "session": self.session,
                 "templates": len(self.matcher.templates), "last_event": self.last_event,
-                "auto_read": self.cfg["auto_read"], "live": self.live(now),
+                "auto_read": self.cfg["auto_read"], "live": self.live(now), "pace": round(self.pace, 2),
                 "results_screen": self.session is not None and self.matcher.recently_ended(now),
                 "hotkey_end": self.cfg["hotkey_end"], "hotkey_start": self.cfg["hotkey_start"]}
 
@@ -996,25 +1000,51 @@ class Tracker:
                     time.sleep(0.5)  # let Steam finish writing the file
                     self.record_end("f12", now, image=shot)
         if self.rect:
-            sig = self._thumb()
+            sig = self._timed("scan", self._thumb)
             if not self._auto_end(sig, now) and self.cfg["auto_read"]:
                 self._maybe_read(sig, now)
         else:
             self.prev_sig, self.still = None, 0
         if self.rect and self.cfg["auto_read"] and now >= self.next_hud:  # also reads break screens
-            self.next_hud = now + self.cfg["hud_seconds"]
-            self._read_and_log(now, "auto-read", hud=True)
+            self.next_hud = now + self.cfg["hud_seconds"] * self.pace
+            self._timed("hud", self._read_and_log, now, "auto-read", hud=True)
         if (self.rect and self.cfg["auto_read"] and self.cfg["feed_seconds"] and now >= self.next_feed
                 and not self.matcher.recently_ended(now)):
-            self.next_feed = now + self.cfg["feed_seconds"]
-            self._read_feeds(now)
+            self.next_feed = now + self.cfg["feed_seconds"] * self.pace
+            self._timed("feed", self._read_feeds, now)
         if (self.rect and self.cfg["track_seconds"] and now >= self.next_track
                 and self.hud["playing"] is not None and not self.matcher.recently_ended(now)):
-            self.next_track = now + max(1.0, float(self.cfg["track_seconds"]))
-            self._snap_minimap(now)
+            self.next_track = now + max(1.0, float(self.cfg["track_seconds"])) * self.pace
+            self._timed("track", self._snap_minimap, now)
         if now >= self.next_api:
             self._pull_api(now)
+        self._set_pace()
         return self._scan_wait(now)
+
+    def _timed(self, kind, fn, *args, **kw):
+        """Run one in-match read and keep a running average of how long it takes."""
+        starts, t0 = getattr(self.ocr, "starts", 0), time.perf_counter()
+        try:
+            return fn(*args, **kw)
+        finally:
+            took = time.perf_counter() - t0
+            if getattr(self.ocr, "starts", 0) == starts:  # starting the OCR helper isn't the read's cost
+                old = self.cost.get(kind)
+                self.cost[kind] = took if old is None else old * 0.8 + took * 0.2
+
+    def _set_pace(self):
+        """On a slower PC the same reads take longer. The scan for the end of a round keeps
+        its pace; the corner, screen and minimap reads are spaced out (up to MAX_PACE) so
+        that all of it stays within load_budget of one core."""
+        every = {"feed": self.cfg["feed_seconds"], "hud": self.cfg["hud_seconds"],
+                 "track": self.cfg["track_seconds"] and max(1.0, float(self.cfg["track_seconds"]))}
+        flex = sum(self.cost.get(k, 0) / v for k, v in every.items() if v)
+        room = float(self.cfg["load_budget"]) - self.cost.get("scan", 0) / self.cfg["scan_seconds"]
+        pace = MAX_PACE if room <= 0 else min(MAX_PACE, max(1.0, flex / room))
+        if abs(pace - self.pace) >= 0.25:
+            log.info("reads during a match now %.1fx apart (%s)", pace,
+                     ", ".join(f"{k} {v * 1000:.0f} ms" for k, v in sorted(self.cost.items())))
+            self.pace = pace
 
     def _scan_wait(self, now):
         """Seconds to the next scan: every second from the money screen until the XP tab
