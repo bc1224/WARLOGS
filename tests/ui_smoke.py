@@ -71,17 +71,28 @@ def check_replay(page, base, store, latest):
                               sorted(truth)[len(truth) // 2])
     if not page.inner_text(".rp-now").strip():
         errors.append("the replay slider shows nothing for the moment it is on")
-    # full screen: the map fills the window, the side panel follows the slider, Escape leaves
+    if not page.query_selector(".rp-mark:not(.dot)"):
+        errors.append("the replay timeline has no labeled moments")
+    # popped out: a window inside the screen with a square map, the side panel follows the slider,
+    # Escape or a click beside it closes it
     page.click("#rpExpand")
     page.wait_for_timeout(300)
-    box = page.eval_on_selector("#rpCard", "c => { const r = c.getBoundingClientRect(); return [r.width, innerWidth, document.documentElement.scrollWidth]; }")
-    if box[0] < box[1] - 1 or box[2] > box[1]:
-        errors.append(f"the full screen replay doesn't fit the window (card {box[0]}, window {box[1]}, page {box[2]})")
+    box = page.evaluate("""() => { const r = $('rpCard').getBoundingClientRect(), m = $('rpCanvas').getBoundingClientRect();
+        return [r.left, r.top, r.right, r.bottom, innerWidth, innerHeight, document.documentElement.scrollWidth, m.width, m.height]; }""")
+    if box[0] < 0 or box[1] < 0 or box[2] > box[4] or box[3] > box[5] + 1 or box[6] > box[4]:
+        errors.append(f"the popped out replay doesn't fit the window ({box[:6]}, page {box[6]})")
+    if abs(box[7] - box[8]) > 2 or box[7] < 280:
+        errors.append(f"the popped out map isn't a big square ({box[7]:.0f} x {box[8]:.0f})")
     if not page.inner_text("#rpStats").strip() or not page.query_selector(".rp-act.cur"):
-        errors.append("the full screen replay's side panel doesn't show the moment the slider is on")
+        errors.append("the popped out replay's side panel doesn't show the moment the slider is on")
     page.keyboard.press("Escape")
     if page.eval_on_selector("#rpCard", "c => c.classList.contains('rp-full') || document.body.classList.contains('rp-open')"):
-        errors.append("Escape doesn't leave the full screen replay")
+        errors.append("Escape doesn't close the popped out replay")
+    page.click("#rpCanvas")
+    page.wait_for_timeout(200)
+    page.mouse.click(3, 3)
+    if page.eval_on_selector("#rpCard", "c => c.classList.contains('rp-full')") or page.query_selector("#rpShade"):
+        errors.append("clicking the map and then beside the window doesn't open and close the replay")
     return errors
 
 
