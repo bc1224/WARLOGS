@@ -138,7 +138,7 @@ and only runs its own scripts.
 
 It's light: about 150 MB of RAM while you play (35 MB otherwise), no graphics work of its own,
 and on a 4K screen well under a tenth of one CPU core, at low priority in Windows' efficiency
-mode. On a slower PC it spaces its reads out to stay that light (see
+mode. On a slower PC, turn on **Go easy on a slower PC** under More to keep it that light (see
 [how it works](docs/HOW-IT-WORKS.md#reads-during-a-match)).
 
 **Ban risk.** The WARDOGS [terms](https://www.wardogs.com/eula) forbid "unauthorised third-party

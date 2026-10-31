@@ -133,6 +133,12 @@ class TrackerFeedTests(unittest.TestCase):
         self.assertEqual([k["other"] for k in self.t.hud["kills"]], ["Hollisx"])
 
     def test_reads_are_spaced_out_on_a_slow_pc(self):
+        # off by default: the full pace however slow the reads are
+        self.t.cost = {"scan": 0.15, "feed": 0.135, "hud": 0.6, "track": 0.042}
+        self.t._set_pace(0)
+        self.assertEqual(self.t.pace, 1.0)
+        self.store.set_switch("light", True)
+        self.t.next_light = 0
         # this PC at 4K: nothing changes
         self.t.cost = {"scan": 0.05, "feed": 0.045, "hud": 0.2, "track": 0.014}
         self.t._set_pace()
@@ -159,6 +165,7 @@ class TrackerFeedTests(unittest.TestCase):
     def test_the_switch_keeps_the_full_pace_until_it_is_turned_back_on(self):
         slow = {"scan": 0.15, "feed": 0.135, "hud": 0.6, "track": 0.042}
         self.t.cost = dict(slow)
+        self.store.set_switch("light", True)
         self.t._set_pace(100)
         self.assertEqual(self.t.pace, 2.0)
         self.store.set_switch("light", False)

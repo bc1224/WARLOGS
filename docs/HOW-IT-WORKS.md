@@ -41,12 +41,12 @@ The details behind the tracker. For setup, see the [README](../README.md).
   (171 x 153, about 6 KB) for the replay map. Nothing is worked out while you play.
 - **While the big map is open** (on a screen read anyway): its picture, plus where its
   edges are in map coordinates, read off the grid labels. At most one every 8 seconds.
-- **On a slower PC** these reads take longer, so they are spaced out, up to twice as far
-  apart, to keep the tracker within a tenth of one CPU core (`load_budget`). The scan
-  that catches the results screens keeps its pace. The tracker log says when this changes.
-  Turn **Go easy on a slower PC** off under More to always read at the full pace (fewer
-  missed kills and rewards); it stays off until you turn it back on, and the menu says
-  whether this PC would need it.
+- **On a slower PC** these reads take longer. With **Go easy on a slower PC** turned on
+  under More (it starts off), they are spaced out, up to twice as far apart, when they
+  would take more than a tenth of one CPU core (`load_budget`). The scan that catches the
+  results screens keeps its pace. The menu says whether this PC needs it, and the tracker
+  log says when the pace changes. Off, every read keeps the full pace, which misses the
+  fewest kills and rewards.
 - XP isn't on the HUD, so round XP lands when the round ends. Open the in-game
   Scoreboard tab for a few seconds to update your place.
 
