@@ -501,6 +501,7 @@ body.rp-open { overflow: hidden; }
           <label class="menu-row" title="On: asks GitHub every few hours whether a new version is out. Off: no Update button; download it again to update."><span><b>Check for updates</b><small>Asks GitHub every few hours. Sends nothing about you.</small></span><input type="checkbox" role="switch" class="switch" data-switch="updates"></label>
           <label class="menu-row sub" title="On: installs a new version as soon as it's out, mid-round too. The tracker restarts in about a second and keeps your round. Off: you click Update when one shows."><span><b>Install updates automatically</b><small>No waiting: restarts in about a second, keeps your round.</small></span><input type="checkbox" role="switch" class="switch" data-switch="auto_update"></label>
           <label class="menu-row" title="On: the replay map on a match shows the whole map, downloaded once from wardogstracker.gg (a fan site) and kept. Off: only the parts of the map you opened in game."><span><b>Full maps for replays</b><small>Downloads each map once. Sends nothing about you.</small></span><input type="checkbox" role="switch" class="switch" data-switch="maps"></label>
+          <label class="menu-row" title="On: if reading the screen would slow your game, the tracker reads the corners, screen and minimap up to half as often. Results screens are always caught. Off: always the full pace, which misses fewer kills and rewards, whatever it costs. It stays off until you turn it on."><span><b>Go easy on a slower PC</b><small id="lightNote">Reads less often only if they'd slow your game.</small></span><input type="checkbox" role="switch" class="switch" data-switch="light"></label>
           <p class="menu-note">Report an issue only sends when you press Send.</p>
         </div>
       </details></div>
@@ -973,6 +974,11 @@ function renderStatus(st) {
     : !st.templates && !data?.matches.length
     ? `<div class="notice">Just play. When a match ends and the results screen sits still for a few seconds, the tracker reads it and logs the match here on its own. If one ever gets missed, press <kbd>${esc(st.hotkey_end || "ctrl+alt+e")}</kbd> on the results screen.</div>`
     : "";
+  const ln = $("lightNote"), need = st.pace_needed;
+  if (ln) ln.textContent = need == null ? "Reads less often only if they'd slow your game."
+    : need <= 1 ? "Not needed on this PC: reads stay at the full pace."
+    : data?.switches?.light ? `This PC needs it: reads are ${need.toFixed(1)}x apart.`
+    : `This PC would read ${need.toFixed(1)}x apart with it on.`;
   if (typeof renderLive === "function") renderLive(st);
 }
 

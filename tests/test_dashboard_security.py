@@ -175,7 +175,8 @@ class DashboardSecurityTests(unittest.TestCase):
 
     def test_switches_start_private_and_change_only_from_the_page(self):
         # a new install asks before looking you up on wardogstracker.gg; update checks send nothing about you
-        self.assertEqual(self.switches(), {"stats": False, "updates": True, "auto_update": False, "maps": True})
+        self.assertEqual(self.switches(), {"stats": False, "updates": True, "auto_update": False, "maps": True,
+                                           "light": True})
         for name in ("stats", "updates", "auto_update"):
             self.assertEqual(self.switch(name, True, headers={})[0].status, 403)  # no Origin
         self.assertEqual(self.switch("evil", True)[0].status, 400)
@@ -212,7 +213,8 @@ class DashboardSecurityTests(unittest.TestCase):
     def test_old_offline_mode_keeps_both_lookups_off(self):
         self.app.store.db.execute("DELETE FROM meta WHERE key='switches'")  # never touched the new switches
         self.app.store.set_meta("offline", True)
-        self.assertEqual(self.switches(), {"stats": False, "updates": False, "auto_update": False, "maps": False})
+        self.assertEqual(self.switches(), {"stats": False, "updates": False, "auto_update": False, "maps": False,
+                                           "light": True})
         self.app.store.set_meta("offline", False)
 
     def test_map_tiles_are_kept_and_downloaded_only_with_the_switch_on(self):

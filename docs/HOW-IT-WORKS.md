@@ -44,6 +44,9 @@ The details behind the tracker. For setup, see the [README](../README.md).
 - **On a slower PC** these reads take longer, so they are spaced out, up to twice as far
   apart, to keep the tracker within a tenth of one CPU core (`load_budget`). The scan
   that catches the results screens keeps its pace. The tracker log says when this changes.
+  Turn **Go easy on a slower PC** off under More to always read at the full pace (fewer
+  missed kills and rewards); it stays off until you turn it back on, and the menu says
+  whether this PC would need it.
 - XP isn't on the HUD, so round XP lands when the round ends. Open the in-game
   Scoreboard tab for a few seconds to update your place.
 
