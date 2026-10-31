@@ -2203,6 +2203,13 @@ function mapGroups(refs) {
   return Object.values(groups).sort((a, b) => b.length - a.length);
 }
 
+// a picture whose grid labels misread lands far from the rest of its round's: leave it out
+function together(g) {
+  const mid = (r) => [(r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2];
+  const near = (a, b) => Math.hypot(mid(a)[0] - mid(b)[0], mid(a)[1] - mid(b)[1]) < 40;
+  return g.reduce((best, r) => { const n = g.filter((o) => near(r, o)); return n.length > best.length ? n : best; }, []);
+}
+
 async function mapPictures(list, keep) {
   return (await Promise.all((list.maps || []).filter((m) => !keep || keep.has(refName(m))).map((m) =>
     loadImg(`/track/maps/${encodeURIComponent(m.file)}`).then((img) => ({ ...m, img }), () => null)))).filter(Boolean);
@@ -2221,7 +2228,7 @@ async function routeFor(st, dir, list) {
   // land in separate groups): use them all; without any, try the biggest groups on a few pictures
   let groups = mapGroups(refs);
   const own = (g) => g.filter((r) => r.round === dir).length;
-  if (groups.some(own)) groups = [groups.filter(own).flat()];
+  if (groups.some(own)) groups = [together(groups.filter(own).flat())];
   let best = null;
   for (const g of groups.slice(0, 3)) {
     const gc = mapGrid(g, RC);

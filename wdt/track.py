@@ -44,18 +44,16 @@ def unzoom(lines, frac, ow, oh, rw, rh):
 
 
 def _labels(lines, rw, rh):
-    """Grid labels: (x center, value) under the pane and (y center, value) left of it,
-    and how many 100 m units one label step is."""
+    """Grid labels: (x center, value) under the pane and (y center, value) left of it."""
     px, py, pw, ph = PANE[0] * rw, PANE[1] * rh, PANE[2] * rw, PANE[3] * rh
-    xs, ys, unit = [], [], 1.0
+    xs, ys = [], []
     for l in lines:
         if not isinstance(l, dict):
             continue
         text, x, y = l.get("text") or "", l.get("x", 0), l.get("y", 0)
         h = l.get("h") or 16 * rh / 1080
         w = l.get("w") or len(text) * 11 * rw / 1920
-        if x > px + pw and "KM" in text.upper().replace(" ", ""):
-            unit = 10.0
+        # (zoomed out, the scale says 1KM but the grid labels still count 100 m)
         tokens = text.split()
         if py + ph < y < py + ph + 0.06 * rh and px - 0.02 * rw < x < px + pw:
             # one OCR line can hold several labels ("70 71"): spread them over its width
@@ -70,7 +68,7 @@ def _labels(lines, rw, rh):
             m = LABEL.fullmatch(text.strip(".-= "))
             if m:
                 ys.append((y + h / 2, int(m.group())))
-    return xs, ys, unit
+    return xs, ys
 
 
 def _fit(points, sign):
@@ -112,7 +110,7 @@ def georef(lines, rw, rh):
     """What the pane's edges are in map coordinates, from the grid labels of a
     screen read at rw x rh: {"x0", "x1", "y0", "y1"} (left, right, top, bottom),
     or None when the labels don't give a clear answer."""
-    xs, ys, unit = _labels(lines, rw, rh)
+    xs, ys = _labels(lines, rw, rh)
     fx, fy = _fit(xs, 1), _fit(ys, -1)
     if fx and not fy:  # zoomed in, only two labels on one axis: the pixels are square
         fy = _place(ys, -fx[1])
@@ -123,7 +121,7 @@ def georef(lines, rw, rh):
     if abs(abs(fx[1]) / abs(fy[1]) - 1) > 0.15:  # the map's pixels are square
         return None
     px, py, pw, ph = PANE[0] * rw, PANE[1] * rh, PANE[2] * rw, PANE[3] * rh
-    at = lambda f, pos: round((pos - f[0]) / f[1] * unit, 3)
+    at = lambda f, pos: round((pos - f[0]) / f[1], 3)
     return {"x0": at(fx, px), "x1": at(fx, px + pw), "y0": at(fy, py), "y1": at(fy, py + ph)}
 
 

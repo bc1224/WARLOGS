@@ -23,6 +23,10 @@ END_WORDS = re.compile(r"\b(victory|defeat|winner|winners|won|draw|match (over|c
                        r"|rewards?|payout|earned|next round)\b", re.I)
 # a role card on the between-rounds Progression tab: "XP 19,597 22,500" (before, after)
 PROGRESS_RE = re.compile(rf"\bXP\s*({NUM})\s*/?\s*({NUM})\s*$", re.I)
+XP_START = re.compile(r"^\W*XP\b", re.I)
+FIGURE_RE = re.compile(r"^[\d,.\s/]+$")
+# the start of a card's XP figure split off by OCR ("XP 43," of "XP 43,608"): not round XP
+SPLIT_XP_RE = re.compile(r"^\W*XP\s*\d{1,3}[,.]\s*$", re.I)
 
 
 class OcrWorker:
@@ -160,9 +164,11 @@ def parse(lines):
     was read and the user can correct a wrong pick.
     """
     xp, earned, spent = [], [], []
+    cards = {id(o) for b in progress_bars(lines) for o in b[3]}
     for line in lines:
         text = _text(line)
-        for rx in () if PROGRESS_RE.search(text) else XP_RES:  # role totals, not round XP
+        card = id(line) in cards or PROGRESS_RE.search(text) or SPLIT_XP_RE.match(text)
+        for rx in () if card else XP_RES:  # role totals, not round XP
             for sign, n in rx.findall(text):
                 if sign != "-":
                     xp.append(_num(n))
@@ -180,20 +186,36 @@ def parse(lines):
     }
 
 
-def role_progress(lines):
+def progress_bars(lines):
+    """The XP line of each Progression tab role card: [(XP now, XP for the next level, x,
+    the lines it was read from)]. While a card fades in, OCR can split "XP 43,608 43,750"
+    into "XP 43," "608" "43,750", so figures on the same row to its right are joined on."""
+    out = []
+    for l in lines:
+        if not XP_START.search(_text(l)):
+            continue
+        x, y = _pos(l)
+        h = l.get("h", 20) if isinstance(l, dict) else 20
+        row = [l] + sorted((o for o in lines if o is not l and isinstance(o, dict)
+                            and abs(o.get("y", 0) - y) <= h / 2 + 2 and 0 < o.get("x", 0) - x < 400
+                            and FIGURE_RE.match(_text(o))), key=lambda o: o["x"])
+        m = PROGRESS_RE.search(" ".join(_text(o).strip() for o in row))
+        if m:
+            out.append((_num(m.group(1)), _num(m.group(2)), x, row))
+    return out
+
+
+def role_progress(lines, played=()):
     """{role: [XP now, XP for the next level]} from the Progression tab. Each card's
-    XP line is paired with the role name above it, left to right."""
-    names = [l for l in lines if _text(l).strip().title() in ROLES]
-    bars = [l for l in lines if PROGRESS_RE.search(_text(l))]
+    XP line is paired with the role name above it, left to right. A lone card whose name
+    didn't read is the role played this round, when only one was."""
+    names = sorted((l for l in lines if _text(l).strip().title() in ROLES), key=lambda l: _pos(l)[0])
+    bars = sorted(progress_bars(lines), key=lambda b: b[2])
+    if len(bars) == 1 and not names and len(played) == 1:
+        return {played[0]: list(bars[0][:2])}
     if not bars or len(names) != len(bars):
         return {}
-    names.sort(key=lambda l: _pos(l)[0])
-    bars.sort(key=lambda l: _pos(l)[0])
-    out = {}
-    for n, b in zip(names, bars):
-        m = PROGRESS_RE.search(_text(b))
-        out[_text(n).strip().title()] = [_num(m.group(1)), _num(m.group(2))]
-    return out
+    return {_text(n).strip().title(): list(b[:2]) for n, b in zip(names, bars)}
 
 
 CASH_SUMMARY = (re.compile(r"\b(spent|spend|costs?|expenses?)\b", re.I),
@@ -220,7 +242,7 @@ def looks_like_end_screen(lines):
     words = " ".join(texts)
     if "$" in words and sum(bool(rx.search(words)) for rx in CASH_SUMMARY) >= 2:
         return True
-    if parse(lines)["xp"] is None and not role_progress(lines):
+    if parse(lines)["xp"] is None and not progress_bars(lines):
         return False
     return any(END_WORDS.search(_text(l)) for l in lines)
 

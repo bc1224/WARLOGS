@@ -60,8 +60,10 @@ class GeorefTests(unittest.TestCase):
         self.assertAlmostEqual(g["y1"], 107.09 - PH / 151.5, places=1)
 
     def test_kilometre_scale(self):
+        # 2026-10-30: zoomed out the scale says 1KM, but the labels still count 100 m
+        # (the cursor read x100.63 on a pane labelled 94 to 104); x10 put it off the map
         lines = labels() + [L("1KM", PX + PW + 30, PY + 50)] * 3
-        self.assertAlmostEqual(track.georef(lines, RW, RH)["x0"], 643.5, places=0)
+        self.assertAlmostEqual(track.georef(lines, RW, RH)["x0"], 64.35, places=1)
 
     def test_not_enough_labels(self):
         self.assertIsNone(track.georef(labels(xs=(70,), ys=(100, 101)), RW, RH))
