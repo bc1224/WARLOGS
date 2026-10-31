@@ -85,6 +85,14 @@ class DashboardSecurityTests(unittest.TestCase):
         self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=newer)[0].status, 200)
         self.assertEqual(len(self.app.store.match_full(mid)["details"]["track_route"]["path"]), 2)
         self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=json.dumps({"path": [], "v": "2"}).encode())[0].status, 400)
+        # a fix from a zoomed out minimap (in a vehicle) keeps its zoom; a zoom out of range is refused
+        zoomed = json.dumps({"path": [[1761600000, 70.5, 104.25, 0.7, 3], [1761600005, 70.6, 104.2, 0.6, 1]], "v": 3}).encode()
+        self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=zoomed)[0].status, 200)
+        self.assertEqual(self.app.store.match_full(mid)["details"]["track_route"]["path"],
+                         [[1761600000, 70.5, 104.25, 0.7, 3], [1761600005, 70.6, 104.2, 0.6]])
+        for z in (0, 9, "3"):
+            bad = json.dumps({"path": [[1761600000, 70.5, 104.25, 0.7, z]], "v": 3}).encode()
+            self.assertEqual(self.get(f"/api/match/{mid}/track", method="POST", body=bad)[0].status, 400, z)
 
     def test_odd_request_bodies_are_turned_away(self):
         mid = self.app.store.add_match(self.app.store.start_session(1), 1, 2, "auto")
@@ -223,10 +231,14 @@ class DashboardSecurityTests(unittest.TestCase):
                 self.assertEqual((r.status, r.getheader("Content-Type"), body), (200, "image/webp", webp))
                 self.switch("maps", False)
                 self.assertEqual(self.get("/maptile/bakurani/2/1_3.webp")[1], webp)  # the kept copy
-                for bad in ("/maptile/bakurani/2/4_0.webp", "/maptile/elsewhere/0/0_0.webp", "/maptile/bakurani/5/0_0.webp",
+                self.switch("maps", True)
+                self.assertEqual(self.get("/maptile/zestafona/5/31_0.webp")[0].status, 200)  # the one map with a zoom 5
+                self.switch("maps", False)
+                for bad in ("/maptile/bakurani/2/4_0.webp", "/maptile/elsewhere/0/0_0.webp", "/maptile/bakurani/5/0_0.webp", "/maptile/zestafona/6/0_0.webp",
                             "/maptile/../2/0_0.webp"):
                     self.assertEqual(self.get(bad)[0].status, 404, bad)
-            self.assertEqual(got, ["https://wardogstracker.gg/map-tiles/bakurani/2/1_3.webp"])
+            self.assertEqual(got, ["https://wardogstracker.gg/map-tiles/bakurani/2/1_3.webp",
+                                  "https://wardogstracker.gg/map-tiles/zestafona/5/31_0.webp"])
         finally:
             self.switch("maps", True)
 

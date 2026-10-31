@@ -218,7 +218,7 @@ def make_handler(app):
                         return self._send(200, f.read(), "image/png" if p.endswith(".png") else "image/jpeg")
                 except (OSError, TypeError):  # not one of ours, or cleared away just now
                     pass
-            m = re.fullmatch(r"/maptile/([a-z]+)/([0-4])/([0-9]{1,2})_([0-9]{1,2})\.webp", path)
+            m = re.fullmatch(r"/maptile/([a-z]+)/([0-5])/([0-9]{1,2})_([0-9]{1,2})\.webp", path)
             if m:  # the full map under the replay: kept copies, else from wardogstracker.gg
                 with app.lock:
                     fetch = app.store.maps_on()

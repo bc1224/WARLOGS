@@ -447,6 +447,9 @@ footer { border-top: 1px solid var(--line); padding-top: 14px; }
 .rp-wrap { position: relative; }
 .rp-map { cursor: grab; touch-action: none; }
 .rp-map.drag { cursor: grabbing; }
+.rp-layers { position: absolute; top: 8px; left: 8px; display: flex; gap: 4px; flex-wrap: wrap; max-width: calc(100% - 56px); }
+.rp-layers button { padding: 3px 8px; font-size: 12px; background: rgba(16,18,21,.85); color: var(--muted); }
+.rp-layers button[aria-pressed=true] { color: #101215; background: var(--gold); border-color: var(--gold); }
 .rp-zoom { position: absolute; top: 8px; right: 8px; display: flex; flex-direction: column; gap: 4px; }
 .rp-zoom button { width: 32px; height: 32px; padding: 0; font-size: 16px; background: rgba(16,18,21,.85); }
 .rp-side { display: none; }
@@ -1973,7 +1976,8 @@ const HP = 0.35;         // detail kept: changes over less than ~35 m (zone tint
 // a match counts near the last fix at OK_NEAR, anywhere else only as a clear winner
 // (tuned on real rounds, cross-checked against map pictures from other days)
 const OK_NEAR = 0.4, OK_ANY = 0.5, OK_GAP = 0.2;
-const ROUTE_V = 2;       // how routes are worked out; a route saved by an older way is worked out again
+const ROUTE_V = 3;       // how routes are worked out; a route saved by an older way is worked out again
+const ZOOMS = [2, 3, 4];  // a vehicle or aircraft zooms the minimap out this many times; tried when the usual scale finds nothing
 const replays = {};      // match id -> { status, route, refs, t, playing, progress }
 const RP_EVENTS = { kill: ["Kill", "var(--pos)"], death: ["Death", "var(--neg)"], down: ["Downed", "#e8913a"],
   revive: ["Revived", "var(--blue)"], respawn: ["Respawned", "#b9a4e8"], buy: ["Bought", "var(--gold)"] };
@@ -1984,6 +1988,7 @@ const refName = (m) => m.file.replace(/\.\w+$/, "");
 // the full maps (wardogstracker.gg tiles, kept by the tracker): 512 px tiles, 2^z across
 // the 163.84-unit map, row 0 at the top; game coordinates start at the bottom left
 const MAP_SPAN = 163.84, TILE_PX = 512, MAPS = ["bakurani", "ozeti", "zestafona"];
+const TILE_ZOOM = { bakurani: 4, ozeti: 4, zestafona: 5 };  // the sharpest tiles each map has
 function mapKey(name) {  // a map name read off a results screen ("Akurani" is Bakurani)
   const s = String(name || "").trim().toLowerCase(), dist = (a, b) => {
     let row = [...Array(b.length + 1).keys()];
@@ -2002,7 +2007,7 @@ function mapKey(name) {  // a map name read off a results screen ("Akurani" is B
 function drawTiles(id, x, px, k, dpr, W, H) {
   const st = replays[id];
   if (!st.mapKey) return false;
-  const z = Math.max(0, Math.min(4, Math.ceil(Math.log2(k * dpr * MAP_SPAN / TILE_PX)))), n = 2 ** z, ts = MAP_SPAN / n;
+  const z = Math.max(0, Math.min(TILE_ZOOM[st.mapKey] || 4, Math.ceil(Math.log2(k * dpr * MAP_SPAN / TILE_PX)))), n = 2 ** z, ts = MAP_SPAN / n;
   const [X0, Y1] = [(0 - W / 2) / k, (H / 2) / k], c = st.center;
   const xa = Math.max(0, Math.floor((c[0] + X0) / ts)), xb = Math.min(n - 1, Math.floor((c[0] - X0) / ts));
   const ya = Math.max(0, Math.floor((MAP_SPAN - (c[1] + Y1)) / ts)), yb = Math.min(n - 1, Math.floor((MAP_SPAN - (c[1] - Y1)) / ts));
@@ -2077,9 +2082,10 @@ function mapGrid(refs, R) {
   return { L: detail(V, keep, w, h, HP * R), A, w, h, X0, Y0, R };
 }
 
-// a minimap picture shrunk to a search grid, with the icons, your arrow and the NAV text left out
-function miniTemplate(img, R) {
-  const W = img.naturalWidth, H = img.naturalHeight, k = W / 171;
+// a minimap picture shrunk to a search grid, with the icons, your arrow and the NAV text left out;
+// z: how far the minimap is zoomed out (1 on foot)
+function miniTemplate(img, R, z = 1) {
+  const W = img.naturalWidth, H = img.naturalHeight, k = W / 171, ppu = MINI_PPU / z;
   const x = canvasOf(W, H);
   x.drawImage(img, 0, 0);
   const d = x.getImageData(0, 0, W, H).data, V = new Float32Array(W * H), ok = new Uint8Array(W * H);
@@ -2095,8 +2101,8 @@ function miniTemplate(img, R) {
   }
   // hidden behind a menu or the big map, or nearly blank: nothing to match
   if (n < 0.5 * W * H || ss / n - (s / n) ** 2 < 100) return null;
-  const L = detail(V, ok, W, H, HP * MINI_PPU * k);
-  const f = R / MINI_PPU / k, w = Math.max(4, Math.round(W * f)), h = Math.max(4, Math.round(H * f));
+  const L = detail(V, ok, W, H, HP * ppu * k);
+  const f = R / ppu / k, w = Math.max(4, Math.round(W * f)), h = Math.max(4, Math.round(H * f));
   const T = new Float32Array(w * h), M = new Uint8Array(w * h);
   let m = 0, cnt = 0;
   for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
@@ -2194,9 +2200,9 @@ async function mapPictures(list, keep) {
     loadImg(`/track/maps/${encodeURIComponent(m.file)}`).then((img) => ({ ...m, img }), () => null)))).filter(Boolean);
 }
 
-async function snapTemplates(dir, file) {
-  const img = await loadImg(`/track/${dir}/${encodeURIComponent(file)}`), tc = miniTemplate(img, RC);
-  return tc && [tc, miniTemplate(img, RF)];
+async function snapTemplates(dir, file, z = 1) {
+  const img = await loadImg(`/track/${dir}/${encodeURIComponent(file)}`), tc = miniTemplate(img, RC, z);
+  return tc && [tc, miniTemplate(img, RF, z)];
 }
 
 async function routeFor(st, dir, list) {
@@ -2233,16 +2239,25 @@ async function routeFor(st, dir, list) {
     try {
       const tp = await snapTemplates(dir, file);
       if (tp?.[1]) {
-        let fix = null;
-        if (last && t - last.t <= GAP_S) {  // you can't have gone far since the last picture
-          fix = locate(gc, gf, tp[0], tp[1], { x: last.cx, y: last.cy, r: Math.ceil((0.6 + 0.25 * (t - last.t)) * RC) });
+        let fix = null, z = 1, tw = tp[0];
+        if (last && t - last.t <= GAP_S) {  // you can't have gone far since the last picture (further in a vehicle)
+          const r = Math.ceil((0.6 + (last.z > 1 ? 0.8 : 0.25) * (t - last.t)) * RC);
+          fix = locate(gc, gf, tp[0], tp[1], { x: last.x - (tp[0].w >> 1), y: last.y - (tp[0].h >> 1), r });
           if (fix && fix.s < OK_NEAR) fix = null;
         }
         if (!fix) {  // anywhere on the map (after a respawn, say): only a clear winner counts
           fix = locate(gc, gf, tp[0], tp[1], null);
           if (fix && (fix.s < OK_ANY || fix.gap < OK_GAP)) fix = null;
         }
-        if (fix) { route.push([t, +fix.X.toFixed(2), +fix.Y.toFixed(2), +fix.s.toFixed(2)]); last = { t, cx: fix.cx, cy: fix.cy }; }
+        // nothing at the usual scale: in a vehicle, the minimap shows a wider area
+        for (const zz of fix ? [] : ZOOMS) {
+          const tz = await snapTemplates(dir, file, zz), f = tz?.[1] && locate(gc, gf, tz[0], tz[1], null);
+          if (f && f.s >= OK_ANY && f.gap >= OK_GAP && (!fix || f.s > fix.s)) { fix = f; z = zz; tw = tz[0]; }
+        }
+        if (fix) {
+          route.push([t, +fix.X.toFixed(2), +fix.Y.toFixed(2), +fix.s.toFixed(2), ...(z > 1 ? [z] : [])]);
+          last = { t, x: fix.cx + (tw.w >> 1), y: fix.cy + (tw.h >> 1), z };
+        }
       }
     } catch { /* a picture that was cleared away */ }
     if (i % 6 === 5) {
@@ -2257,6 +2272,172 @@ async function routeFor(st, dir, list) {
   const clean = route.filter((p, i) => !(i > 0 && i < route.length - 1 && dist(route[i - 1], p) > 2 && dist(p, route[i + 1]) > 2
     && dist(route[i - 1], route[i + 1]) < 1.5));
   return { route: clean, refs: best.g.map(refName) };
+}
+
+// what else a minimap picture showed, as offsets from you in map units: other players (the red
+// arrows), FOBs (the white rings) and drills (the white drill bit). Icons pinned to the edge are left out.
+function miniIcons(img, z = 1) {
+  const W = img.naturalWidth, H = img.naturalHeight, k = W / 171, ppu = MINI_PPU / z * k;
+  const x = canvasOf(W, H);
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, W, H).data, red = new Uint8Array(W * H), white = new Uint8Array(W * H);
+  for (let i = 0, j = 0; i < red.length; i++, j += 4) {
+    const r = d[j], g = d[j + 1], b = d[j + 2];
+    red[i] = r > 190 && g < 120 && b < 110 && r - g > 110 ? 1 : 0;
+    white[i] = Math.min(r, g, b) > 175 ? 1 : 0;
+  }
+  // pieces of one colour, joined across gaps up to `reach` pixels (a ring's thin outline breaks up)
+  const blobs = (m, reach) => {
+    const out = [];
+    for (let s0 = 0; s0 < m.length; s0++) {
+      if (m[s0] !== 1) continue;
+      const st = [s0];
+      m[s0] = 2;
+      let n = 0, sx = 0, sy = 0, x0 = W, x1 = 0, y0 = H, y1 = 0;
+      while (st.length) {
+        const i = st.pop(), px = i % W, py = (i - px) / W;
+        n++; sx += px; sy += py;
+        x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+        for (let dy = -reach; dy <= reach; dy++) for (let dx = -reach; dx <= reach; dx++) {
+          const qx = px + dx, qy = py + dy, q = qy * W + qx;
+          if (qx >= 0 && qy >= 0 && qx < W && qy < H && m[q] === 1) { m[q] = 2; st.push(q); }
+        }
+      }
+      out.push({ n, x: sx / n, y: sy / n, w: x1 - x0 + 1, h: y1 - y0 + 1, edge: x0 < 3 * k || y0 < 3 * k || x1 > W - 3 * k || y1 > H - 3 * k });
+    }
+    return out;
+  };
+  const keep = (b) => !b.edge && Math.hypot(b.x - W / 2, b.y - H / 2) > 8 * k && !(b.x > 0.55 * W && b.y > 0.82 * H);
+  const at = (b) => [+((b.x - W / 2) / ppu).toFixed(3), +(-(b.y - H / 2) / ppu).toFixed(3)];
+  const between = (v, lo, hi) => v >= lo * k && v <= hi * k;
+  const players = blobs(red, 1).filter((b) => keep(b) && b.n >= 4 * k * k && b.n <= 60 * k * k && b.w <= 11 * k && b.h <= 11 * k).map(at);
+  const fobs = [], drills = [];
+  for (const b of blobs(white, 2)) {
+    if (!keep(b) || b.n < 6 * k * k) continue;
+    if (between(b.w, 10, 17) && between(b.h, 10, 17) && b.n / (b.w * b.h) < 0.5) fobs.push(at(b));
+    else if (between(b.w, 7, 13) && between(b.h, 12, 19)) drills.push(at(b));
+  }
+  return { players, fobs, drills };
+}
+
+// the same FOB or drill seen on many pictures, gathered into one, with when it was first and last seen
+function iconPlaces(seen, key, least) {
+  const out = [];
+  for (const s of seen) for (const [X, Y] of s[key]) {
+    const c = out.find((c) => Math.hypot(c.x - X, c.y - Y) < 0.3);
+    if (c) { c.n++; c.x += (X - c.x) / c.n; c.y += (Y - c.y) / c.n; c.t1 = s.t; } else out.push({ x: X, y: Y, n: 1, t0: s.t, t1: s.t });
+  }
+  return out.filter((c) => c.n >= least);
+}
+
+// the minimap's icons for every placed picture, worked out after the route (they aren't saved)
+async function replayIcons(id, dir, list) {
+  const st = replays[id], files = new Map((list.snaps || []).map(([t, f]) => [Math.round(t), f])), seen = [];
+  for (const [i, p] of st.route.entries()) {
+    const f = files.get(Math.round(p[0]));
+    if (!f) continue;
+    try {
+      const z = p[4] || 1, got = miniIcons(await loadImg(`/track/${dir}/${encodeURIComponent(f)}`), z);
+      const put = (a) => a.map(([dx, dy]) => [p[1] + dx, p[2] + dy]);
+      seen.push({ t: p[0], players: put(got.players), fobs: put(got.fobs), drills: put(got.drills) });
+    } catch { /* a picture that was cleared away */ }
+    if (i % 20 === 19) await nextFrame();
+  }
+  st.seen = seen;
+  st.fobs = iconPlaces(seen, "fobs", 3);
+  st.drills = iconPlaces(seen, "drills", 2);
+  drawReplay(id);
+}
+
+// places on each map, from wardogstracker.gg's map page (same coordinates as ours): towers, the
+// spawns with their vendors, and where the control zone can be. [label, x, y, kind]
+const MAP_PLACES = {"bakurani":{"marks":[["Tower 4",83.64,72.85,"tower"],["Tower 3",77.19,73.44,"tower"],["Tower 2",77.19,70,"tower"],["Tower 1",80.52,69.85,"tower"],["Tower 5",82.22,68.41,"tower"],["Weapons Vendor",118.3,70.73,"weapons_vendor"],["Garage Vendor",118.14,70.45,"garage_vendor"],["Spawn Board",118.37,70.49,"spawn_board"],["Weapons Vendor",39.77,77.65,"weapons_vendor"],["Garage Vendor",40.1,77.31,"garage_vendor"],["Spawn Board",39.68,77.48,"spawn_board"],["Weapons Vendor",87.2,32.68,"weapons_vendor"],["Garage Vendor",86.84,32.64,"garage_vendor"],["Spawn Board",87.06,32.72,"spawn_board"]],"spawns":[["Valkyra spawn","valkyra",[[117.5,73.76],[121.22,70.71],[118.18,66.99],[114.45,70.04]]],["Manticore spawn","manticore",[[38.68,79.88],[43.39,78.85],[42.35,74.15],[37.65,75.18]]],["Lonestar spawn","lonestar",[[83.08,35.27],[87.72,36.51],[88.97,31.86],[84.32,30.62]]]],"zones":[["Default",79.9,71.83,5.03],["Farmland",81.38,69.38,5.03],["Lumberyard",82.51,71.83,5.03]]},"ozeti":{"marks":[["Tower 4",100.62,67.64,"tower"],["Tower 3",104.49,63.71,"tower"],["Tower 2",100.37,59.23,"tower"],["Tower 1",95.8,62.82,"tower"],["Weapons Vendor",138.03,67.33,"weapons_vendor"],["Garage Vendor",137.9,67.07,"garage_vendor"],["Spawn Board",137.88,67.26,"spawn_board"],["Weapons Vendor",68.54,88.16,"weapons_vendor"],["Garage Vendor",68.66,87.92,"garage_vendor"],["Spawn Board",68.42,87.86,"spawn_board"],["Weapons Vendor",83.85,30.88,"weapons_vendor"],["Garage Vendor",83.73,31.17,"garage_vendor"],["Spawn Board",83.68,31.04,"spawn_board"]],"spawns":[["Valkyra spawn","valkyra",[[133.98,68.51],[138.58,69.92],[139.99,65.32],[135.39,63.91]]],["Manticore spawn","manticore",[[69.22,90.85],[73.09,87.98],[70.22,84.12],[66.36,86.99]]],["Lonestar spawn","lonestar",[[81.52,34.03],[86.33,34.03],[86.33,29.21],[81.53,29.22]]]],"zones":[["Default",99.98,63.5,5.58],["Farmland",94.58,63.52,5.58],["Church",101.62,63.19,5.58],["River",97.67,62.36,5.58]]},"zestafona":{"marks":[["Tower 3",70.17,100.17,"tower"],["Tower 1",68.6,104.15,"tower"],["Tower 2",72.89,105.07,"tower"],["Spawn Board",38.9,124.86,"spawn_board"],["Garage Vendor",104.66,114.54,"garage_vendor"],["Spawn Board",105.05,115.29,"spawn_board"],["Spawn Board",68.24,66.32,"spawn_board"],["Garage Vendor",67.83,66.5,"garage_vendor"],["Garage Vendor",39.4,124.8,"garage_vendor"]],"spawns":[["Manticore spawn","manticore",[[103.3,111.71],[101.91,116.31],[106.51,117.69],[107.89,113.1]]],["Valkyra spawn","valkyra",[[40.27,121.88],[35.7,123.36],[37.18,127.93],[41.75,126.45]]],["Lonestar spawn","lonestar",[[65.13,64.82],[66.31,69.47],[70.96,68.27],[69.78,63.62]]]],"zones":[["Default",70.55,103.13,5.03]]}};
+const FACTION = { valkyra: "#d86666", manticore: "#82c596", lonestar: "#5fa8d3" };
+const MARK_NAME = { tower: "", weapons_vendor: "Weapons", garage_vendor: "Garage", spawn_board: "Spawn board" };
+
+// the control zone this round: the layout around most of your Hot Zone time
+function roundZone(st) {
+  const zones = MAP_PLACES[st.mapKey]?.zones;
+  if (!zones?.length) return null;
+  const hot = st.route.filter((p) => { let r = null; for (const x of st.timeline) { if (x.t > p[0]) break; r = x; } return r?.here === "hotzone"; });
+  if (!hot.length) return null;
+  const mx = hot.reduce((a, p) => a + p[1], 0) / hot.length, my = hot.reduce((a, p) => a + p[2], 0) / hot.length;
+  return zones.reduce((b, z) => Math.hypot(z[1] - mx, z[2] - my) < Math.hypot(b[1] - mx, b[2] - my) ? z : b);
+}
+
+function mapLabel(x, text, a, b, color, size = 11) {
+  x.font = `600 ${size}px system-ui, sans-serif`;
+  x.lineWidth = 3; x.strokeStyle = "rgba(16,18,21,.85)"; x.lineJoin = "round";
+  x.strokeText(text, a, b);
+  x.fillStyle = color; x.fillText(text, a, b);
+}
+
+function drawPlaces(st, x, px, k) {
+  const pl = MAP_PLACES[st.mapKey];
+  if (!pl) return;
+  x.textAlign = "center"; x.textBaseline = "middle";
+  const z = st.zone;
+  if (z) {
+    const [a, b] = px(z[1], z[2]);
+    x.setLineDash([6, 5]); x.strokeStyle = "rgba(227,169,43,.6)"; x.lineWidth = 1.5;
+    x.beginPath(); x.arc(a, b, z[3] * k, 0, 7); x.stroke(); x.setLineDash([]);
+    mapLabel(x, `Control zone${z[0] === "Default" ? "" : ": " + z[0]}`, a, b - z[3] * k + 12, "#e3a92b");
+  }
+  for (const [label, faction, pts] of pl.spawns) {
+    const c = FACTION[faction] || "#ccc";
+    x.beginPath();
+    pts.forEach(([X, Y], i) => { const [a, b] = px(X, Y); i ? x.lineTo(a, b) : x.moveTo(a, b); });
+    x.closePath(); x.globalAlpha = 0.18; x.fillStyle = c; x.fill(); x.globalAlpha = 1;
+    x.strokeStyle = c; x.lineWidth = 1.5; x.stroke();
+    const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    const [a, b] = px(cx, cy);
+    mapLabel(x, label, a, b - Math.max(12, 2.4 * k), c, 12);
+  }
+  for (const [label, X, Y, kind] of pl.marks) {
+    if (kind !== "tower" && k < 150) continue;  // the vendors are a few metres apart: only when zoomed right in
+    const [a, b] = px(X, Y);
+    x.fillStyle = kind === "tower" ? "#e9e6df" : "#b9a4e8";
+    x.beginPath(); x.moveTo(a, b - 5); x.lineTo(a + 5, b); x.lineTo(a, b + 5); x.lineTo(a - 5, b); x.closePath();
+    x.fill(); x.lineWidth = 1.5; x.strokeStyle = "#101215"; x.stroke();
+    if (k >= 25) mapLabel(x, MARK_NAME[kind] || label, a, b - 12, "#e9e6df", 10);
+  }
+}
+
+// FOBs and drills while they were seen, and the players the minimap showed at this moment
+function drawSeen(st, x, px, layers) {
+  const near = (c) => st.t >= c.t0 - 5 && st.t <= c.t1 + 30;
+  if (layers.has("fobs")) {
+    for (const c of st.fobs || []) {
+      const [a, b] = px(c.x, c.y);
+      x.globalAlpha = near(c) ? 1 : 0.3;
+      x.beginPath(); x.arc(a, b, 7, 0, 7); x.fillStyle = "rgba(90,167,232,.35)"; x.fill();
+      x.lineWidth = 2; x.strokeStyle = "#5aa7e8"; x.stroke();
+      x.fillStyle = "#e9e6df"; x.fillRect(a - 2.5, b - 2.5, 5, 5);
+    }
+    for (const c of st.drills || []) {
+      const [a, b] = px(c.x, c.y);
+      x.globalAlpha = near(c) ? 1 : 0.3;
+      x.beginPath(); x.moveTo(a - 5, b - 7); x.lineTo(a + 5, b - 7); x.lineTo(a, b + 7); x.closePath();
+      x.fillStyle = "#e9e6df"; x.fill(); x.lineWidth = 1.5; x.strokeStyle = "#101215"; x.stroke();
+    }
+    x.globalAlpha = 1;
+  }
+  if (layers.has("players") && st.seen?.length) {
+    let best = null;
+    for (const s of st.seen) if (Math.abs(s.t - st.t) <= 5 && (!best || Math.abs(s.t - st.t) < Math.abs(best.t - st.t))) best = s;
+    for (const [X, Y] of best?.players || []) {
+      const [a, b] = px(X, Y);
+      x.beginPath(); x.arc(a, b, 4, 0, 7); x.fillStyle = "#e8513a"; x.fill();
+      x.lineWidth = 1.5; x.strokeStyle = "#101215"; x.stroke();
+    }
+  }
+}
+
+// which layers show over the map, kept in this browser
+const RP_LAYERS = [["places", "Places"], ["fobs", "FOBs & drills"], ["players", "Players"]];
+function rpLayers() {
+  try { const v = JSON.parse(localStorage.getItem("wdt-rp-layers")); if (Array.isArray(v)) return new Set(v); } catch { /* none kept */ }
+  return new Set(["places", "fobs"]);
 }
 
 // two fixes in a row belong on one line: close in time, no respawn between them,
@@ -2395,6 +2576,8 @@ function drawReplay(id) {
     }
   }
   x.globalAlpha = 1;
+  const layers = rpLayers();
+  if (layers.has("places")) drawPlaces(st, x, px, k);
   // a faint grid every 100 m (every 500 m when zoomed out)
   const step = k > 40 ? 1 : 5;
   x.strokeStyle = "rgba(255,255,255,.07)"; x.lineWidth = 1;
@@ -2408,6 +2591,7 @@ function drawReplay(id) {
   };
   line(r, "rgba(233,230,223,.35)", 2);
   line(r.filter((p) => p[0] <= st.t), "#e3a92b", 2.5);
+  drawSeen(st, x, px, layers);
   const css = getComputedStyle(document.documentElement);
   const color = (c) => c.startsWith("var(") ? css.getPropertyValue(c.slice(4, -1)).trim() : c;
   for (const e of st.events) {
@@ -2459,14 +2643,16 @@ function replayBody(id) {
   const span = Math.max(1, st.t1 - st.t0), when = (t) => liveClock(Math.max(0, t - st.t0));
   const pos = (t) => Math.max(0, Math.min(100, (t - st.t0) / span * 100));
   return `<div class="rp-grid"><div class="rp-main"><div class="rp-wrap"><canvas id="rpCanvas" class="rp-map" role="img" aria-label="Map of where you went this round, with kills, deaths and purchases marked"></canvas>
+    <div class="rp-layers" role="group" aria-label="Show on the map">${RP_LAYERS.filter(([l]) => l !== "places" || MAP_PLACES[st.mapKey]).map(([l, n]) => `<button data-rplayer="${l}" aria-pressed="${rpLayers().has(l)}">${n}</button>`).join("")}</div>
     <div class="rp-zoom"><button data-rpzoom="1.5" aria-label="Zoom in" title="Zoom in">+</button><button data-rpzoom="0.667" aria-label="Zoom out" title="Zoom out">−</button><button data-rpzoom="0" aria-label="Back to the whole route" title="Back to the whole route">⟲</button></div></div>
     <div class="rp-bar"><button id="rpPlay" aria-label="Play or pause the round">${st.playing ? "❚❚" : "▶"}</button>
       <div class="rp-track"><div class="rp-marks" id="rpMarks">${st.moments.map((e) => `<button class="rp-mark" data-rpt="${e.t}" data-kind="${e.kind}" title="${when(e.t)} ${esc(e.text)}" aria-label="${when(e.t)} ${esc(e.text)}" style="left:${pos(e.t).toFixed(2)}%;--c:${e.color}"><span>${esc(e.short)}</span></button>`).join("")}</div>
         <input id="rpTime" type="range" min="${Math.floor(st.t0)}" max="${Math.ceil(st.t1)}" step="1" value="${Math.round(st.t)}" aria-label="Match time">
         <div class="rp-place" aria-hidden="true">${(st.places || []).filter((p) => RP_PLACE[p.p]).map((p) => `<i style="left:${pos(p.t).toFixed(2)}%;width:${(pos(p.end) - pos(p.t)).toFixed(2)}%;background:${RP_PLACE[p.p][1]}"></i>`).join("")}</div></div></div>
     <div id="rpNow" class="rp-now"></div>
-    <div class="legend">${Object.entries(RP_EVENTS).filter(([k]) => st.events.some((e) => e.kind === k)).map(([, [n, c]]) => `<span><i style="background:${c};border-radius:50%"></i>${n}</span>`).join("")}<span><i style="background:var(--gold)"></i>Route so far</span><span><i style="background:var(--gold);height:4px"></i>Hot Zone</span><span><i style="background:var(--blue);height:4px"></i>FOB</span></div>
-    <p class="m" style="margin:6px 0 0">Placed from ${fmt(st.route.length)} of ${fmt(st.n || st.route.length)} minimap pictures by matching them to the big map, so it's approximate. Gaps are where the minimap was hidden or off the part of the map you've opened. <span id="rpSrc" hidden>Full map from wardogstracker.gg.</span></p></div>
+    <div class="legend">${Object.entries(RP_EVENTS).filter(([k]) => st.events.some((e) => e.kind === k)).map(([, [n, c]]) => `<span><i style="background:${c};border-radius:50%"></i>${n}</span>`).join("")}<span><i style="background:var(--gold)"></i>Route so far</span><span><i style="background:var(--gold);height:4px"></i>Hot Zone</span><span><i style="background:var(--blue);height:4px"></i>FOB</span>${st.fobs?.length ? `<span><i style="background:#5aa7e8;border-radius:50%"></i>FOBs seen</span>` : ""}${st.drills?.length ? `<span><i style="background:#e9e6df"></i>Drills seen</span>` : ""}</div>
+    <p class="m" style="margin:6px 0 0">Placed from ${fmt(st.route.length)} of ${fmt(st.n || st.route.length)} minimap pictures by matching them to the big map, so it's approximate. Gaps are where the minimap was hidden or off the part of the map you've opened; in a vehicle, open the big map zoomed out now and then so the wider minimap can be placed too.
+    FOBs, drills and players are what your minimap showed, so only near where you were. <span id="rpSrc" hidden>Full map${MAP_PLACES[st.mapKey] ? " and places" : ""} from wardogstracker.gg.</span></p></div>
     <aside class="rp-side" id="rpSide" aria-label="What was going on at this moment">${replaySideBody(id)}</aside></div>`;
 }
 
@@ -2614,6 +2800,13 @@ function renderReplay(id) {
     if (v().z !== before) { v().x += dx / k1 - dx / k2; v().y -= dy / k1 - dy / k2; }
     drawReplay(id);
   };
+  el.querySelectorAll("[data-rplayer]").forEach((b) => b.addEventListener("click", () => {
+    const on = rpLayers(), l = b.dataset.rplayer;
+    on.has(l) ? on.delete(l) : on.add(l);
+    try { localStorage.setItem("wdt-rp-layers", JSON.stringify([...on])); } catch { /* kept for this visit only */ }
+    b.setAttribute("aria-pressed", String(on.has(l)));
+    drawReplay(id);
+  }));
   el.querySelectorAll("[data-rpzoom]").forEach((b) => b.addEventListener("click", () => {
     if (+b.dataset.rpzoom) zoomAt(+b.dataset.rpzoom, cv.clientWidth / 2, cv.clientHeight / 2);
     else { st.view = { z: 1, x: 0, y: 0 }; drawReplay(id); }
@@ -2697,7 +2890,9 @@ async function setupReplay(m, d, t0) {
       else if (old) ({ path: route, refs: names } = d.track_route);
     }
     st.route = tidyRoute(route);
+    st.zone = roundZone(st);
     st.refs = await mapPictures(list, new Set(names || []));
+    replayIcons(id, encodeURIComponent(tr.dir), list).then(() => { if (st.status === "ready" && $("rpBody")) renderReplay(id); }, () => {});
     if (route.length) { st.t0 = Math.min(st.t0, route[0][0]); st.t1 = Math.max(st.t1, route[route.length - 1][0]); st.t = st.t0; }
   } catch {
     st.route = [];

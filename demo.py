@@ -46,6 +46,9 @@ CATALOG = [
     ("Infrared Range Finder", "equipment", 32, "recon", 50000, 1200, 4),
     ("Large Hammer", "equipment", 8, "support", 75000, 2400, 57)]
 TRUTH = []  # where the demo round's minimap pictures were really taken: [t, x, y]
+# what else the demo minimap shows: a FOB and a drill (map units); "zoomed": the pictures taken
+# zoomed out three times, as from a vehicle
+ICONS = {"fob": (69.6, 102.8), "drill": (69.35, 102.25), "zoomed": []}
 
 
 def _png(path, w, h, rgb):
@@ -91,22 +94,34 @@ def build_track(ddir, rng, t0, t1):
         json.dump({"x0": X0, "x1": X0 + 15, "y0": Y0, "y1": Y0 - 15, "t": round(t0 + 60), "file": name + ".png",
                    "round": rnd, "w": N * ppu // 10, "h": N * ppu // 10}, f)
     TRUTH.clear()
+    ICONS["zoomed"] = []
     n = 0
-    for i, t in enumerate(range(int(t0) + 30, int(t1) - 30, 20)):
+    times = list(range(int(t0) + 30, int(t1) - 30, 20))
+    for i, t in enumerate(times):
         a = i / 9
         X, Y = 67.5 + 2.4 * __import__("math").cos(a), 102.5 + 2.0 * __import__("math").sin(a * 1.3)
         TRUTH.append([t, round(X, 2), round(Y, 2)])
+        z = 3 if i >= len(times) - 4 else 1  # the last few from a vehicle: the minimap zoomed out
+        if z > 1:
+            ICONS["zoomed"].append(t)
+        ppu = 93 / z
+        on = lambda P: (85.5 + (P[0] - X) * ppu, 76.5 - (P[1] - Y) * ppu)
+        (fx, fy), (dx, dy) = on(ICONS["fob"]), on(ICONS["drill"])
         rgb = bytearray()
         for py in range(153):
             for px in range(171):
                 if abs(px - 85) + abs(py - 76) < 6:
                     rgb += b"\xff\xff\xff"  # your arrow
-                elif (px - 30 - i % 40) ** 2 + (py - 40) ** 2 < 25 or (px - 120) ** 2 + (py - 100 - i % 20) ** 2 < 25:
-                    rgb += b"\x30\xd0\x50"  # teammates
+                elif 36 <= (px - fx) ** 2 + (py - fy) ** 2 <= 56:
+                    rgb += b"\xf4\xf4\xf4"  # a FOB's ring
+                elif abs(px - dx) < 4 and abs(py - dy) < 7.5:
+                    rgb += b"\xf0\xf0\xf0"  # the drill
+                elif abs(px - 30 - i % 40) + abs(py - 40) < 4 or abs(px - 120) + abs(py - 100 - i % 20) < 4:
+                    rgb += b"\xff\x3c\x32"  # other players
                 elif px > 100 and py > 135:
                     rgb += b"\x60\x60\x60"  # the NAV text
                 else:
-                    v = at(X + (px - 85.5) / 93, Y - (py - 76.5) / 93)
+                    v = at(X + (px - 85.5) / ppu, Y - (py - 76.5) / ppu)
                     rgb += bytes((v // 2 + 20, v // 2 + 40, v // 2 + 20))  # tinted green, like a held zone
         _png(os.path.join(root, rnd, f"{t}.png"), 171, 153, bytes(rgb))
         n += 1

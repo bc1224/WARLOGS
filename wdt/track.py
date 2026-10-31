@@ -195,19 +195,22 @@ def file_path(ddir, round_dir, name):
 
 def clean_route(body):
     """A replay route posted by the dashboard, checked before it's stored:
-    {"path": [[t, x, y, score]], "refs": [map picture names], "v": how it was worked out},
-    or None if it's off."""
+    {"path": [[t, x, y, score] or [t, x, y, score, minimap zoom]], "refs": [map picture names],
+    "v": how it was worked out}, or None if it's off. The zoom is 1 on foot; vehicles zoom the minimap out.
+    """
     if not isinstance(body, dict):
         return None
     path, refs = body.get("path"), body.get("refs") or []
     if not isinstance(path, list) or not isinstance(refs, list) or len(path) > 5000 or len(refs) > 200:
         return None
     num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and abs(v) < 1e10 and v == v
-    if not all(isinstance(p, list) and len(p) == 4 and all(num(v) for v in p) for p in path):
+    if not all(isinstance(p, list) and len(p) in (4, 5) and all(num(v) for v in p) and (len(p) == 4 or 1 <= p[4] <= 8)
+               for p in path):
         return None
     if not all(isinstance(r, str) and NAME.fullmatch(r) for r in refs):
         return None
     v = body.get("v", 1)
     if not isinstance(v, int) or isinstance(v, bool) or not 0 < v < 1000:
         return None
-    return {"path": [[int(p[0]), round(p[1], 2), round(p[2], 2), round(p[3], 2)] for p in path], "refs": refs, "v": v}
+    return {"path": [[int(p[0]), round(p[1], 2), round(p[2], 2), round(p[3], 2)] + ([round(p[4], 2)] if len(p) == 5 and p[4] != 1 else [])
+                     for p in path], "refs": refs, "v": v}
