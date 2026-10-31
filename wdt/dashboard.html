@@ -1379,6 +1379,7 @@ applyNav();
 // Live updates: a tiny version check every 2 s; full reload only when something changed.
 let lastFull = 0;
 async function poll() {
+  if (document.hidden) return;  // a tab in the background costs nothing; it catches up when shown
   try {
     const r = await (await fetch("/api/version")).json();
     if (!data || r.v !== data.version || Date.now() - lastFull > 30000) { await load(); lastFull = Date.now(); }
@@ -1387,6 +1388,7 @@ async function poll() {
 }
 poll();
 setInterval(poll, 2000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
 
 // Update check: the tracker asks GitHub every few hours; one click installs the new version.
 let upd = null;

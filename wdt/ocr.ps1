@@ -30,6 +30,7 @@ if (-not $engine) { $engine = [Windows.Media.Ocr.OcrEngine]::TryCreateFromUserPr
 function Read-Text([string]$imagePath) {
     $file = Await ([Windows.Storage.StorageFile]::GetFileFromPathAsync($imagePath)) ([Windows.Storage.StorageFile])
     $stream = Await ($file.OpenAsync([Windows.Storage.FileAccessMode]::Read)) ([Windows.Storage.Streams.IRandomAccessStream])
+    $bitmap = $null
     try {
         $decoder = Await ([Windows.Graphics.Imaging.BitmapDecoder]::CreateAsync($stream)) ([Windows.Graphics.Imaging.BitmapDecoder])
         # The engine refuses images larger than MaxImageDimension, so scale down when needed.
@@ -45,6 +46,9 @@ function Read-Text([string]$imagePath) {
                 [Windows.Graphics.Imaging.ColorManagementMode]::DoNotColorManage)) ([Windows.Graphics.Imaging.SoftwareBitmap])
         $result = Await ($engine.RecognizeAsync($bitmap)) ([Windows.Media.Ocr.OcrResult])
     } finally {
+        # a full screen picture is 8 MB outside .NET's heap, so the garbage collector
+        # doesn't hurry to free it: let go of it right away
+        if ($bitmap) { $bitmap.Dispose() }
         $stream.Dispose()
     }
     $lines = foreach ($line in $result.Lines) {
@@ -60,10 +64,12 @@ if ($Serve) {
     # game text can hold any character; send UTF-8 so Python can decode it
     [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false
     [Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
+    $reads = 0
     while ($null -ne ($p = [Console]::In.ReadLine())) {
         try { $out = Read-Text $p } catch { $out = ConvertTo-Json @{ error = $_.Exception.Message } -Compress }
         [Console]::Out.WriteLine($out)
         [Console]::Out.Flush()
+        if (++$reads % 25 -eq 0) { [GC]::Collect() }  # keeps a long match from growing the process
     }
 } else {
     Read-Text $Path

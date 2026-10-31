@@ -9,6 +9,7 @@
 * pulls your synced totals from the wardogstracker.gg API now and then
 * serves the dashboard at http://127.0.0.1:<dashboard_port>
 """
+import bisect
 import ctypes
 import difflib
 import glob
@@ -74,6 +75,8 @@ HK_END, HK_START = 1, 2
 FEED_AREAS = ((0.78, 0.045, 0.22, 0.18),   # reward feed under the top-right cash
               (0.0, 0.36, 0.32, 0.24))     # kill feed on the left
 MENU_STRIP = (0.0, 0.0, 0.32, 0.045)        # INVENTORY / SCOREBOARD / PROGRESSION tabs of the in-match menu
+STACK_GAP = 40     # dark rows between the corners stacked into one picture for one OCR read
+OCR_IDLE = 120     # with the game in the background this long, the OCR helper is closed to free its memory
 log = logging.getLogger("wdt")
 
 
@@ -131,6 +134,7 @@ class Tracker:
         self.next_track = 0.0
         self.next_map = 0.0
         self.last_event = None
+        self.away_since = None
 
     # --- inputs -----------------------------------------------------------
     def _steam_shots(self):
@@ -720,14 +724,16 @@ class Tracker:
     def _read_feeds(self, now):
         x, y, w, h = self.rect
         scale = min(1.0, self.cfg["read_width"] / w)
-        got = []
+        crops = []
         for fx, fy, fw, fh in FEED_AREAS + (MENU_STRIP,):
             r = (x + round(fx * w), y + round(fy * h), round(fw * w), round(fh * h))
             ow, oh = max(1, round(r[2] * scale)), max(1, round(r[3] * scale))
-            lines = self._ocr_frame(winapi.grab(r, ow, oh), ow, oh)
-            if lines is None:
-                return
-            got.append(lines)
+            crops.append((winapi.grab(r, ow, oh), ow, oh))
+        data, ww, hh, starts = stack(crops)  # one read of all three costs half of three reads
+        lines = self._ocr_frame(data, ww, hh)
+        if lines is None:
+            return
+        got = unstack(lines, starts)
         menu = got.pop()
         if any("SCOREBOARD" in (l.get("text") or "").upper() for l in menu if isinstance(l, dict)):
             self.next_hud = min(self.next_hud, now)  # the in-match menu is open: read it next tick
@@ -967,6 +973,12 @@ class Tracker:
             return self.cfg["idle_seconds"]
 
         self.rect = winapi.foreground_rect(self.pids)
+        if self.rect:
+            self.away_since = None
+        elif self.away_since is None:
+            self.away_since = now
+        elif now - self.away_since >= OCR_IDLE and getattr(self.ocr, "proc", None):
+            self.ocr.stop()  # tabbed out for a while: it starts again on the next read
         while not self.events.empty():
             kind, hid = self.events.get()
             if hid == HK_END:
@@ -1049,6 +1061,32 @@ class Tracker:
             os._exit(0)
 
 
+def stack(crops):
+    """[(bgra, w, h)] -> (bgra, w, h, starts): the crops one under another on a dark
+    background, and the y where each one starts."""
+    ww = max(w for _, w, _ in crops)
+    hh = sum(h for _, _, h in crops) + STACK_GAP * (len(crops) - 1)
+    out = bytearray(bytes((20, 20, 20, 255)) * (ww * hh))
+    starts, y = [], 0
+    for data, w, h in crops:
+        starts.append(y)
+        for row in range(h):
+            o = (y + row) * ww * 4
+            out[o:o + w * 4] = data[row * w * 4:(row + 1) * w * 4]
+        y += h + STACK_GAP
+    return bytes(out), ww, hh, starts
+
+
+def unstack(lines, starts):
+    """OCR lines of a stack() picture -> one list per crop, with y back in that crop."""
+    got = [[] for _ in starts]
+    for line in lines:
+        y = line.get("y", 0) if isinstance(line, dict) else 0
+        i = max(0, bisect.bisect_right(starts, y + STACK_GAP // 2) - 1)
+        got[i].append(dict(line, y=y - starts[i]) if isinstance(line, dict) else line)
+    return got
+
+
 def _alike(a, b):
     return difflib.SequenceMatcher(None, a.lower(), b.lower()).ratio() >= 0.6
 
@@ -1076,10 +1114,7 @@ def single_instance():
 
 def main():
     winapi.set_dpi_aware()
-    k32 = ctypes.windll.kernel32
-    k32.GetCurrentProcess.restype = ctypes.c_void_p
-    k32.SetPriorityClass.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
-    k32.SetPriorityClass(k32.GetCurrentProcess(), 0x4000)  # BELOW_NORMAL
+    winapi.background()
     ddir = data_dir()
     handler = logging.handlers.RotatingFileHandler(os.path.join(ddir, "tracker.log"),
                                                    maxBytes=1_000_000, backupCount=2,

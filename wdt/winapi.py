@@ -57,6 +57,28 @@ def set_dpi_aware():
         pass
 
 
+class POWER_THROTTLING(ctypes.Structure):
+    _fields_ = [("Version", wt.ULONG), ("ControlMask", wt.ULONG), ("StateMask", wt.ULONG)]
+
+
+kernel32.GetCurrentProcess.restype = wt.HANDLE
+kernel32.SetPriorityClass.argtypes = [wt.HANDLE, wt.DWORD]
+kernel32.SetProcessInformation.argtypes = [wt.HANDLE, ctypes.c_int, ctypes.c_void_p, wt.DWORD]
+BELOW_NORMAL_PRIORITY_CLASS = 0x4000
+
+
+def background(handle=None):
+    """Make a process (this one by default) give way to the game: below normal
+    priority, and Windows' efficiency mode, which runs it at low clock speeds."""
+    handle = handle or kernel32.GetCurrentProcess()
+    kernel32.SetPriorityClass(handle, BELOW_NORMAL_PRIORITY_CLASS)
+    state = POWER_THROTTLING(1, 1, 1)  # PROCESS_POWER_THROTTLING_EXECUTION_SPEED on
+    try:
+        kernel32.SetProcessInformation(handle, 4, ctypes.byref(state), ctypes.sizeof(state))
+    except (AttributeError, OSError):  # before Windows 10 1709
+        pass
+
+
 # --- processes ----------------------------------------------------------------
 class PROCESSENTRY32W(ctypes.Structure):
     _fields_ = [("dwSize", wt.DWORD), ("cntUsage", wt.DWORD), ("th32ProcessID", wt.DWORD),

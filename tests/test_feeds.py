@@ -5,7 +5,7 @@ from unittest import mock
 
 from wdt.ocr import details, downed, kill_feed, player_name, promotions, reward_feed, reward_label, vendor_item
 from wdt.store import Store
-from wdt.tracker import DEFAULTS, Tracker
+from wdt.tracker import DEFAULTS, STACK_GAP, Tracker, stack, unstack
 
 
 def L(text, x=0, y=0):
@@ -104,6 +104,43 @@ class TrackerFeedTests(unittest.TestCase):
     def tearDown(self):
         self.store.db.close()
         self.tmp.cleanup()
+
+    def test_the_corners_are_read_in_one_go(self):
+        # the reward feed, kill feed and menu strip go to OCR stacked in one picture,
+        # and each line is handed back to the corner it was read in
+        self.t.rect = (0, 0, 1920, 1080)
+        seen = []
+
+        def ocr(data, w, h):
+            seen.append((w, h, len(data)))
+            reward_h, kill_h = round(0.18 * 1080), round(0.24 * 1080)
+            return [L("BRIBE -$500", 10, 5), L("Dogtag Hollisx", 0, reward_h + STACK_GAP + 30),
+                    L("SCOREBOARD", 20, reward_h + kill_h + 2 * STACK_GAP + 2)]
+
+        with mock.patch("wdt.tracker.winapi.grab", side_effect=lambda r, w, h: bytes(w * h * 4)), \
+                mock.patch.object(self.t, "_ocr_frame", side_effect=ocr):
+            self.t.next_hud = 500
+            self.t._read_feeds(110)
+        self.assertEqual(len(seen), 1)
+        w, h, n = seen[0]
+        self.assertEqual(n, w * h * 4)
+        self.assertEqual(self.t.next_hud, 110)  # the menu is open: the scoreboard is read next tick
+        with mock.patch("wdt.tracker.winapi.grab", side_effect=lambda r, w, h: bytes(w * h * 4)), \
+                mock.patch.object(self.t, "_ocr_frame", return_value=[
+                    L("BRIBE -$500", 10, 5), L("Dogtag Hollisx", 0, round(0.18 * 1080) + STACK_GAP + 30)]):
+            self.t._read_feeds(113)
+        self.assertEqual(self.t.hud["rewards"]["Bribe"]["cash"], -500)
+        self.assertEqual([k["other"] for k in self.t.hud["kills"]], ["Hollisx"])
+
+    def test_stack_puts_crops_under_each_other(self):
+        a, b = (bytes([1]) * 2 * 1 * 4, 2, 1), (bytes([2]) * 3 * 2 * 4, 3, 2)
+        data, w, h, starts = stack([a, b])
+        self.assertEqual((w, h, starts), (3, 1 + STACK_GAP + 2, [0, 1 + STACK_GAP]))
+        self.assertEqual(data[:8], bytes([1]) * 8)
+        self.assertEqual(data[8:12], bytes((20, 20, 20, 255)))  # the narrower crop leaves background
+        self.assertEqual(data[starts[1] * w * 4:(starts[1] + 2) * w * 4], bytes([2]) * 24)
+        got = unstack([L("x", 0, 0), L("y", 5, starts[1] + 1), L("z", 0, starts[1] - 5)], starts)
+        self.assertEqual([[(l["text"], l["y"]) for l in g] for g in got], [[("x", 0)], [("y", 1), ("z", -5)]])
 
     def test_feed_entries_count_once_while_they_stay_on_screen(self):
         reads = [([L("CONTROL ZONE PRESENCE +$200")], [L("Dogtag Hollisx")]),
