@@ -97,6 +97,7 @@ tr[data-open] { cursor: pointer; }
 .mp-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .mp-head h2 { margin: 0; font-size: 20px; letter-spacing: 0; text-transform: none; color: var(--text); }
 .mp-nav button { margin-left: 4px; }
+.mp-nav .del { margin-left: 12px; color: var(--neg); border-color: color-mix(in srgb, var(--neg) 45%, transparent); }
 .strip { display: flex; height: 22px; border-radius: 6px; overflow: hidden; background: #23272c; margin: 6px 0 4px; }
 .strip span { display: block; height: 100%; }
 .strip .hotzone { background: var(--gold); } .strip .fob { background: var(--blue); } .strip .none { background: #3a3e45; }
@@ -1352,7 +1353,7 @@ document.addEventListener("click", async (e) => {
   if (t.dataset.srole) { stratRole = t.dataset.srole; store.set("wdt-srole", stratRole); if (data) renderStrategy(stratLatest); return; }
   if (t.dataset.mf != null) { mfilter = t.dataset.mf; if (data) renderMatches(data.matches.filter((m) => m.ended_at >= rangeStart()), RANGES[range]); return; }
   if (t.dataset.range) { range = t.dataset.range; store.set("wdt-range", range); if (data) render(); else applyNav(); return; }
-  if (t.dataset.del && confirm("Delete this match from your log?")) { await post(`/api/match/${t.dataset.del}/delete`); if (tab === "match") location.hash = "matches"; load(); }
+  if (t.dataset.del && confirm("Delete this match? It leaves your log and every total, and can't be undone.")) { await post(`/api/match/${t.dataset.del}/delete`); if (tab === "match") location.hash = "matches"; load(); }
   if (t.dataset.reread) {
     t.disabled = true; t.textContent = "reading…";
     let r;
@@ -1932,7 +1933,7 @@ async function renderMatchPage(id) {
     <div><button class="link" data-all-matches>← All matches</button>
       <h2>${when(m.ended_at)} <span class="m" style="font-size:14px;font-weight:400">${dur(len)}${d.duration_s != null ? "" : " (estimated)"} · ${m.started_at ? `${when(m.started_at)} to ${new Date(m.ended_at * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}</span></h2>
       <div class="chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${sideChip(d.side)}${d.result ? `<span class="res ${d.result}">${d.result}</span>` : ""}${d.winner ? `<span class="chip"><b>${esc(d.winner)}</b> won</span>` : ""}${d.score ? `<span class="chip">Score <b>${esc(d.score)}</b></span>` : ""}${teamChips(d.teams)}${d.map ? `<span class="chip">Map <b>${esc(d.map)}</b></span>` : ""}<span class="chip">logged by ${esc(m.source)}</span></div></div>
-    <div class="mp-nav"><button data-go="${prev?.id || ""}" ${prev ? "" : "disabled"}>← Older</button><button data-go="${next?.id || ""}" ${next ? "" : "disabled"}>Newer →</button></div>
+    <div class="mp-nav"><button data-go="${prev?.id || ""}" ${prev ? "" : "disabled"}>← Older</button><button data-go="${next?.id || ""}" ${next ? "" : "disabled"}>Newer →</button><button class="del" data-del="${m.id}" title="Remove this match from your log and every total">Delete match</button></div>
   </div></div>
 
   <div class="grid tiles" style="--cols:${Math.min(5, Math.ceil((8 + !!d.combat + (d.live_cash?.end_balance != null)) / 2))}">
