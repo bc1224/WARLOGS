@@ -73,7 +73,7 @@ def _labels(lines, rw, rh):
 
 def _fit(points, sign):
     """pos = a + b * value through the most labels; b's sign is +1 (x) or -1 (y, north
-    up). Misread labels fall out. Returns (a, b) or None."""
+    up). Misread labels fall out. Returns (a, b, how many labels) or None."""
     best = []
     for i, (p1, v1) in enumerate(points):
         for p2, v2 in points[i + 1:]:
@@ -91,7 +91,7 @@ def _fit(points, sign):
     mv = sum(v for _, v in best) / n
     mp = sum(p for p, _ in best) / n
     b = sum((v - mv) * (p - mp) for p, v in best) / sum((v - mv) ** 2 for _, v in best)
-    return mp - b * mv, b
+    return mp - b * mv, b, n
 
 
 def _place(points, b):
@@ -120,6 +120,11 @@ def georef(lines, rw, rh):
         return None
     if abs(abs(fx[1]) / abs(fy[1]) - 1) > 0.15:  # the map's pixels are square
         return None
+    if abs(abs(fx[1]) / abs(fy[1]) - 1) > 0.02:  # one axis misread: the one with more labels sets the scale
+        if fx[2] >= fy[2]:
+            fy = _place(ys, -fx[1]) or fy
+        else:
+            fx = _place(xs, -fy[1]) or fx
     px, py, pw, ph = PANE[0] * rw, PANE[1] * rh, PANE[2] * rw, PANE[3] * rh
     at = lambda f, pos: round((pos - f[0]) / f[1], 3)
     return {"x0": at(fx, px), "x1": at(fx, px + pw), "y0": at(fy, py), "y1": at(fy, py + ph)}

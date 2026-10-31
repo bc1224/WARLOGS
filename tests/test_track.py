@@ -65,6 +65,14 @@ class GeorefTests(unittest.TestCase):
         lines = labels() + [L("1KM", PX + PW + 30, PY + 50)] * 3
         self.assertAlmostEqual(track.georef(lines, RW, RH)["x0"], 64.35, places=1)
 
+    def test_one_misread_axis_follows_the_other(self):
+        # 2026-10-30: the left labels came out 4% too far apart, which put the pane 1.7 south of
+        # where the cursor read showed it; the map's pixels are square, so the axis with more labels sets the scale
+        lines = labels(xs=range(65, 77), ys=()) + labels(step=54.2, y0=110.8, xs=(), ys=(102, 106, 110))
+        g = track.georef(lines, RW, RH)
+        self.assertAlmostEqual((g["x1"] - g["x0"]) / PW, (g["y0"] - g["y1"]) / PH, places=4)
+        self.assertAlmostEqual(g["x0"], 64.35, places=1)
+
     def test_not_enough_labels(self):
         self.assertIsNone(track.georef(labels(xs=(70,), ys=(100, 101)), RW, RH))
         self.assertIsNone(track.georef([], RW, RH))
