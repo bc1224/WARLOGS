@@ -2380,6 +2380,19 @@ function roundZone(st) {
   return zones.reduce((b, z) => Math.hypot(z[1] - mx, z[2] - my) < Math.hypot(b[1] - mx, b[2] - my) ? z : b);
 }
 
+// the map a route is on: the results banner's name can be wrong (it said Bakurani for a round
+// played around Ozeti's control zones), so a route far from that map's zones goes on the map
+// whose zones it is near
+function routeMap(route, read) {
+  if (!route?.length) return read;
+  const xs = route.map((p) => p[1]).sort((a, b) => a - b), ys = route.map((p) => p[2]).sort((a, b) => a - b);
+  const mx = xs[xs.length >> 1], my = ys[ys.length >> 1];
+  const off = (k) => Math.min(...(MAP_PLACES[k]?.zones || []).map((z) => Math.hypot(z[1] - mx, z[2] - my) / z[3]));
+  if (!read || off(read) <= 2) return read;
+  const best = Object.keys(MAP_PLACES).reduce((b, k) => off(k) < off(b) ? k : b);
+  return off(best) <= 2 ? best : read;
+}
+
 function mapLabel(x, text, a, b, color, size = 11) {
   x.font = `600 ${size}px system-ui, sans-serif`;
   x.lineWidth = 3; x.strokeStyle = "rgba(16,18,21,.85)"; x.lineJoin = "round";
@@ -2886,7 +2899,7 @@ async function setupReplay(m, d, t0) {
   const st = replays[id] ||= { status: "new", t: t0, t0, t1: m.ended_at, n: tr.n, playing: false, route: null, refs: [] };
   st.events = replayEvents(d);
   st.breaks = [...(d.respawns_log || []), ...(d.kill_log || []).filter((k) => k.kind !== "kill")].map((x) => x.t).filter(Number.isFinite);
-  st.mapKey = mapKey(d.map);
+  st.mapKey = st.routeMap || mapKey(d.map);
   st.feed = d.feed || []; st.cash = d.cash_events || []; st.kills = d.kill_log || []; st.downs = d.downs_log || [];
   if (rpOpen !== id) rpOpen = null;
   replayFullClass(rpOpen === id);
@@ -2905,6 +2918,8 @@ async function setupReplay(m, d, t0) {
       else if (old) ({ path: route, refs: names } = d.track_route);
     }
     st.route = tidyRoute(route);
+    st.mapKey = st.routeMap = routeMap(st.route, st.mapKey);
+    st.tiles = {};
     st.zone = roundZone(st);
     st.refs = await mapPictures(list, new Set(names || []));
     replayIcons(id, encodeURIComponent(tr.dir), list).then(() => { if (st.status === "ready" && $("rpBody")) renderReplay(id); }, () => {});
