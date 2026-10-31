@@ -53,6 +53,21 @@ class FeedXpTests(unittest.TestCase):
             st.db.close()
 
 
+class DeleteMatchTests(unittest.TestCase):
+    def test_a_deleted_match_stays_gone_and_leaves_the_rest(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "t.db")
+            st = Store(path)
+            sid = st.start_session(0)
+            keep = st.add_match(sid, 0, 100, "auto", parsed={"xp": 500})
+            gone = st.add_match(sid, 200, 300, "auto", parsed={"xp": 900})
+            st.delete_match(gone)
+            st.db.close()
+            st = Store(path)
+            self.assertEqual([m["id"] for m in st.dump()["matches"]], [keep])
+            st.db.close()
+
+
 def _l(text, x, y):
     return {"text": text, "x": x, "y": y}
 
